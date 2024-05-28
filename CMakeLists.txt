@@ -45,7 +45,7 @@ elseif (LINUX)
 endif()
 
 cmake_minimum_required(VERSION 3.13)
-project(numerics)
+project(fvsolver)
 set(CMAKE_CXX_STANDARD 14)
 enable_language(CXX)
 enable_language(C)
