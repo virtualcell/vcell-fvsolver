@@ -11,7 +11,9 @@ WORKDIR /vcellroot/build
 
 RUN /usr/bin/cmake \
     -DOPTION_TARGET_MESSAGING=ON \
+    -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
     -DOPTION_TARGET_FV_SOLVER=ON \
+    -DOPTION_TARGET_DOCS=OFF \
     .. && \
     make && \
     ctest
