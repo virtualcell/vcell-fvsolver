@@ -111,6 +111,7 @@ add_definitions(-DUNIX)
 set(HDF5_USE_STATIC_LIBRARIES ON)
 if(WINDOWS OR WIN32 OR WIN64)
     set(HDF5_USE_STATIC_LIBRARIES OFF)
+    add_definitions(-DZIP_STATIC)
 endif ()
 #CMakeList.txt that comes with hdf5 switches library name if compiled with debug
 find_package(HDF5 COMPONENTS HL CXX C)
