@@ -449,7 +449,7 @@ bool SimulationMessaging::lockWorkerEvent(bool bTry)
 	return true;
 #else // UNIX
 	if (bTry) {
-		return (pthread_mutex_trylock(&mutex_workerEvent) == nullptr);
+		return (pthread_mutex_trylock(&mutex_workerEvent) == 0);
 	}
     if (pthread_mutex_lock(&mutex_workerEvent) != 0) {
         return false;
