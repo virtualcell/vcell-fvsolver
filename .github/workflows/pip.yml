@@ -92,10 +92,17 @@ jobs:
 
     - uses: actions/setup-python@v5
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: "${{ matrix.python-version }}"
 
     - name: Build and install
       run: pip install --verbose .
+      if: matrix.platform == 'windows-latest'
+      env:
+        PATH: "/c/Program Files/LLVM/bin:${{ env.PATH }}"
+
+    - name: Build and install
+      run: pip install --verbose .
+      if: matrix.platform != 'windows-latest'
 
     - name: Test
       run: |
