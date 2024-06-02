@@ -27,11 +27,9 @@ jobs:
         submodules: true
 
     - name: Build SDist
-      working-directory: pyvcell-fvsolver
       run: pipx run build --sdist
 
     - name: Check metadata
-      working-directory: pyvcell-fvsolver
       run: pipx run twine check dist/*
 
     - name: artifact upload
@@ -39,7 +37,6 @@ jobs:
       with:
         name: cibw-sdist
         path: dist/*.tar.gz
-        working-directory: pyvcell-fvsolver
 
 
   build_wheels:
@@ -57,21 +54,17 @@ jobs:
 
     - name: build wheel
       uses: pypa/cibuildwheel@v2.17
-      with:
-        working-directory: pyvcell-fvsolver
       env:
         CIBW_ARCHS_MACOS: universal2
         CIBW_ARCHS_WINDOWS: auto ARM64
 
     - name: Verify clean directory
-      working-directory: pyvcell-fvsolver
       run: git diff --exit-code
       shell: bash
 
     - uses: actions/upload-artifact@v4
       with:
         name: cibw-wheels-${{ matrix.os }}
-        working-directory: pyvcell-fvsolver
         path: wheelhouse/*.whl
 
 
@@ -91,7 +84,6 @@ jobs:
 
     - uses: actions/download-artifact@v4
       with:
-        working-directory: pyvcell-fvsolver
         pattern: cibw-*
         merge-multiple: true
         path: dist

@@ -25,7 +25,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Build and install
-      run: pip install --verbose ./pyvcell-fvsolver
+      run: pip install --verbose .
 
     - name: Test
       run: pytest
