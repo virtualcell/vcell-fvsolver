@@ -44,7 +44,7 @@ elseif (LINUX)
 	endif()
 endif()
 
-cmake_minimum_required(VERSION 3.13...3.27)
+cmake_minimum_required(VERSION 3.17...3.27)
 project(fvsolver)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -202,17 +202,14 @@ endif()
 # 
 #######################################
 
-if (${OPTION_TARGET_FV_SOLVER})
-
-		set(HDF5_USE_STATIC_LIBRARIES ON)
-		if(WINDOWS OR WIN32 OR WIN64)
-			set(HDF5_USE_STATIC_LIBRARIES OFF)
-		endif ()
-		#CMakeList.txt that comes with hdf5 switches library name if compiled with debug
-		find_package(HDF5 COMPONENTS HL CXX C)
-		set(HDF_VERSION ${HDF5_VERSION})
-		######    ${HDF5_HL_LIBRARIES} ${HDF5_CXX_LIBRARIES}
-endif()
+	set(HDF5_USE_STATIC_LIBRARIES ON)
+	if(WINDOWS OR WIN32 OR WIN64)
+		set(HDF5_USE_STATIC_LIBRARIES OFF)
+	endif ()
+	#CMakeList.txt that comes with hdf5 switches library name if compiled with debug
+	find_package(HDF5 COMPONENTS HL CXX C)
+	set(HDF_VERSION ${HDF5_VERSION})
+	######    ${HDF5_HL_LIBRARIES} ${HDF5_CXX_LIBRARIES}
 
 	add_subdirectory(VCellMessaging)
  
@@ -243,9 +240,6 @@ endif()
 	add_subdirectory(VCell)
 	add_subdirectory(PCGPack)
 	add_subdirectory(qhull)
-
-	add_subdirectory(extern/pybind11)
-	add_subdirectory(pyvcell-fvsolver)
 
 include(FetchContent)
 FetchContent_Declare(
