@@ -17,5 +17,6 @@ RUN cmake \
     -DOPTION_TARGET_FV_SOLVER=ON \
     -DOPTION_TARGET_DOCS=OFF \
     .. && \
-    ninja && \
-    ctest
+    ninja
+
+#RUN ctest

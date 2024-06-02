@@ -52,6 +52,75 @@ jobs:
       with:
         submodules: true
 
+    - name: Install Intel MacOS dependencies
+      if: matrix.platform == 'macos-13'
+      shell: bash
+      run: |
+        brew install boost
+        brew install hdf5
+        brew install ninja
+        
+        brew install llvm
+        echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
+        source /Users/runner/.bash_profile
+        
+        gcc --version
+        gfortran --version
+        cmake --version
+        brew info boost
+        brew info hdf5
+
+    - name: Install ARM MacOS dependencies
+      if: matrix.platform == 'macos-14'
+      shell: bash
+      run: |
+        brew install boost
+        brew install hdf5
+        brew install ninja
+        
+        brew install llvm
+        echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
+        ln -s /opt/homebrew/bin/gfortran-14 /usr/local/bin/gfortran
+        
+        gcc --version
+        gfortran --version
+        cmake --version
+        brew info boost
+        brew info hdf5
+
+    - name: Install Windows Dependencies
+      if: matrix.platform == 'windows-latest'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: CLANG64
+        update: true
+        install: >
+          zip
+          git
+          mingw-w64-clang-x86_64-curl
+          mingw-w64-clang-x86_64-toolchain
+          mingw-w64-clang-x86_64-flang
+          mingw-w64-clang-x86_64-cmake
+          mingw-w64-clang-x86_64-boost
+          mingw-w64-clang-x86_64-hdf5
+          mingw-w64-clang-x86_64-libzip
+          mingw-w64-clang-x86_64-zlib
+          mingw-w64-clang-x86_64-libaec
+
+    - name: Install Linux Dependencies
+      if: matrix.platform == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libboost-all-dev
+        sudo apt-get install -y libhdf5-dev
+        sudo apt-get install -y ninja-build
+        
+        gcc --version
+        gfortran --version
+        cmake --version
+        dpkg -s libboost-all-dev
+        dpkg -s libhdf5-dev
+
     - name: build wheel
       uses: pypa/cibuildwheel@v2.17
       env:
