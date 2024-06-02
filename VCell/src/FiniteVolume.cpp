@@ -1,3 +1,8 @@
+#if (defined(WIN32) || defined(WIN64) )
+#define _HAS_STD_BYTE 0
+#include <windows.h>
+#endif
+
 #include <iostream>
 #include <fstream>
 #include <string>

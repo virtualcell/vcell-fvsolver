@@ -3,6 +3,7 @@
  * All rights reserved.
  */
 #ifdef WIN32
+#define _HAS_STD_BYTE 0
 #include <Windows.h>
 #else
 #include <UnixDefs.h>

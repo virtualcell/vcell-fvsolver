@@ -14,6 +14,7 @@ of the Gnu Lesser General Public License (LGPL). */
 
 #if defined(HAVE_OPENGL)							// Do NOT change the sequence of these if..elses without contacting Steve
 	#ifdef WIN32
+		#define _HAS_STD_BYTE 0
 		#include <windows.h>
 	#endif
 

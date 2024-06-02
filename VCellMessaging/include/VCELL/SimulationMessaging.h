@@ -1,6 +1,17 @@
 #ifndef _SIMULATIONMESSAGING_H_
 #define _SIMULATIONMESSAGING_H_
 
+#if (defined(WIN32) || defined(WIN64) )
+#define _HAS_STD_BYTE 0
+#include <windows.h>
+#else
+#include <pthread.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <memory.h>
+#endif
+
+
 #include <deque>
 #ifdef USE_MESSAGING
 #include <stdlib.h>
@@ -11,14 +22,6 @@
 #include <iostream>
 using namespace std;
 
-#if (defined(WIN32) || defined(WIN64) )
-#include <windows.h>
-#else
-#include <pthread.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <memory.h>
-#endif
 
 #ifdef USE_MESSAGING
 #if (!defined(WIN32) && !defined(WIN64) )
