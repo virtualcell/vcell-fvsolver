@@ -56,15 +56,10 @@ if(POLICY CMP0057)
   cmake_policy(SET CMP0057 NEW)
 endif()
 
-#include (LocalJNI.cmake)
-
-set(RULE_MESSAGES OFF)
-set(CMAKE_COLOR_MAKEFILE OFF)
-set(_ECLIPSE_VERSION "4.4")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 
 include(GetGitRevisionDescription)
-git_describe(GIT_DESCRIBE)
+git_describe(GIT_DESCRIBE ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR)
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -77,45 +72,18 @@ else()
    SET(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel.")
 endif()
 
-#include (CMakeTestCCompiler)
-#include (CheckCSourceCompiles)
-#include (CheckCXXSourceCompiles)
-#include (CheckStructHasMember)
-#include (CheckLibraryExists)
-#include (CheckFunctionExists)
-#include (CheckCCompilerFlag)
-#include (CheckCSourceRuns)
-#include (CheckSymbolExists)
-#include (CheckTypeSize)
 include (FindZLIB)
-#message("gen "${CMAKE_GENERATOR})
-#message("extra "${CMAKE_EXTRA_GENERATOR})
-#message("system "${CMAKE_SYSTEM_NAME})
-#message("windows "${WINDOWS})
 
 option(OPTION_TARGET_MESSAGING "Messaging (requires libcurl)" off)
-option(OPTION_TARGET_DOCS "Generate Doxygen documentation" on)
+option(OPTION_TARGET_DOCS "Generate Doxygen documentation" off)
 option(OPTION_TARGET_FV_SOLVER on)
 option(OPTION_TARGET_MESSAGING "Messaging (requires libcurl)" off)
 
                   
 if (${OPTION_TARGET_DOCS})
-#	if (DOXYGEN_FOUND AND ${CMAKE_VERSION} GREATER_EQUAL 3.9)
-#		find_package(Doxygen
-#				REQUIRED dot
-#				OPTIONAL_COMPONENTS mscgen dia)
-#		set(DOXYGEN_GENERATE_HTML YES)
-#		set(DOXYGEN_GENERATE_MAN NO)
-#		doxygen_add_docs(
-#   			doxygen
-#    		${PROJECT_SOURCE_DIR}
-#    		COMMENT "Generate man pages"
-#    	)
-#	else()
-		add_custom_target(graphviz ALL
+	add_custom_target(graphviz ALL
                   "${CMAKE_COMMAND}" "--graphviz=dependencies.dot" .
                   WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
-#    endif()
 endif()
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
@@ -144,11 +112,6 @@ if (NOT APPLE AND NOT LINUX AND NOT MINGW)
 	message(FATAL_ERROR "Unsupported Operating System or C/C++ Compiler.")
 endif()
 
-#f (LINUX)
-#set(BUILD_SHARED_LIBRARIES OFF)
-#set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-#endif()
-
 #---------------------------
 #  IDE SUPPORT
 #---------------------------
@@ -174,19 +137,7 @@ set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}")
 
 add_definitions(-DUNIX)
 
-#if (MINGW)
-#	add_definitions(-DWIN32)
-#endif(MINGW)
-
-#set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-#set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-
-
 if (OPTION_TARGET_MESSAGING)
-#	if (APPLE OR MINGW)
-#		message(FATAL_ERROR "TARGET_SOLVERS_WITH_MESSAGING is not supported on MAC OS X and MINGW")
-#	endif(APPLE OR MINGW)
-	
 	#don't need graphics for server side solvers
 	set(OPTION_USE_OPENGL OFF CACHE BOOL "")
 	
@@ -196,21 +147,15 @@ if (OPTION_TARGET_MESSAGING)
 	add_definitions(-DUSE_MESSAGING)
 endif()
 
-######################################
-#
-# Add subdirectories
-# 
-#######################################
-
-	set(HDF5_USE_STATIC_LIBRARIES ON)
-	if(WINDOWS OR WIN32 OR WIN64)
-		set(HDF5_USE_STATIC_LIBRARIES OFF)
-		add_definitions(-DZIP_STATIC)
-	endif ()
-	#CMakeList.txt that comes with hdf5 switches library name if compiled with debug
-	find_package(HDF5 COMPONENTS HL CXX C)
-	set(HDF_VERSION ${HDF5_VERSION})
-	######    ${HDF5_HL_LIBRARIES} ${HDF5_CXX_LIBRARIES}
+set(HDF5_USE_STATIC_LIBRARIES ON)
+if(WINDOWS OR WIN32 OR WIN64)
+	set(HDF5_USE_STATIC_LIBRARIES OFF)
+	add_definitions(-DZIP_STATIC)
+endif ()
+#CMakeList.txt that comes with hdf5 switches library name if compiled with debug
+find_package(HDF5 COMPONENTS HL CXX C)
+set(HDF_VERSION ${HDF5_VERSION})
+######    ${HDF5_HL_LIBRARIES} ${HDF5_CXX_LIBRARIES}
 
 	add_subdirectory(VCellMessaging)
  
