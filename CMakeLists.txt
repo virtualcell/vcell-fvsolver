@@ -179,6 +179,10 @@ if(WINDOWS OR WIN32 OR WIN64)
 	set(HDF5_USE_STATIC_LIBRARIES OFF)
 	add_definitions(-DZIP_STATIC)
 endif ()
+if (LINUX AND OPTION_TARGET_PYTHON_BINDING)
+	set(HDF5_USE_STATIC_LIBRARIES OFF)
+endif()
+
 #CMakeList.txt that comes with hdf5 switches library name if compiled with debug
 find_package(HDF5 COMPONENTS HL CXX C)
 set(HDF_VERSION ${HDF5_VERSION})

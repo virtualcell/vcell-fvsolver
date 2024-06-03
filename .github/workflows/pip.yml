@@ -77,6 +77,7 @@ jobs:
           mingw-w64-clang-x86_64-libzip
           mingw-w64-clang-x86_64-zlib
           mingw-w64-clang-x86_64-libaec
+          mingw-w64-clang-x86_64-python-pip-tools
 
 
     - name: Install Linux Dependencies
@@ -113,9 +114,7 @@ jobs:
     - name: Build and install windows-latest
       shell: msys2 {0}
       run: |
-        platform=windows
-        PATH="/c/Program Files/LLVM/bin:$PATH"
-        pip install --verbose .
+        pip install --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" .
       if: matrix.platform == 'windows-latest'
 
     - name: Build and install ubuntu-latest
