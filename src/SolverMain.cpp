@@ -1,6 +1,11 @@
 //
 // Created by Jim Schaff on 6/1/24.
 //
+#if (defined(WIN32) || defined(WIN64) )
+#define _HAS_STD_BYTE 0
+#include <windows.h> 
+#endif
+
 #include "SolverMain.h"
 
 #include <iostream>
