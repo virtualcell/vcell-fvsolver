@@ -69,6 +69,10 @@ jobs:
         cmake --version
         brew info boost
         brew info hdf5
+        
+        echo "CC=/usr/local/opt/llvm/bin/clang" >> $GITHUB_ENV
+        echo "CXX=/usr/local/opt/llvm/bin/clang++" >> $GITHUB_ENV
+
 
     - name: Install ARM MacOS dependencies
       if: matrix.os == 'macos-14'
@@ -87,6 +91,9 @@ jobs:
         cmake --version
         brew info boost
         brew info hdf5
+        
+        echo "CC=/opt/homebrew/opt/llvm/bin/clang" >> $GITHUB_ENV
+        echo "CXX=/opt/homebrew/opt/llvm/bin/clang++" >> $GITHUB_ENV
 
     - name: Install Windows Dependencies
       if: matrix.os == 'windows-latest'
@@ -106,6 +113,11 @@ jobs:
           mingw-w64-clang-x86_64-libzip
           mingw-w64-clang-x86_64-zlib
           mingw-w64-clang-x86_64-libaec
+    - if: matrix.os == 'windows-latest'
+      run: |
+          echo "CC=/c/Program Files/LLVM/bin/clang.exe" >> $GITHUB_ENV
+          echo "CXX=/c/Program Files/LLVM/bin/clang++.exe" >> $GITHUB_ENV
+
 
     - name: Install Linux Dependencies
       if: matrix.os == 'ubuntu-latest'
@@ -124,8 +136,7 @@ jobs:
     - name: build wheel
       uses: pypa/cibuildwheel@v2.17
       env:
-        CIBW_ARCHS_MACOS: universal2
-        CIBW_ARCHS_WINDOWS: auto ARM64
+        CIBW_ARCHS: native
 
     - name: Verify clean directory
       run: git diff --exit-code
