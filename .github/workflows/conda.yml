@@ -2,10 +2,10 @@ name: Conda
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - master
-  pull_request:
+#  push:
+#    branches:
+#      - master
+#  pull_request:
 
 jobs:
   build:
@@ -42,3 +42,9 @@ jobs:
 
       - name: Test
         run: pytest tests
+
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ failure() }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
