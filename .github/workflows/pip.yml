@@ -38,9 +38,6 @@ jobs:
         cmake --version
         brew info boost
         brew info hdf5
-        
-        echo "CC=/usr/local/opt/llvm/bin/clang" >> $GITHUB_ENV
-        echo "CXX=/usr/local/opt/llvm/bin/clang++" >> $GITHUB_ENV
 
 
     - name: Install ARM MacOS dependencies
@@ -60,9 +57,6 @@ jobs:
         cmake --version
         brew info boost
         brew info hdf5
-        
-        echo "CC=/opt/homebrew/opt/llvm/bin/clang" >> $GITHUB_ENV
-        echo "CXX=/opt/homebrew/opt/llvm/bin/clang++" >> $GITHUB_ENV
 
 
     - name: Install Windows Dependencies
@@ -83,10 +77,6 @@ jobs:
           mingw-w64-clang-x86_64-libzip
           mingw-w64-clang-x86_64-zlib
           mingw-w64-clang-x86_64-libaec
-    - if: matrix.os == 'windows-latest'
-      run: |
-        echo "CC=/c/Program Files/LLVM/bin/clang.exe" >> $GITHUB_ENV
-        echo "CXX=/c/Program Files/LLVM/bin/clang++.exe" >> $GITHUB_ENV
 
 
     - name: Install Linux Dependencies
@@ -103,30 +93,35 @@ jobs:
         dpkg -s libboost-all-dev
         dpkg -s libhdf5-dev
 
+
     - uses: actions/setup-python@v5
       with:
         python-version: "${{ matrix.python-version }}"
 
     - name: Build and install macos-13
-      run: pip install --verbose .
+      run: |
+        PATH="/usr/local/opt/llvm/bin:$PATH"
+        pip install --verbose .
       if: matrix.platform == 'macos-13'
-      env:
-        PATH: "/usr/local/opt/llvm/bin:${{ env.PATH }}"
 
     - name: Build and install macos-14
-      run: pip install --verbose .
+      run: |
+        PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+        pip install --verbose .
       if: matrix.platform == 'macos-14'
-      env:
-        PATH: "/opt/homebrew/opt/llvm/bin:${{ env.PATH }}"
 
     - name: Build and install windows-latest
-      run: pip install --verbose .
+      shell: msys2 {0}
+      run: |
+        platform=windows
+        PATH="/c/Program Files/LLVM/bin:$PATH"
+        pip install --verbose .
       if: matrix.platform == 'windows-latest'
-      env:
-        PATH: "/c/Program Files/LLVM/bin:${{ env.PATH }}"
 
     - name: Build and install ubuntu-latest
-      run: pip install --verbose .
+      run: |
+        platform=linux
+        pip install --verbose .
       if: matrix.platform == 'ubuntu-latest'
 
     - name: Test
