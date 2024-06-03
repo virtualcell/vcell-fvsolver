@@ -14,4 +14,17 @@ Virtual Cell solvers [virtualcell/vcell-solvers](https://github.com/virtualcell/
 ## The Virtual Cell Project
 The Virtual Cell is a modeling and simulation framework for computational biology.  For details see http://vcell.org and http://github.com/virtualcell.
 
-## Python Bindings (more to come)
+## Docker container
+the vcell-fvsolver is available as a docker container at ghcr.io/virtualcell/vcell-fvsolver.
+
+## Standalone executables
+FiniteVolume executable can be build on Windows, MacOS, and Linux (see .github/workflows/cd.yml for details). The executables are available in the release section of this repository.
+
+## Python API - pyvcell_fvsolver
+The Python API for the VCell Finite Volume solver is a low level wrapper which 
+accepts VCell solver input files (.fvinput, .vcg) 
+and generates the output files (.log, .zip, .mesh, .meshmetrics, .hdf5).  The 
+.functions file is not used by the solver, but is helpful for interpreting the 
+results in the context of the original model.
+
+This package is intented to be used by the Virtual Cell Python API, pyvcell (coming soon).

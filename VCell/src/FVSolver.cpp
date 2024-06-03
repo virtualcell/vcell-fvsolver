@@ -1562,7 +1562,7 @@ void FVSolver::loadSmoldyn(istream& ifsInput) {
 	}
 }
 
-FVSolver::FVSolver(istream& fvinput, int taskID, char* outdir, bool bSimZip) {
+FVSolver::FVSolver(istream& fvinput, int taskID, const char* outdir, bool bSimZip) {
 	simTool = 0;
 	simulation = 0;
 	model = 0;

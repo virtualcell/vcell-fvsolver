@@ -22,7 +22,7 @@ class Membrane;
 
 class FVSolver {
 public:
-	FVSolver(istream& fvinput, int taskID=-1, char* outdir=0, bool bSimZip=true);
+	FVSolver(istream& fvinput, int taskID=-1, const char* outdir=0, bool bSimZip=true);
 	virtual ~FVSolver();
 
 	void createSimTool(istream& ifsInput, int taskID);
@@ -64,7 +64,7 @@ private:
 	void loadSerialScanParameters(istream& ifsInput, int numSerialScanParameters);
 	void loadSerialScanParameterValues(istream& ifsInput, int numSerialScanParamValues);
 
-	char* outputPath;
+	const char* outputPath;
 	SimTool* simTool;
 	SimulationExpression *simulation;
 	VCellModel *model;

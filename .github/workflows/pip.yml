@@ -1,0 +1,143 @@
+name: "Pip"
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Build with Pip
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, macos-13, macos-14, ubuntu-latest]
+#        python-version: ["3.7", "3.12", "pypy-3.9"]
+        python-version: ["3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Intel MacOS dependencies
+      if: matrix.platform == 'macos-13'
+      shell: bash
+      run: |
+        brew install boost
+        brew install hdf5
+        brew install ninja
+        
+        brew install llvm
+        echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
+        source /Users/runner/.bash_profile
+        
+        gcc --version
+        gfortran --version
+        cmake --version
+        brew info boost
+        brew info hdf5
+
+
+    - name: Install ARM MacOS dependencies
+      if: matrix.platform == 'macos-14'
+      shell: bash
+      run: |
+        brew install boost
+        brew install hdf5
+        brew install ninja
+        
+        brew install llvm
+        echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
+        ln -s /opt/homebrew/bin/gfortran-14 /usr/local/bin/gfortran
+        
+        gcc --version
+        gfortran --version
+        cmake --version
+        brew info boost
+        brew info hdf5
+
+
+    - name: Install Windows Dependencies
+      if: matrix.platform == 'windows-latest'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: CLANG64
+        update: true
+        install: >
+          zip
+          git
+          mingw-w64-clang-x86_64-curl
+          mingw-w64-clang-x86_64-toolchain
+          mingw-w64-clang-x86_64-flang
+          mingw-w64-clang-x86_64-cmake
+          mingw-w64-clang-x86_64-boost
+          mingw-w64-clang-x86_64-hdf5
+          mingw-w64-clang-x86_64-libzip
+          mingw-w64-clang-x86_64-zlib
+          mingw-w64-clang-x86_64-libaec
+          mingw-w64-clang-x86_64-python-pip-tools
+
+
+    - name: Install Linux Dependencies
+      if: matrix.platform == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libboost-all-dev
+        sudo apt-get install -y libhdf5-dev
+        sudo apt-get install -y ninja-build
+        
+        gcc --version
+        gfortran --version
+        cmake --version
+        dpkg -s libboost-all-dev
+        dpkg -s libhdf5-dev
+
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "${{ matrix.python-version }}"
+
+    - name: Build and install macos-13
+      run: |
+        PATH="/usr/local/opt/llvm/bin:$PATH"
+        pip install --verbose .
+      if: matrix.platform == 'macos-13'
+
+    - name: Build and install macos-14
+      run: |
+        PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+        pip install --verbose .
+      if: matrix.platform == 'macos-14'
+
+    - name: Build and install windows-latest
+      shell: msys2 {0}
+      run: |
+        pip install --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" .
+      if: matrix.platform == 'windows-latest'
+
+    - name: Build and install ubuntu-latest
+      run: |
+        platform=linux
+        pip install --verbose .
+      if: matrix.platform == 'ubuntu-latest'
+
+    - name: Test not windows
+      run: |
+        pip install pytest
+        pytest
+      if: matrix.platform != 'windows-latest'
+
+    - name: Test on windows
+      shell: msys2 {0}
+      run: |
+        pip install pytest
+        pytest
+      if: matrix.platform == 'windows-latest'
+
+    - name: Setup tmate session
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ failure() }}
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}

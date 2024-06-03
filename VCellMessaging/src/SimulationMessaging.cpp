@@ -41,7 +41,7 @@ static const double WORKEREVENT_MESSAGE_MIN_TIME_SECONDS = 15.0;
 
 #endif
 
-SimulationMessaging *SimulationMessaging::m_inst = NULL;
+SimulationMessaging *SimulationMessaging::m_inst = nullptr;
 
 SimulationMessaging::SimulationMessaging(){
 	this->bStopRequested = false;
@@ -142,7 +142,7 @@ SimulationMessaging* SimulationMessaging::getInstVar() {
 
 SimulationMessaging* SimulationMessaging::create()
 {
-	if (m_inst == 0){    
+	if (m_inst == nullptr){    
         m_inst = new SimulationMessaging();
 	}
     return(m_inst);
@@ -333,7 +333,7 @@ void SimulationMessaging::sendStatus() {
 }
 
 void SimulationMessaging::setWorkerEvent(WorkerEvent* arg_workerEvent) {
-	if (m_inst == 0) {
+	if (m_inst == nullptr) {
 		throw "SimulationMessaging is not initialized";
 	}
 	if (workerEventOutputMode == WORKEREVENT_OUTPUT_MODE_STDOUT) {

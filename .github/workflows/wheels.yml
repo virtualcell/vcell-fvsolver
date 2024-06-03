@@ -1,0 +1,174 @@
+name: Wheels
+
+on:
+  workflow_dispatch:
+#  pull_request:
+#  push:
+#    branches:
+#     - master
+#  release:
+#    types:
+#      - published
+
+env:
+  FORCE_COLOR: 3
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  build_sdist:
+    name: Build SDist
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Build SDist
+      run: pipx run build --sdist
+
+    - name: Check metadata
+      run: pipx run twine check dist/*
+
+    - name: artifact upload
+      uses: actions/upload-artifact@v4
+      with:
+        name: cibw-sdist
+        path: dist/*.tar.gz
+
+
+  build_wheels:
+    name: Wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Install Intel MacOS dependencies
+      if: matrix.os == 'macos-13'
+      shell: bash
+      run: |
+        brew install boost
+        brew install hdf5
+        brew install ninja
+        
+        brew install llvm
+        echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
+        source /Users/runner/.bash_profile
+        
+        gcc --version
+        gfortran --version
+        cmake --version
+        brew info boost
+        brew info hdf5
+
+
+    - name: Install ARM MacOS dependencies
+      if: matrix.os == 'macos-14'
+      shell: bash
+      run: |
+        brew install boost
+        brew install hdf5
+        brew install ninja
+        
+        brew install llvm
+        echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
+        ln -s /opt/homebrew/bin/gfortran-14 /usr/local/bin/gfortran
+        
+        gcc --version
+        gfortran --version
+        cmake --version
+        brew info boost
+        brew info hdf5
+
+    - name: Install Windows Dependencies
+      if: matrix.os == 'windows-latest'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: CLANG64
+        update: true
+        install: >
+          zip
+          git
+          mingw-w64-clang-x86_64-curl
+          mingw-w64-clang-x86_64-toolchain
+          mingw-w64-clang-x86_64-flang
+          mingw-w64-clang-x86_64-cmake
+          mingw-w64-clang-x86_64-boost
+          mingw-w64-clang-x86_64-hdf5
+          mingw-w64-clang-x86_64-libzip
+          mingw-w64-clang-x86_64-zlib
+          mingw-w64-clang-x86_64-libaec
+
+
+    - name: Install Linux Dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libboost-all-dev
+        sudo apt-get install -y libhdf5-dev
+        sudo apt-get install -y ninja-build
+        
+        gcc --version
+        gfortran --version
+        cmake --version
+        dpkg -s libboost-all-dev
+        dpkg -s libhdf5-dev
+
+
+    - name: build wheel
+      uses: pypa/cibuildwheel@v2.17
+      env:
+        CIBW_ARCHS: native
+
+    - name: Verify clean directory
+      run: git diff --exit-code
+      shell: bash
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: cibw-wheels-${{ matrix.os }}
+        path: wheelhouse/*.whl
+
+    - name: Setup tmate session on build failure
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ failure() }}
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+
+
+  upload_all:
+    name: Upload if release
+    needs: [build_wheels, build_sdist]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    environment: pypi
+    permissions:
+      id-token: write
+
+    steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.x"
+
+    - uses: actions/download-artifact@v4
+      with:
+        pattern: cibw-*
+        merge-multiple: true
+        path: dist
+
+    - uses: pypa/gh-action-pypi-publish@release/v1
+
+    - name: Setup tmate session on upload failure
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ failure() }}
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}

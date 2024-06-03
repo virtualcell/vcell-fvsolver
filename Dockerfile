@@ -1,32 +1,22 @@
-FROM ubuntu:20.04 as build
+FROM ubuntu:22.04 as build
 
 RUN apt-get -y update && apt-get install -y apt-utils && \
     apt-get install -y -qq -o=Dpkg::Use-Pty=0 build-essential gfortran zlib1g-dev \
-    libhdf5-dev libcurl4-openssl-dev libboost-dev cmake wget python
+    libhdf5-dev ninja-build libcurl4-openssl-dev libboost-all-dev cmake wget python3
 
 COPY . /vcellroot
 
 RUN mkdir -p /vcellroot/build/bin
 WORKDIR /vcellroot/build
 
-RUN /usr/bin/cmake \
+RUN cmake \
+    -G Ninja \
+    -DOPTION_TARGET_PYTHON_BINDING=OFF \
     -DOPTION_TARGET_MESSAGING=ON \
     -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
     -DOPTION_TARGET_FV_SOLVER=ON \
     -DOPTION_TARGET_DOCS=OFF \
     .. && \
-    make && \
-    ctest
+    ninja
 
-
-#RUN apt-get update && \
-#    apt-get install -y apt-utils && \
-#    apt-get install -q -y --no-install-recommends curl dnsutils
-#
-#RUN apt-get install -qq -y -o=Dpkg::Use-Pty=0 gcc gfortran zlib1g \
-#    libhdf5-103 libhdf5-cpp-103 libcurl4-openssl-dev zip
-#
-#COPY --from=build /vcellroot/build/bin /vcellbin
-#WORKDIR /vcellbin
-#ENV PATH=/vcellbin:$PATH
-#
+#RUN ctest
