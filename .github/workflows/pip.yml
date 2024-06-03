@@ -123,10 +123,18 @@ jobs:
         pip install --verbose .
       if: matrix.platform == 'ubuntu-latest'
 
-    - name: Test
+    - name: Test not windows
       run: |
         pip install pytest
         pytest
+      if: matrix.platform != 'windows-latest'
+
+    - name: Test on windows
+      shell: msys2 {0}
+      run: |
+        pip install pytest
+        pytest
+      if: matrix.platform == 'windows-latest'
 
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
