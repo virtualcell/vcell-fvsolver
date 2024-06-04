@@ -107,7 +107,7 @@ jobs:
           mingw-w64-clang-x86_64-libzip
           mingw-w64-clang-x86_64-zlib
           mingw-w64-clang-x86_64-libaec
-
+          mingw-w64-clang-x86_64-python-pip-tools
 
     - name: Install Linux Dependencies
       if: matrix.os == 'ubuntu-latest'
@@ -124,7 +124,28 @@ jobs:
         dpkg -s libhdf5-dev
 
 
+    - name: build wheel on macos-13
+      if: matrix.os == 'macos-13'
+      uses: pypa/cibuildwheel@v2.17
+      env:
+        CIBW_ARCHS: native
+        CIBW_ENVIRONMENT: PATH=/usr/local/opt/llvm/bin:$PATH
+
+    - name: build wheel on macos-14
+      if: matrix.os == 'macos-14'
+      uses: pypa/cibuildwheel@v2.17
+      env:
+        CIBW_ARCHS: native
+        CIBW_ENVIRONMENT: PATH=/opt/homebrew/opt/llvm/bin:$PATH
+
+    - name: build wheel on windows-latest
+      if: matrix.os == 'windows-latest'
+      uses: pypa/cibuildwheel@v2.17
+      env:
+        CIBW_ARCHS: native
+
     - name: build wheel
+      if: matrix.os == 'ubuntu-latest'
       uses: pypa/cibuildwheel@v2.17
       env:
         CIBW_ARCHS: native
