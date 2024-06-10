@@ -102,13 +102,13 @@ jobs:
     - name: Build and install macos-13
       run: |
         PATH="/usr/local/opt/llvm/bin:$PATH"
-        pip install --verbose .
+        pipx run build --verbose
       if: matrix.platform == 'macos-13'
 
     - name: Build and install macos-14
       run: |
         PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-        pip install --verbose .
+        pipx run build --verbose
       if: matrix.platform == 'macos-14'
 
     - name: Build and install windows-latest
@@ -120,7 +120,7 @@ jobs:
     - name: Build and install ubuntu-latest
       run: |
         platform=linux
-        pip install --verbose .
+        pipx run build --verbose
       if: matrix.platform == 'ubuntu-latest'
 
     - name: Test not windows
