@@ -15,8 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: [windows-latest, macos-13, macos-14, ubuntu-latest]
-#        python-version: ["3.7", "3.12", "pypy-3.9"]
-        python-version: ["3.12"]
+        python-version: ["3.9","3.10","3.11","3.12"]
 
     steps:
     - uses: actions/checkout@v4
@@ -141,7 +140,7 @@ jobs:
       if: matrix.platform == 'windows-latest'
       
     - name: Upload wheels as build artifacts
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: wheels-${{ matrix.platform }}
         path: dist/*.whl
