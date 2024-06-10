@@ -102,25 +102,29 @@ jobs:
     - name: Build and install macos-13
       run: |
         PATH="/usr/local/opt/llvm/bin:$PATH"
-        pipx run build --verbose
+        pip wheel . -w dist
+        pip install dist/*.whl
       if: matrix.platform == 'macos-13'
 
     - name: Build and install macos-14
       run: |
         PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-        pipx run build --verbose
+        pip wheel . -w dist
+        pip install dist/*.whl
       if: matrix.platform == 'macos-14'
 
     - name: Build and install windows-latest
       shell: msys2 {0}
       run: |
-        pip install --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" .
+        pip wheel --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" . -w dist
+        pip install dist/*.whl
       if: matrix.platform == 'windows-latest'
 
     - name: Build and install ubuntu-latest
       run: |
         platform=linux
-        pipx run build --verbose
+        pip wheel . -w dist
+        pip install dist/*.whl
       if: matrix.platform == 'ubuntu-latest'
 
     - name: Test not windows
