@@ -2,10 +2,10 @@ name: "Pip"
 
 on:
   workflow_dispatch:
-#  pull_request:
-#  push:
-#    branches:
-#      - master
+  pull_request:
+  push:
+    branches:
+      - master
 
 jobs:
   build:
@@ -135,6 +135,12 @@ jobs:
         pip install pytest
         pytest
       if: matrix.platform == 'windows-latest'
+      
+    - name: Upload wheels as build artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: wheels-${{ matrix.platform }}
+        path: dist/*.whl
 
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3

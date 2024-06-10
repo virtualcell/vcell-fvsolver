@@ -17,5 +17,7 @@
 /.idea/
 /nfsim/
 /all_solvers/*
+/.venv/
+/venv/
 
 .DS_Store
