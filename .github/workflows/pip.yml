@@ -6,6 +6,9 @@ on:
   push:
     branches:
       - master
+  release:
+    types:
+      - published
 
 jobs:
   build:
@@ -142,7 +145,6 @@ jobs:
     - name: Upload wheels as build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: wheels-${{ matrix.platform }}
         path: dist/*.whl
 
     - name: Setup tmate session
