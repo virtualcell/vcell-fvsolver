@@ -43,7 +43,7 @@ std::string version()
 	return "Finite Volume version " + std::string(g_GIT_DESCRIBE) + " with smoldyn version " + std::string(VERSION);
 }
 
-int solve(const std::string& inputFilename, const std::string& outputDir) {
+int solve(const std::string& inputFilename, const std::string& vcgFilename, const std::string& outputDir) {
 	// Check if output directory exists, if not create it
 	std::filesystem::path dirPath(outputDir);
 	if (!std::filesystem::exists(dirPath)) {
@@ -54,6 +54,12 @@ int solve(const std::string& inputFilename, const std::string& outputDir) {
 	std::ifstream inputFile(inputFilename);
 	if (!inputFile.is_open()) {
 		throw std::runtime_error("Could not open input file: " + inputFilename);
+	}
+
+	// Open the vcg file
+	std::ifstream vcgFile(vcgFilename);
+	if (!vcgFile.is_open()) {
+		throw std::runtime_error("Could not open vcg file: " + vcgFilename);
 	}
 
 	vcellhybrid::setHybrid(); //get smoldyn library in correct state
@@ -68,7 +74,7 @@ int solve(const std::string& inputFilename, const std::string& outputDir) {
 	FVSolver* fvSolver = nullptr;
 
 	try {
-		fvSolver = new FVSolver(inputFile, taskID, outputDir.c_str(), bSimZip);
+		fvSolver = new FVSolver(inputFile, vcgFile, taskID, outputDir.c_str(), bSimZip);
 
 		inputFile.close();
 
@@ -100,6 +106,8 @@ int solve(const std::string& inputFilename, const std::string& outputDir) {
 		inputFile.close();
 	}
 	vcellExit(returnCode, errorMsg);
-	delete fvSolver;
+	if (fvSolver != nullptr) {
+	    delete fvSolver;
+	}
 	return returnCode;
 }

@@ -22,11 +22,11 @@ class Membrane;
 
 class FVSolver {
 public:
-	FVSolver(istream& fvinput, int taskID=-1, const char* outdir=0, bool bSimZip=true);
+	FVSolver(istream& fvinput, istream& vcgInput, int taskID=-1, const char* outdir=0, bool bSimZip=true);
 	virtual ~FVSolver();
 
-	void createSimTool(istream& ifsInput, int taskID);
-	void solve(bool bLoadFinal=true, double* paramValues=0);
+	void createSimTool(istream& ifsInput, istream& vcgInput, int taskID);
+	void solve(bool bLoadFinal=true, double* paramValues=nullptr);
 
 	void init(double* paramValues=0);
 	void step(double* paramValues=0);
@@ -58,7 +58,7 @@ private:
 	void loadFeature(istream& ifsInput, Feature* feature);
 	void loadMembrane(istream& ifsInput, Membrane*);
 	void loadSimulationParameters(istream& ifsInput);
-	void loadMesh(istream& ifsInput);
+	void loadMeshFromVcg(istream& vcgInput);
 	void loadFieldData(istream& ifsInput);
 	void loadParameters(istream& ifsInput, int numParams);
 	void loadSerialScanParameters(istream& ifsInput, int numSerialScanParameters);

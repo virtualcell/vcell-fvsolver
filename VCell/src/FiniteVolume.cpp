@@ -35,7 +35,7 @@ void printUsage() {
 #ifdef USE_MESSAGING
 	cout << "Arguments : [-d output] [-nz] [-tid taskID] fvInputFile" <<  endl;
 #else
-	cout << "Arguments : [-d output] [-nz] fvInputFile" <<  endl;
+	cout << "Arguments : [-d output] [-nz] fvInputFile vcgInputFile" <<  endl;
 #endif
 }
 
@@ -49,15 +49,17 @@ int main(int argc, char *argv[])
   	int returnCode = 0;
 	string errorMsg = "Exception : ";
 
-	char* outputPath = 0;
-	char* fvInputFile = 0;
+	char* outputPath = nullptr;
+	char* fvInputFile = nullptr;
+	char* vcgInputFile = nullptr;
 	ifstream ifsInput;
-	FVSolver* fvSolver = NULL;
+	ifstream vcgInput;
+	FVSolver* fvSolver = nullptr;
 
 	bool bSimZip = true;
 	try {
 		int taskID = -1;
-		if (argc < 2) {
+		if (argc < 3) {
 			cout << "Missing arguments!" << endl;
 			printUsage();
 			exit(1);
@@ -94,8 +96,10 @@ int main(int argc, char *argv[])
 				printUsage();
 				exit(1);
 #endif
-			} else {
+			} else if (fvInputFile == nullptr){
 				fvInputFile = argv[i];
+			} else {
+				vcgInputFile = argv[i];
 			}
 		}
 		struct stat buf;
@@ -106,18 +110,31 @@ int main(int argc, char *argv[])
 
 		// strip " in case that file name has " around
 		int fl = strlen(fvInputFile);
-        if (fvInputFile[0] == '"' && fvInputFile[fl-1] == '"') {
-                fvInputFile[fl-1] = 0;
-                fvInputFile ++;
-        }
+		if (fvInputFile[0] == '"' && fvInputFile[fl-1] == '"') {
+			fvInputFile[fl-1] = 0;
+			fvInputFile ++;
+		}
 		ifsInput.open(fvInputFile);
 		if (!ifsInput.is_open()) {
 			cout << "File doesn't exist: " << fvInputFile << endl;
 			exit(102);
 		}
 
-		fvSolver = new FVSolver(ifsInput, taskID, outputPath, bSimZip);
+		// strip " in case that file name has " around
+		fl = strlen(vcgInputFile);
+		if (vcgInputFile[0] == '"' && vcgInputFile[fl-1] == '"') {
+			vcgInputFile[fl-1] = 0;
+			vcgInputFile ++;
+		}
+		vcgInput.open(vcgInputFile);
+		if (!vcgInput.is_open()) {
+			cout << "File doesn't exist: " << vcgInputFile << endl;
+			exit(102);
+		}
+
+		fvSolver = new FVSolver(ifsInput, vcgInput, taskID, outputPath, bSimZip);
 		ifsInput.close();
+		vcgInput.close();
 
 		if(fvSolver->getNumVariables() == 0){
 			//sims with no reactions and no diffusing species cause exit logic to 'wait' forever

@@ -5,6 +5,7 @@
 #include <string.h>
 #include <fstream>
 #include <sstream>
+#include <exception>
 using std::ifstream;
 using std::istringstream;
 using std::stringstream;
@@ -1142,65 +1143,14 @@ MESH_BEGIN
 VCG_FILE \\cfs01.vcell.uchc.edu\raid\Vcell\users\fgao\SimID_36230826_0_.vcg
 MESH_END
 */
-void FVSolver::loadMesh(istream& ifsInput) {
-	if (SimTool::getInstance()->getModel() == 0) {
-		throw "Model has to be initialized before mesh initialization";
-	}
-
-	string meshfile = "";
-	string nextToken, line;
-	string vcgText = "";
-
-	while (!ifsInput.eof()) {
-		getline(ifsInput, line);
-		istringstream lineInput(line);
-
-		nextToken = "";
-		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
-			continue;
-		}
-		if (nextToken == "MESH_END") {
-			break;
-		}
-
-		if (nextToken == "VCG_FILE") {
-			getline(lineInput, meshfile);
-			trimString(meshfile);
-			struct stat buf;
-			if (stat(meshfile.c_str(), &buf)) {
-				stringstream ss;
-				ss << "Mesh file(.vcg) [" << meshfile <<"] doesn't exist";
-				throw ss.str();
-			}
-		} else { // VCG In file
-			vcgText += nextToken;
-			getline(lineInput, nextToken);
-			vcgText += nextToken + "\n";
-		}
+void FVSolver::loadMeshFromVcg(istream& vcgInput) {
+	if (SimTool::getInstance()->getModel() == nullptr) {
+		throw std::runtime_error("Model has to be initialized before mesh initialization");
 	}
 
 	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, "initializing mesh"));
 	mesh = new CartesianMesh();
-	if (meshfile.size() != 0) {
-		ifstream ifs(meshfile.c_str());
-		if (!ifs.is_open()){
-			stringstream ss;
-			ss << "Can't open geometry file '" <<  meshfile << "'";
-			throw ss.str();
-		}
-		cout << "Reading mesh from vcg file '" << meshfile << "'" << endl;
-		mesh->initialize(ifs);
-		ifs.close();
-	} else {
-		if (vcgText.size() == 0) {
-			throw "no mesh specified";
-		}
-		cout << "Reading mesh from text..." << endl;
-		//cout << vcgText << endl;
-		istringstream iss(vcgText);
-		mesh->initialize(iss);
-	}
+	mesh->initialize(vcgInput);
 	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, "mesh initialized"));
 }
 
@@ -1448,7 +1398,7 @@ JUMP_CONDITION_END
 
 MEMBRANE_END
 */
-void FVSolver::createSimTool(istream& ifsInput, int taskID)
+void FVSolver::createSimTool(istream& ifsInput, istream& vcgInput, int taskID)
 {
 	SimTool::create();
 	simTool = SimTool::getInstance();
@@ -1489,7 +1439,22 @@ void FVSolver::createSimTool(istream& ifsInput, int taskID)
 			}
 			simTool->setModel(model);
 		} else if (nextToken == "MESH_BEGIN") {
-			loadMesh(ifsInput);
+			// consume lines until MESH_END
+			while (!ifsInput.eof())
+			{
+				getline(ifsInput, line);
+				istringstream lineInput(line);
+
+				nextToken = "";
+				lineInput >> nextToken;
+				if (nextToken.size() == 0 || nextToken[0] == '#') {
+					continue;
+				}
+				if (nextToken == "MESH_END") {
+					break;
+				}
+			}
+			loadMeshFromVcg(vcgInput);
 		} else if (nextToken == "VARIABLE_BEGIN") {
 			loadSimulation(ifsInput);
 			simTool->setSimulation(simulation);
@@ -1562,13 +1527,13 @@ void FVSolver::loadSmoldyn(istream& ifsInput) {
 	}
 }
 
-FVSolver::FVSolver(istream& fvinput, int taskID, const char* outdir, bool bSimZip) {
-	simTool = 0;
-	simulation = 0;
-	model = 0;
-	mesh = 0;
+FVSolver::FVSolver(istream& fvinput, istream& vcgInput, int taskID, const char* outdir, bool bSimZip) {
+	simTool = nullptr;
+	simulation = nullptr;
+	model = nullptr;
+	mesh = nullptr;
 	outputPath = outdir;
-	createSimTool(fvinput, taskID);
+	createSimTool(fvinput, vcgInput, taskID);
 	if (!bSimZip) {
 		SimTool::getInstance()->requestNoZip();
 	}
@@ -1584,7 +1549,7 @@ FVSolver::~FVSolver() {
 
 void FVSolver::solve(bool bLoadFinal, double* paramValues)
 {
-	if (paramValues != 0) {
+	if (paramValues != nullptr) {
 		simulation->setParameterValues(paramValues);
 	}
 	simTool->setLoadFinal(bLoadFinal);

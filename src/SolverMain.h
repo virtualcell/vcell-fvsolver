@@ -8,6 +8,6 @@
 #include <string>
 
 std::string version();
-int solve(const std::string& inputFilename, const std::string& outputDir);
+int solve(const std::string& fvInputFilename, const std::string& vcgInputFilename, const std::string& outputDir);
 
 #endif //SOLVERMAIN_H
