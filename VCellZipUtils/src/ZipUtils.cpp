@@ -120,10 +120,10 @@ void addFilesToZip(const filesystem::path& ziparchive, const filesystem::path& f
 	int argc = 0;
 	argv[argc++] = "ziptool_main";
 	argv[argc++] = "-cn";
-	argv[argc++] = ziparchive.c_str();
+	argv[argc++] = ziparchive.string().c_str();
 	argv[argc++] = "add_file";
 	argv[argc++] = entryName1.c_str();
-	argv[argc++] = filepath1.c_str();
+	argv[argc++] = filepath1.string().c_str();
 	argv[argc++] = "0";
 	argv[argc++] = "0";
 	argv[argc++] = "set_file_compression";
@@ -135,7 +135,7 @@ void addFilesToZip(const filesystem::path& ziparchive, const filesystem::path& f
 		//
 		// strip filename from filepath2
 		//
-		std::string entryName2 = filepath2;
+		std::string entryName2 = filepath2.string();
 		std::size_t dirPos2 = entryName2.find_last_of("/\\");
 		if (dirPos2 > 0){
 			entryName2 = entryName1.substr(dirPos2+1, entryName2.length());
@@ -143,7 +143,7 @@ void addFilesToZip(const filesystem::path& ziparchive, const filesystem::path& f
 		string indexSecondAddedEntry = to_string(existingEntries + 1);
 		argv[argc++] = "add_file";
 		argv[argc++] = entryName2.c_str();
-		argv[argc++] = filepath2.c_str();
+		argv[argc++] = filepath2.string().c_str();
 		argv[argc++] = "0";
 		argv[argc++] = "0";
 		argv[argc++] = "set_file_compression";
@@ -223,14 +223,14 @@ void extractFileFromZip(const std::filesystem::path& zipFilename, const std::fil
 
 	zip_t* za = nullptr;
 	
-    if ((za = zip_open(zipFilename.c_str(), 0, &err)) == nullptr) {
+    if ((za = zip_open(zipFilename.string().c_str(), 0, &err)) == nullptr) {
         zip_error_to_str(buf, sizeof(buf), err, errno);
     	string errmsg = string("can't open zip archive ") + zipFilename.string() + " : " + buf;
     	cerr << errmsg << endl;
     	throw runtime_error(errmsg);
     }
 
-	zip_int64_t i = name_locate(za, zipEntryName.c_str());
+	zip_int64_t i = name_locate(za, zipEntryName.string().c_str());
 	
     zip_stat_t sb;
     if (zip_stat_index(za, i, 0, &sb) == 0) {

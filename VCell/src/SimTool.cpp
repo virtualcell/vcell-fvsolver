@@ -16,13 +16,11 @@ using std::endl;
 #include <VCELL/FVDataSet.h>
 #include <VCELL/SimulationMessaging.h>
 #include <VCELL/SimulationExpression.h>
-#include <VCELL/Solver.h>
 #include <VCELL/Variable.h>
 #include <VCELL/CartesianMesh.h>
 #include <VCELL/VolumeRegion.h>
 #include <VCELL/MembraneRegion.h>
 #include <VCELL/FVUtils.h>
-#include <VCELL/PostProcessingBlock.h>
 #include <VCELL/PostProcessingHdf5Writer.h>
 #include <VCELL/VolumeParticleVariable.h>
 #include <VCELL/MembraneParticleVariable.h>
@@ -76,8 +74,8 @@ using std::max;
 */
 
 static int NUM_TOKENS_PER_LINE = 4;
-static const int numRetries = 2;
-static const int retryWaitSeconds = 5;
+static constexpr int numRetries = 2;
+static constexpr int retryWaitSeconds = 5;
 
 SimTool::SimTool()
 	:bSimZip(true ),
@@ -110,8 +108,7 @@ SimTool::SimTool()
 	numSerialParameterScans(0),
 
 	postProcessingHdf5Writer(nullptr),
-	smoldynSim(nullptr),
-	smoldynInputFile("" )
+	smoldynSim(nullptr)
 { }
 
 SimTool::~SimTool()
@@ -128,14 +125,14 @@ SimTool::~SimTool()
 
 void SimTool::setModel(VCellModel* model) {
 	if (model == nullptr) {
-		throw "SimTool::setModel(), model can't be null";
+		throw runtime_error("SimTool::setModel(), model can't be null");
 	}
 	vcellModel = model;
 }
 
 void SimTool::setSimulation(SimulationExpression* sim) {
 	if (sim == nullptr) {
-		throw "SimTool::setSimulation(), simulation can't be null";
+		throw runtime_error("SimTool::setSimulation(), simulation can't be null");
 	}
 	simulation = sim;
 	simulation->setDT_sec(simDeltaTime);
@@ -147,7 +144,7 @@ void SimTool::setTimeStep(double period) {
 
 void SimTool::setSmoldynStepMultiplier(int steps) {
     if(steps <= 0) {
-        throw "SimTool::setSmoldynStepMultiplier(), smoldynStepMultiplier must be a positive integer";
+        throw runtime_error("SimTool::setSmoldynStepMultiplier(), smoldynStepMultiplier must be a positive integer");
     }
 	smoldynStepMultiplier = steps;
 }
@@ -162,23 +159,23 @@ bool SimTool::checkStopRequested() {
 
 TimerHandle SimTool::getTimerHandle(string& identifier)
 {
-	if (_timer==NULL){
+	if (_timer==nullptr){
 		_timer = new Timer();
 	}
 	return _timer->registerID(identifier);
 }
 
-void SimTool::startTimer(TimerHandle hnd)
+void SimTool::startTimer(TimerHandle hnd) const
 {
 	_timer->start(hnd);
 }
 
-void SimTool::stopTimer(TimerHandle hnd)
+void SimTool::stopTimer(TimerHandle hnd) const
 {
 	_timer->stop(hnd);
 }
 
-double SimTool::getElapsedTimeSec(TimerHandle hnd)
+double SimTool::getElapsedTimeSec(TimerHandle hnd) const
 {
 	double time=0.0;
 	_timer->getElapsedTimeSec(hnd, time);
@@ -199,8 +196,8 @@ void SimTool::showSummary(FILE *fp)
 	}
 }
 
-void SimTool::setBaseFilename(const string& fname) {
-	if (fname.empty()) {
+void SimTool::setBaseFilename(const std::filesystem::path& fname) {
+	if (fname.string().empty()) {
 		throw runtime_error("invalid base file name for data set");
 	}
 	baseFileName = fname;
@@ -217,11 +214,11 @@ static void retryWait(int seconds) {
 }
 
 static FILE* openFileWithRetry(const char* fileName, const char* mode) {
-	FILE *fp = NULL;
+	FILE *fp = nullptr;
 	for (int retry = 0; retry < numRetries; retry ++) {
 		fp = fopen(fileName, mode);
 
-		if (fp != NULL) {
+		if (fp != nullptr) {
 			break;
 		}
 		if (retry < numRetries - 1) {
@@ -232,7 +229,7 @@ static FILE* openFileWithRetry(const char* fileName, const char* mode) {
 	return fp;
 }
 
-static bool zipUnzipWithRetry(bool bZip, filesystem::path zipFileName, filesystem::path simFileName, std::string* errmsg) {
+static bool zipUnzipWithRetry(bool bZip, const filesystem::path& zipFileName, const filesystem::path& simFileName, std::string* errmsg) {
 	bool bSuccess = false;
 	for (int attemptNum = 0; attemptNum <= numRetries; attemptNum++) {
 		try {
@@ -260,7 +257,7 @@ static bool zipUnzipWithRetry(bool bZip, filesystem::path zipFileName, filesyste
 	}
 	if (!bSuccess) {
 		errmsg->clear();
-		errmsg->append("Writing zip file <").append(zipFileName).append("> failed.");
+		errmsg->append("Writing zip file <").append(zipFileName.string()).append("> failed.");
 	}
 	return bSuccess;
 }
@@ -272,7 +269,7 @@ void SimTool::loadFinal()
 		return;
 	}
 
-	if (smoldynSim != NULL) {
+	if (smoldynSim != nullptr) {
 		clearLog();
 		return;
 	}
@@ -290,7 +287,7 @@ void SimTool::loadFinal()
 
 
 	FILE* tidFP = lockForReadWrite();
-	FILE* logFP = fopen(logFileName.c_str(), "r");
+	FILE* logFP = fopen(logFileName.string().c_str(), "r");
 
 	if (logFP != nullptr) {
 		bStartOver = false; // log file exists, there is old data
@@ -305,7 +302,7 @@ void SimTool::loadFinal()
 		}
 
 		simStartTime = -1;
-		int tempIteration = -1, tempFileCount = 0, tempZipCount = 0;
+		int tempIteration = -1, tempFileCount = 0;
 		int numTimes = 0;
 
 		while (!feof(logFP)){
@@ -317,18 +314,18 @@ void SimTool::loadFinal()
 			//
 			// look for line with a valid filename (includes basename)
 			//
-			if (strstr(logBuffer, baseSimName.c_str())){
+			if (strstr(logBuffer, baseSimName.string().c_str())){
 				//
 				// parse iteration number and time
 				//
-				int numTokens = 0;
+				int numTokens;
 				if (bSimZip) {
-					numTokens = sscanf(logBuffer, "%d %s %s %lg", &tempIteration, dataFileName.c_str(), zipFileName.c_str(), &simStartTime);
+					numTokens = sscanf(logBuffer, "%d %s %s %lg", &tempIteration, dataFileName.string().c_str(), zipFileName.string().c_str(), &simStartTime);
 				} else {
-					numTokens = sscanf(logBuffer, "%d %s %lg", &tempIteration, dataFileName.c_str(), &simStartTime);
+					numTokens = sscanf(logBuffer, "%d %s %lg", &tempIteration, dataFileName.string().c_str(), &simStartTime);
 				}
 				if (numTokens != NUM_TOKENS_PER_LINE){
-					printf("SimTool::load(), error reading log file %s, reading iteration\n", logFileName.c_str());
+					printf("SimTool::load(), error reading log file %s, reading iteration\n", logFileName.string().c_str());
 					printf("error in line %d = '%s'\n", tempFileCount, logBuffer);
 					bStartOver = true;
 					break;
@@ -361,7 +358,7 @@ void SimTool::loadFinal()
 					// unzip the file (without directory) into exdir, currently we
 					// unzip the file to the current working directory
 					std::string errmsg;
-					zipUnzipWithRetry(false, zipFileAbsoluteName.c_str(), dataFileName.c_str(), &errmsg);
+					zipUnzipWithRetry(false, zipFileAbsoluteName.string().c_str(), dataFileName.string().c_str(), &errmsg);
 				}
 			}
 
@@ -372,12 +369,12 @@ void SimTool::loadFinal()
 					bStartOver = true;
 				} else {
 					try {
-						if (postProcessingHdf5Writer != NULL) {
+						if (postProcessingHdf5Writer != nullptr) {
 							bStartOver = !postProcessingHdf5Writer->loadFinal(numTimes);
 						}
 
 						if (!bStartOver) {
-							FVDataSet::read(dataFileName.c_str(), simulation);
+							FVDataSet::read(dataFileName.string().c_str(), simulation);
 							simulation->setCurrIteration(tempIteration);
 							// set start time on sundials
 							if (isSundialsPdeSolver()) {
@@ -386,7 +383,7 @@ void SimTool::loadFinal()
 							simFileCount = tempFileCount;
 
 							if (bSimZip) {
-								remove(dataFileName.c_str());
+								remove(dataFileName.string().c_str());
 								zipFileCount = getZipCount(zipFileName);
 								// wrong zip file Name
 								if (zipFileCount < 0) { // should never happen
@@ -421,34 +418,34 @@ void SimTool::loadFinal()
 		clearLog();
 	}
 }
-void SimTool::checkTaskIdLockFile(){
+void SimTool::checkTaskIdLockFile() const
+{
 	FILE* fp = lockForReadWrite();
-	if (fp != 0 ) {
+	if (fp != nullptr) {
 		fclose(fp);
 	}
 }
 
-FILE* SimTool::lockForReadWrite() {
+FILE* SimTool::lockForReadWrite() const
+{
 	const int myTaskID = SimulationMessaging::getInstVar()->getTaskID();
 	if (myTaskID < 0) return nullptr;
 
 
-	std::string tidFileName{baseFileName};
+	std::string tidFileName = baseFileName.string();
 	tidFileName.append(TID_FILE_EXT);
 
 	bool bExist = false;
 
-	struct stat buf;
+	struct stat buf{};
 	if (stat(tidFileName.c_str(), &buf) == 0) { // if exists
 		bExist = true;
 	}
 
 	FILE* fp = openFileWithRetry(tidFileName.c_str(), bExist ? "r+" : "w+");
 
-	if (fp == 0){
-		std::string errMsg;
-		errMsg.append("SimTool::lockForReadWrite() - error opening .tid file <").append(tidFileName).append(">");
-		throw errMsg.c_str();
+	if (fp == nullptr){
+		throw runtime_error("SimTool::lockForReadWrite() - error opening .tid file <" + tidFileName + ">");
 	}
 
 	if (bExist) {
@@ -487,20 +484,20 @@ void SimTool::updateLog(double progress, double time, int iteration)
 		std::string errorMsg;
 		FILE* tidFP = lockForReadWrite();
 
-		struct stat buf;
+		struct stat buf{};
 #if ( defined(WIN32) || defined(WIN64) ) // Windows
 		wstring TempPath;
 		wchar_t wcharPath[128]; // This needs to be fixed when on windows.
 		if (GetTempPathW(128, wcharPath)){
 			TempPath = wcharPath;
 		}else{
-			throw "failed to obtain system temp directory";
+			throw runtime_error("failed to obtain system temp directory");
 		}
 		std::string tempDir( TempPath.begin(), TempPath.end() );
 #else
 		std::string tempDir = "/tmp/";
 		char const *folder = getenv("TMPDIR");
-		if (folder != 0)
+		if (folder != nullptr)
     		tempDir = folder;		
     	if (tempDir.at(tempDir.length()-1) != '/') 
     	    tempDir += '/';
@@ -523,9 +520,9 @@ void SimTool::updateLog(double progress, double time, int iteration)
 		std::stringstream simFileNameStream;
 		// write sim files to local
 		if (bSimZip && bUseTempDir) {
-			simFileNameStream << tempDir << getFileName(baseSimName) << std::setfill('0') << std::setw(4) << simFileCount << SIM_FILE_EXT;
+			simFileNameStream << tempDir << getFileName(baseSimName.string()) << std::setfill('0') << std::setw(4) << simFileCount << SIM_FILE_EXT;
 		} else {
-			simFileNameStream << baseFileName << std::setfill('0') << std::setw(4) << simFileCount << SIM_FILE_EXT;
+			simFileNameStream << baseFileName.string() << std::setfill('0') << std::setw(4) << simFileCount << SIM_FILE_EXT;
 		}
 		simFileName = simFileNameStream.str();
 		std::cout << "sim file name is " << simFileName << std::endl;
@@ -535,7 +532,7 @@ void SimTool::updateLog(double progress, double time, int iteration)
 		
 		simulation->writeData(simFileName.c_str(), bSimFileCompress);
 
-		std::string logFileName{baseFileName};
+		std::string logFileName = baseFileName.string();
 		logFileName.append(LOG_FILE_EXT);
 
 		logFP = openFileWithRetry(logFileName.c_str(), "a");
@@ -563,17 +560,17 @@ void SimTool::updateLog(double progress, double time, int iteration)
 				// write the log file
 				if (bSuccess) {
 					// write hdf5 post processing before writing log entry
-					if (postProcessingHdf5Writer != NULL) {
+					if (postProcessingHdf5Writer != nullptr) {
 						postProcessingHdf5Writer->writeOutput(this);
 					}
 
 
 
 					std::stringstream zipFileNameWithoutPathStream;
-					zipFileNameWithoutPathStream << baseSimName << std::setfill('0') << std::setw(2) <<
+					zipFileNameWithoutPathStream << baseSimName.string() << std::setfill('0') << std::setw(2) <<
 						zipFileCount << ZIP_FILE_EXT;
 					std::stringstream simFileNameWithoutPathStream;
-					simFileNameWithoutPathStream << baseSimName << std::setfill('0') << std::setw(4) <<
+					simFileNameWithoutPathStream << baseSimName.string() << std::setfill('0') << std::setw(4) <<
 						simFileCount << SIM_FILE_EXT;
 					fprintf(logFP,"%4d %s %s %.15lg\n", iteration, simFileNameWithoutPathStream.str().c_str(),
 						zipFileNameWithoutPathStream.str().c_str(), time);
@@ -586,7 +583,7 @@ void SimTool::updateLog(double progress, double time, int iteration)
 				}
 			} else { // old format, no zip
 				std::stringstream simFileNameWithoutPathStream;
-				simFileNameWithoutPathStream << baseSimName << std::setfill('0') << std::setw(4) <<
+				simFileNameWithoutPathStream << baseSimName.string() << std::setfill('0') << std::setw(4) <<
 					simFileCount << SIM_FILE_EXT;
 				fprintf(logFP,"%4d %s %.15lg\n", iteration,
 					simFileNameWithoutPathStream.str().c_str(), time);
@@ -595,17 +592,17 @@ void SimTool::updateLog(double progress, double time, int iteration)
 		// close log file
 		fclose(logFP);
 		// close tid file
-		if (tidFP != 0) {
+		if (tidFP != nullptr) {
 			fclose(tidFP);
 		}
 		if (bSuccess) {
 			simFileCount++;
 		} else {
-			throw errorMsg.c_str();
+			throw runtime_error(errorMsg);
 		}
 	} else{
 		// write hdf5 post processing before writing log entry
-		if (postProcessingHdf5Writer != NULL) {
+		if (postProcessingHdf5Writer != nullptr) {
 			postProcessingHdf5Writer->writeOutput(this);
 		}
 
@@ -614,7 +611,7 @@ void SimTool::updateLog(double progress, double time, int iteration)
 	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_DATA, progress, time));
 }
 
-int SimTool::getZipCount(filesystem::path zipFileName) {
+int SimTool::getZipCount(const filesystem::path& zipFileName) {
 	const char* p = strstr(zipFileName.string().c_str(), ZIP_FILE_EXT);
 	if (p == nullptr) {
 		return -1;
@@ -641,25 +638,25 @@ void SimTool::clearLog()
 	std::string buffer;
 
 	// remove mesh file
-	buffer.append(baseFileName).append(MESH_FILE_EXT);
+	buffer.append(baseFileName.string()).append(MESH_FILE_EXT);
 	remove(buffer.c_str());
 	buffer.clear();
 
-	buffer.append(baseFileName).append(MESHMETRICS_FILE_EXT);
+	buffer.append(baseFileName.string()).append(MESHMETRICS_FILE_EXT);
 	remove(buffer.c_str());
 	buffer.clear();
 
-	buffer.append(baseFileName).append(ZIP_FILE_EXT);
+	buffer.append(baseFileName.string()).append(ZIP_FILE_EXT);
 	remove(buffer.c_str());
 	buffer.clear();
 
-	buffer.append(baseFileName).append("00").append(ZIP_FILE_EXT);
+	buffer.append(baseFileName.string()).append("00").append(ZIP_FILE_EXT);
 	remove(buffer.c_str());
 	buffer.clear();
 
-	logFileName.append(baseFileName).append(LOG_FILE_EXT);
+	logFileName.append(baseFileName.string()).append(LOG_FILE_EXT);
 
-	if ((fp=fopen(logFileName.c_str(), "r")) == NULL){
+	if ((fp=fopen(logFileName.c_str(), "r")) == nullptr){
 		printf("error opening log file <%s>\n", logFileName.c_str());
 		return;
 	}
@@ -670,7 +667,7 @@ void SimTool::clearLog()
 	double time;
 
 	while (true) {
-		int numTokens  = 0;
+		int numTokens;
 		if (bSimZip) {
 			numTokens =  fscanf(fp,"%d %s %s %lg\n", &iteration, simFileName.c_str(), zipFileName.c_str(), &time);
 		} else {
@@ -687,11 +684,11 @@ void SimTool::clearLog()
 
 		*dotSim = '\0';
 
-		buffer.append(baseFileName).append(SIM_FILE_EXT);
+		buffer.append(baseFileName.string()).append(SIM_FILE_EXT);
 		remove(buffer.c_str());
 		buffer.clear();
 
-		buffer.append(baseFileName).append(SIM_FILE_EXT).append(PARTICLE_FILE_EXT);
+		buffer.append(baseFileName.string()).append(SIM_FILE_EXT).append(PARTICLE_FILE_EXT);
 		remove(buffer.c_str());
 		buffer.clear();
 
@@ -708,15 +705,16 @@ void SimTool::clearLog()
 	remove(logFileName.c_str());
 }
 
-bool SimTool::isSundialsPdeSolver() {
+bool SimTool::isSundialsPdeSolver() const
+{
 	return solver == SUNDIALS_PDE_SOLVER;
 }
 
-void SimTool::setSolver(string& s) {
-	if (s.length() > 0 && s != FV_SOLVER && s != SUNDIALS_PDE_SOLVER) {
+void SimTool::setSolver(const string& s) {
+	if (!s.empty() && s != FV_SOLVER && s != SUNDIALS_PDE_SOLVER) {
 		stringstream ss;
 		ss << "unknown solver : " << s;
-		throw ss.str();
+		throw runtime_error(ss.str());
 	}
 	solver = s;
 }
@@ -742,13 +740,13 @@ void SimTool::start() {
 		SimulationExpression* sim = simulation;
 		for (int scan = 0; scan < numSerialParameterScans; scan ++) {
 			if (scan > 0) {
-				string bfn(baseFileName);
+				string bfn(baseFileName.string());
 				char oldIndex[10], newIndex[10];
 				sprintf(oldIndex, "_%d_\0", scan - 1);
 				sprintf(newIndex, "_%d_\0", scan);
 				int p = (int)bfn.rfind(oldIndex);
 				bfn.replace(p, strlen(oldIndex), newIndex);
-				setBaseFilename((char*)bfn.c_str());
+				setBaseFilename(filesystem::path(bfn));
 			}
 			sim->setParameterValues(this, serialScanParameterValues[scan]);
 			start1();
@@ -756,24 +754,24 @@ void SimTool::start() {
 	}
 }
 
-void SimTool::setSmoldynInputFile(string& inputfile) {
+void SimTool::setSmoldynInputFile(const string& inputfile) {
 	smoldynInputFile = inputfile;
 }
 
 void SimTool::start1() {
 
 	// create post processing hdf5 writer
-	if (simulation->getPostProcessingBlock() != NULL) {
-		if (postProcessingHdf5Writer == NULL) {
+	if (simulation->getPostProcessingBlock() != nullptr) {
+		if (postProcessingHdf5Writer == nullptr) {
 			std::string h5PPFileName;
-			h5PPFileName.append(baseFileName).append(HDF5_FILE_EXT);
+			h5PPFileName.append(baseFileName.string()).append(HDF5_FILE_EXT);
 			postProcessingHdf5Writer = new PostProcessingHdf5Writer(h5PPFileName, simulation->getPostProcessingBlock());
 		}
 	}
 
 	simulation->initSimulation(this);
 
-	if (smoldynInputFile != "") {
+	if (!smoldynInputFile.empty()) {
 		smoldynSim = vcellhybrid::smoldynInit(this, smoldynInputFile);//smoldynInit will write output therefore computeHistogram is called by VCellSmoldynOutput.write().
 		copyParticleCountsToConcentration();
 		// since smoldyn only initializes variable current value,
@@ -795,7 +793,7 @@ void SimTool::start1() {
 	}
 
 	std::string message;
-	message.append("simulation [").append(baseSimName).append("] started");
+	message.append("simulation [").append(baseSimName.string()).append("] started");
 	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, message.c_str()));
 
 	//
@@ -809,23 +807,23 @@ void SimTool::start1() {
 		// simulation starts from scratch, needs to
 		// write .mesh and .meshmetrics file
 		if (bStoreEnable){
-			FILE *fp = NULL;
+			FILE *fp;
 			std::string filename;
-			filename.append(baseFileName).append(MESH_FILE_EXT);
-			if ((fp=fopen(filename.c_str(),"w")) == NULL){
+			filename.append(baseFileName.string()).append(MESH_FILE_EXT);
+			if ((fp=fopen(filename.c_str(),"w")) == nullptr){
 				std::string errorMessage;
 				errorMessage.append("cannot open mesh file ").append(filename).append(" for writing");
-				throw errorMessage.c_str();
+				throw runtime_error(errorMessage);
 			}
 			simulation->getMesh()->write(fp);
 			fclose(fp);
 
-			filename.erase(strlen(baseFileName.c_str()), 5);
+			filename.erase(strlen(baseFileName.string().c_str()), 5);
 			filename.append(MESHMETRICS_FILE_EXT);
 			if ((fp=fopen(filename.c_str(),"w")) == nullptr){
 				std::string errorMessage;
 				errorMessage.append("cannot open mesh metrics file ").append(filename).append(" for writing");
-				throw errorMessage.c_str();
+				throw runtime_error(errorMessage);
 			}
 			simulation->getMesh()->writeMeshMetrics(fp);
 			fclose(fp);
@@ -842,10 +840,10 @@ void SimTool::start1() {
 	if (bCheckSpatiallyUniform) {
 		increment = 0.001;
 	}
-	double epsilon = 1e-12;
 	clock_t oldTime = clock(); // to control the output of progress, send progress every 2 seconds.
 	int counter = 0;
 	while (true) {
+		double epsilon = 1e-12;
 		if (simulation->getTime_sec(this) - simEndTime > epsilon // currentTime past endTime
 				|| fabs(simEndTime - simulation->getTime_sec(this)) < epsilon) { // reached the end time
 			break;
@@ -862,7 +860,7 @@ void SimTool::start1() {
 
 		counter++;
 		simulation->iterate(this);
-		if (smoldynSim != NULL && counter == smoldynStepMultiplier) {
+		if (smoldynSim != nullptr && counter == smoldynStepMultiplier) {
 			vcellhybrid::smoldynOneStep(smoldynSim);//smoldynOneStep includes computeHistogram after each time step.
 			copyParticleCountsToConcentration();
 			counter = 0;
@@ -908,7 +906,7 @@ void SimTool::start1() {
 		}
 	}
 
-	if (smoldynSim != NULL) {
+	if (smoldynSim != nullptr) {
 		vcellhybrid::smoldynEnd(smoldynSim);
 	}
 	if (checkStopRequested()) {
@@ -926,7 +924,7 @@ void SimTool::copyParticleCountsToConcentration(){ //concentration in terms of p
 	int numVars = simulation->getNumVariables();
 	for (int i=0; i<numVars; i++){
 		if(simulation->getVariable(i)->getVarType() == VAR_VOLUME_PARTICLE){
-			VolumeParticleVariable* var = (VolumeParticleVariable*)simulation->getVariable(i);
+			auto* var = (VolumeParticleVariable*)simulation->getVariable(i);
 			for(int j=0; j<simulation->getMesh()->getNumVolumeElements(); j++){
 				double count = var->getMoleculeCounts()[j];
 				if(count>0){
@@ -937,7 +935,7 @@ void SimTool::copyParticleCountsToConcentration(){ //concentration in terms of p
 			}
 		}
 		else if(simulation->getVariable(i)->getVarType() == VAR_MEMBRANE_PARTICLE){
-			MembraneParticleVariable* var = (MembraneParticleVariable*)simulation->getVariable(i);
+			auto* var = (MembraneParticleVariable*)simulation->getVariable(i);
 			for(int j=0; j<simulation->getMesh()->getNumMembraneElements(); j++){
 				double count = var->getMoleculeCounts()[j];
 				if(count>0){
@@ -953,7 +951,7 @@ void SimTool::copyParticleCountsToConcentration(){ //concentration in terms of p
 
 bool SimTool::checkSpatiallyUniform(Variable* var) {
 	double* currSol = var->getCurr();
-	CartesianMesh* mesh = (CartesianMesh*)simulation->getMesh();
+	CartesianMesh* mesh = simulation->getMesh();
 	switch (var->getVarType()) {
 		case VAR_VOLUME:
 			for (int r = 0; r < mesh->getNumVolumeRegions(); r ++) {

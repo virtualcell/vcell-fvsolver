@@ -49,24 +49,24 @@ public:
 
 	void setKeepEvery(int ke) { keepEvery = ke; }
 	void setKeepAtMost(int kam) { keepAtMost = kam; }
-	void setBaseFilename(const string& fname);
-	string getBaseFileName() const { return baseFileName; }
-	string getBaseDirName() const { return baseDirName; }
+	void setBaseFilename(const std::filesystem::path& fname);
+	[[nodiscard]] std::filesystem::path getBaseFileName() const { return baseFileName; }
+	[[nodiscard]] std::filesystem::path getBaseDirName() const { return baseDirName; }
 	void setStoreEnable(bool enable) { bStoreEnable = enable; }
 	void setFileCompress(bool compress) { bSimFileCompress = compress; }
 	void requestNoZip();
 
 	SimulationExpression* getSimulation() const { return simulation; }
 	VCellModel* getModel() const { return vcellModel; }
-	bool checkStopRequested();
+	static bool checkStopRequested();
 	TimerHandle getTimerHandle(string& timerName);
-	void        startTimer(TimerHandle hnd);
-	void        stopTimer(TimerHandle hnd);
-	double      getElapsedTimeSec(TimerHandle hnd);
+	void        startTimer(TimerHandle hnd) const;
+	void        stopTimer(TimerHandle hnd) const;
+	double      getElapsedTimeSec(TimerHandle hnd) const;
 	virtual void showSummary(FILE *fp);
 
-	void setSolver(string& s);
-	bool isSundialsPdeSolver();
+	void setSolver(const string& s);
+	bool isSundialsPdeSolver() const;
 
 	void setDiscontinuityTimes(int num, double* times) {
 		numDiscontinuityTimes = num;
@@ -102,17 +102,17 @@ public:
 	void setLoadFinal(bool b) {
 		bLoadFinal = b;
 	}
-	void checkTaskIdLockFile();
+	void checkTaskIdLockFile() const;
 
-	void setSmoldynInputFile(string& inputfile);
+	void setSmoldynInputFile(const string& inputfile);
 
 private:
-	FILE* lockForReadWrite();
+	FILE* lockForReadWrite() const;
 
 	bool checkSpatiallyUniform(Variable*);	
 	void updateLog(double progress,double time,int iteration);
 	void clearLog();
-	int	getZipCount(std::filesystem::path zipFileName);
+	static int	getZipCount(const std::filesystem::path& zipFileName);
 	void start1();
 	void copyParticleCountsToConcentration();
 
