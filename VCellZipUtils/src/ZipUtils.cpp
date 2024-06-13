@@ -10,7 +10,6 @@ using std::endl;
 
 #include <VCELL/ZipUtils.h>
 #include <sys/timeb.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <cerrno>
 #include <fcntl.h>
@@ -41,7 +40,7 @@ ziptool -c test.zip add_file file4.txt ../VCellZipUtils/test/file2.txt 0 0 set_f
 */
 
 static zip_t *
-read_from_file(filesystem::path archive, int flags, zip_error_t *error)
+read_from_file(const filesystem::path& archive, int flags, zip_error_t *error)
 {
 
 	zip_uint64_t offset = 0;
@@ -76,7 +75,7 @@ read_from_file(filesystem::path archive, int flags, zip_error_t *error)
   adds one or two files as uncompressed entries into a zip archive (creating the archive if necessary).
   entry names are the stripped filenames without full path.
 */
-void addFilesToZip(filesystem::path ziparchive, filesystem::path filepath1, filesystem::path filepath2)
+void addFilesToZip(const filesystem::path& ziparchive, const filesystem::path& filepath1, const filesystem::path& filepath2)
 {
 #if ( !defined(WIN32) && !defined(WIN64) && defined(USE_MESSAGING)) // UNIX
 #define USE_SHELL_ZIP 1
@@ -106,18 +105,17 @@ void addFilesToZip(filesystem::path ziparchive, filesystem::path filepath1, file
 		existingEntries = zip_get_num_entries(za, 0);
 		zip_close(za);
 	}
-	char indexFirstAddedEntry [128];
-	sprintf(indexFirstAddedEntry, "%d", existingEntries);
 
 	//
 	// strip filename from filepath1
 	//
-	std::string entryName1 = filepath1;
+	std::string entryName1 = filepath1.string();
 	std::size_t dirPos1 = entryName1.find_last_of("/\\");
 	if (dirPos1 > 0){
 		entryName1 = entryName1.substr(dirPos1+1, entryName1.length());
 	}
-	
+	string indexFirstAddedEntry = to_string(existingEntries);
+
 	const char* argv[50];	
 	int argc = 0;
 	argv[argc++] = "ziptool_main";
@@ -129,7 +127,7 @@ void addFilesToZip(filesystem::path ziparchive, filesystem::path filepath1, file
 	argv[argc++] = "0";
 	argv[argc++] = "0";
 	argv[argc++] = "set_file_compression";
-	argv[argc++] = indexFirstAddedEntry;
+	argv[argc++] = indexFirstAddedEntry.c_str();
 	argv[argc++] = "store";
 	argv[argc++] = "none";
 	
@@ -142,16 +140,14 @@ void addFilesToZip(filesystem::path ziparchive, filesystem::path filepath1, file
 		if (dirPos2 > 0){
 			entryName2 = entryName1.substr(dirPos2+1, entryName2.length());
 		}
-		
-		char indexSecondAddedEntry [128];
-		sprintf(indexSecondAddedEntry, "%d", existingEntries + 1);
+		string indexSecondAddedEntry = to_string(existingEntries + 1);
 		argv[argc++] = "add_file";
 		argv[argc++] = entryName2.c_str();
 		argv[argc++] = filepath2.c_str();
 		argv[argc++] = "0";
 		argv[argc++] = "0";
 		argv[argc++] = "set_file_compression";
-		argv[argc++] = indexSecondAddedEntry;
+		argv[argc++] = indexSecondAddedEntry.c_str();
 		argv[argc++] = "store";
 		argv[argc++] = "none";
 	}
@@ -165,7 +161,7 @@ name_locate(zip_t *za, const char* entryName) {
     zip_int64_t idx;
 
     if ((idx=zip_name_locate(za, entryName, flags)) < 0) {
-		throw "can't find named entry";
+		throw runtime_error(string("can't find named entry: ") + string(entryName));
     }
 
     return idx;
@@ -220,14 +216,12 @@ void extractFileFromZip(const char *zipFilename, const char *zipEntryName){
 }
 */
 
-void extractFileFromZip(std::filesystem::path zipFilename, std::filesystem::path zipEntryName)
+void extractFileFromZip(const std::filesystem::path& zipFilename, const std::filesystem::path& zipEntryName)
 {
     char buf[1000];
     int err;
-    int fd;
-    long long sum;
 
-	zip_t* za = NULL;
+	zip_t* za = nullptr;
 	
     if ((za = zip_open(zipFilename.c_str(), 0, &err)) == nullptr) {
         zip_error_to_str(buf, sizeof(buf), err, errno);
@@ -250,14 +244,14 @@ void extractFileFromZip(std::filesystem::path zipFilename, std::filesystem::path
         	throw runtime_error(errmsg);
         }
 
-        fd = open(sb.name, O_RDWR | O_TRUNC | O_CREAT, 0644);
+        int fd = open(sb.name, O_RDWR | O_TRUNC | O_CREAT, 0644);
         if (fd < 0) {
         	string errmsg = string("failed to open zip entry ") + zipFilename.string() + " : " + zipEntryName.string();
             cerr << errmsg << endl;
         	throw runtime_error(errmsg);
         }
 
-        sum = 0;
+        long long sum = 0;
         while (sum != sb.size) {
             int len = zip_fread(zf, buf, 100);
             if (len < 0) {

@@ -10,7 +10,7 @@
 
 #include <filesystem>
 
-extern void extractFileFromZip(std::filesystem::path zipFilename, std::filesystem::path zipEntryName);
-extern void addFilesToZip(std::filesystem::path zipFilename, std::filesystem::path filename1, std::filesystem::path filename2="");
+extern void extractFileFromZip(const std::filesystem::path& zipFilename, const std::filesystem::path& zipEntryName);
+extern void addFilesToZip(const std::filesystem::path& zipFilename, const std::filesystem::path& filename1, const std::filesystem::path& filename2="");
 
 #endif
