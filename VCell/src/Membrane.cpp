@@ -88,7 +88,7 @@ bool Membrane::inBetween(Feature* f1, Feature* f2) {
 	return (f1 == feature1 && f2 == feature2 || f1 == feature2 && f2 == feature1);
 }
 
-void Membrane::resolveReferences(Simulation *sim)
+void Membrane::resolveReferences(SimulationExpression *sim)
 {
 	for (int i = 0; i < (int)membraneVarContextList.size(); i ++) {
 		MembraneVarContextExpression *membraneVarContext = membraneVarContextList[i];
@@ -105,11 +105,11 @@ void Membrane::resolveReferences(Simulation *sim)
 	}
 }
 
-void Membrane::reinitConstantValues() {
+void Membrane::reinitConstantValues(SimulationExpression* sim) {
 	for (int i = 0; i < (int)membraneVarContextList.size(); i ++) {
-		membraneVarContextList[i]->reinitConstantValues();
+		membraneVarContextList[i]->reinitConstantValues(sim);
 	}
 	for (int i = 0; i < (int)membraneRegionVarContextList.size(); i ++) {
-		membraneRegionVarContextList[i]->reinitConstantValues();
+		membraneRegionVarContextList[i]->reinitConstantValues(sim);
 	}
 }

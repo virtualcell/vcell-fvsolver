@@ -177,7 +177,7 @@ void PostProcessingHdf5Writer::createGroups() {
 	}
 }
 
-void PostProcessingHdf5Writer::writeOutput() {
+void PostProcessingHdf5Writer::writeOutput(SimTool* sim_tool) {
 	try {
 		int timesRank = 1;
 		hsize_t timesDims = 1;	
@@ -187,7 +187,7 @@ void PostProcessingHdf5Writer::writeOutput() {
 		createGroups();
 
 		// write current time
-		double currTime = postProcessingBlock->simulation->getTime_sec();
+		double currTime = postProcessingBlock->simulation->getTime_sec(sim_tool);
 		hsize_t size = timeList.size() + 1;
 		timesDataSet->extend(&size);
 		hsize_t dim = 1;

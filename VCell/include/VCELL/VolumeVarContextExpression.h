@@ -15,43 +15,43 @@ class VolumeVarContextExpression : public VarContext
 public:	
 	VolumeVarContextExpression(Feature *feature, VolumeVariable* var);
 	
-	void resolveReferences(Simulation *sim);
+	void resolveReferences(SimulationExpression *sim) override;
 
-	double getInitialValue(long index);
-	double getDiffusionRate(long index);
-	double  getReactionRate(long volumeIndex);
-    double  getFlux(MembraneElement *element);
+	double getInitialValue(long index) override;
+	double getDiffusionRate(long index) const;
+	double  getReactionRate(long volumeIndex) const;
+    double  getFlux(MembraneElement *element) const;
 
-    double getXmBoundaryValue(long index);
-    double getXpBoundaryValue(long index);
-    double getYmBoundaryValue(long index);
-    double getYpBoundaryValue(long index);
-    double getZmBoundaryValue(long index);
-    double getZpBoundaryValue(long index);
+    double getXmBoundaryValue(long index) const;
+    double getXpBoundaryValue(long index) const;
+    double getYmBoundaryValue(long index) const;
+    double getYpBoundaryValue(long index) const;
+    double getZmBoundaryValue(long index) const;
+    double getZpBoundaryValue(long index) const;
 
-    double getXmBoundaryFlux(long index);
-    double getXpBoundaryFlux(long index);
-    double getYmBoundaryFlux(long index);
-    double getYpBoundaryFlux(long index);
-    double getZmBoundaryFlux(long index);
-    double getZpBoundaryFlux(long index);    
+    double getXmBoundaryFlux(long index) const;
+    double getXpBoundaryFlux(long index) const;
+    double getYmBoundaryFlux(long index) const;
+    double getYpBoundaryFlux(long index) const;
+    double getZmBoundaryFlux(long index) const;
+    double getZpBoundaryFlux(long index) const;    
     
-	double getXBoundaryPeriodicConstant();
-    double getYBoundaryPeriodicConstant();
-    double getZBoundaryPeriodicConstant();
+	double getXBoundaryPeriodicConstant() const;
+    double getYBoundaryPeriodicConstant() const;
+    double getZBoundaryPeriodicConstant() const;
 
-    double getConvectionVelocity_X(long index);
-    double getConvectionVelocity_Y(long index);
-    double getConvectionVelocity_Z(long index);
+    double getConvectionVelocity_X(long index) const;
+    double getConvectionVelocity_Y(long index) const;
+    double getConvectionVelocity_Z(long index) const;
 
-	bool hasConstantDiffusion();
-	bool hasConstantCoefficients(int dimension);
-	bool hasXYZOnlyDiffusion();
+	bool hasConstantDiffusion() const;
+	bool hasConstantCoefficients(int dimension) const;
+	bool hasXYZOnlyDiffusion() const;
 
-	bool hasGradient(int dir);
+	bool hasGradient(int dir) const;
 
 private:
-	bool isNullExpressionOK(int expIndex);
+	bool isNullExpressionOK(int expIndex) const override;
 };
 
 #endif

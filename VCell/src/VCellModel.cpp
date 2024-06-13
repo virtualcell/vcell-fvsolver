@@ -73,9 +73,8 @@ Feature *VCellModel::getFeatureFromName(string& name)
 	throw ss.str();
 }
 
-void VCellModel::resolveReferences()
-{	
-	Simulation* sim = SimTool::getInstance()->getSimulation();
+void VCellModel::resolveReferences(SimulationExpression* sim)
+{
 	for (int i = 0; i < (int)featureList.size(); i ++) {
 		Feature* feature = featureList[i];
 		feature->resolveReferences(sim);		

@@ -12,7 +12,7 @@ Solver::Solver(Variable *variable)
 	eqnBuilder = NULL;
 }
 
-void Solver::initEqn(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime)
+void Solver::initEqn(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime)
 {
 	if (!bFirstTime) {
 		return;
@@ -20,12 +20,12 @@ void Solver::initEqn(double deltaTime, int volumeIndexStart, int volumeIndexSize
 
 	ASSERTION(eqnBuilder);
 
-	eqnBuilder->initEquation(deltaTime, volumeIndexStart, volumeIndexSize, membraneIndexStart, membraneIndexSize);
+	eqnBuilder->initEquation(model, deltaTime, volumeIndexStart, volumeIndexSize, membraneIndexStart, membraneIndexSize);
 }
 
-void Solver::buildEqn(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime)
+void Solver::buildEqn(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime)
 {
 	ASSERTION(eqnBuilder);
 
-	eqnBuilder->buildEquation(deltaTime, volumeIndexStart, volumeIndexSize, membraneIndexStart, membraneIndexSize);
+	eqnBuilder->buildEquation(sim, deltaTime, volumeIndexStart, volumeIndexSize, membraneIndexStart, membraneIndexSize);
 }

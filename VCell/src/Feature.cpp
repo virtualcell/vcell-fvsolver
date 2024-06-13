@@ -28,16 +28,12 @@ Feature::Feature(string& name, unsigned char findex, FeatureHandle Ahandle) : St
 	fastSystem = NULL;
 }
 
-Feature::~Feature()
-{
-}
-
 //double Feature::getMaxIterationTime()
 //{
 //	return 0.0;
 //}
 
-void Feature::resolveReferences(Simulation *sim)
+void Feature::resolveReferences(SimulationExpression *sim)
 {	
 	for (int i = 0; i < (int)volumeVarContextList.size(); i ++) {
 		VolumeVarContextExpression* volumeVarContext = volumeVarContextList[i];
@@ -120,12 +116,12 @@ VolumeRegionVarContextExpression* Feature::getVolumeRegionVarContext(VolumeRegio
 	return 0;
 }
 
-void Feature::reinitConstantValues() {
+void Feature::reinitConstantValues(SimulationExpression* sim) {
 	for (int i = 0; i < (int)volumeVarContextList.size(); i ++) {
-		volumeVarContextList[i]->reinitConstantValues();
+		volumeVarContextList[i]->reinitConstantValues(sim);
 	}
 
 	for (int i = 0; i < (int)volumeRegionVarContextList.size(); i ++) {
-		volumeRegionVarContextList[i]->reinitConstantValues();
+		volumeRegionVarContextList[i]->reinitConstantValues(sim);
 	}
 }

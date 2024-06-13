@@ -6,17 +6,20 @@
 #define EQNBUILDER_H
 
 class Mesh;
+class Simulation;
 class Variable;
+class VCellModel;
 
 class EqnBuilder
 {
 public:
 	EqnBuilder(Variable *var, Mesh *mesh);
+	virtual ~EqnBuilder() = default;
 
-	virtual void initEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)=0;
-	virtual void buildEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)=0;
+	virtual void initEquation(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)=0;
+	virtual void buildEquation(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)=0;
 
-	Mesh* getMesh() { return mesh; };
+	Mesh* getMesh() const { return mesh; };
 	virtual bool isElliptic() { return false; }
 
 protected:

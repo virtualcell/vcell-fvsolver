@@ -42,15 +42,15 @@ MembraneEqnBuilderDiffusion::~MembraneEqnBuilderDiffusion() {
 // Initializes Matrix only
 //
 //------------------------------------------------------------------
-void MembraneEqnBuilderDiffusion::initEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, 
+void MembraneEqnBuilderDiffusion::initEquation(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize,
 				int membraneIndexStart, int membraneIndexSize)
 {   	
 	if (!bPreProcessed) {
-		preProcess();
+		preProcess(model);
 	}
 
 	if (periodicPairs.size() > 0) {
-	   initEquation_Periodic(deltaTime, volumeIndexStart, volumeIndexSize, membraneIndexStart, membraneIndexSize);
+	   initEquation_Periodic(model, deltaTime, volumeIndexStart, volumeIndexSize, membraneIndexStart, membraneIndexSize);
 	   return;
 	} 
 
@@ -113,11 +113,11 @@ void MembraneEqnBuilderDiffusion::initEquation(double deltaTime, int volumeIndex
 // updates B vector only with reaction rates and boundary conditions
 //
 //------------------------------------------------------------------
-void MembraneEqnBuilderDiffusion::buildEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, 
+void MembraneEqnBuilderDiffusion::buildEquation(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize,
 				int membraneIndexStart, int membraneIndexSize)
 {    
 	if (periodicPairs.size() > 0) {
-	   buildEquation_Periodic(deltaTime, volumeIndexStart, volumeIndexSize, 
+	   buildEquation_Periodic(sim, deltaTime, volumeIndexStart, volumeIndexSize,
 											   membraneIndexStart, membraneIndexSize);
 	   return;
 	}
@@ -125,7 +125,6 @@ void MembraneEqnBuilderDiffusion::buildEquation(double deltaTime, int volumeInde
 	VolumeElement *pVolumeElement = mesh->getVolumeElements();
 	MembraneElement *pMembraneElement = mesh->getMembraneElements();
 
-	Simulation *sim = SimTool::getInstance()->getSimulation();
 	SparseMatrixPCG* membraneElementCoupling = ((CartesianMesh*)mesh)->getMembraneCoupling();
 
 	MembraneElement* membraneElement = pMembraneElement;
@@ -260,10 +259,10 @@ double MembraneEqnBuilderDiffusion::computeDiffusionConstant(int meIndex, int ne
 	return (Di + Dj < epsilon)?(0.0):(2 * Di * Dj/(Di + Dj));
 }
 
-void MembraneEqnBuilderDiffusion::initEquation_Periodic(double deltaTime, int volumeIndexStart, int volumeIndexSize, 
+void MembraneEqnBuilderDiffusion::initEquation_Periodic(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize,
 														int membraneIndexStart, int membraneIndexSize) {
 	if (!bPreProcessed) {
-		preProcess();
+		preProcess(model);
 	}
 
 	VolumeElement *pVolumeElement = mesh->getVolumeElements();
@@ -374,13 +373,12 @@ void MembraneEqnBuilderDiffusion::initEquation_Periodic(double deltaTime, int vo
 	} // end i
 }
 
-void MembraneEqnBuilderDiffusion::buildEquation_Periodic(double deltaTime, int volumeIndexStart, int volumeIndexSize, 
+void MembraneEqnBuilderDiffusion::buildEquation_Periodic(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize,
 														 int membraneIndexStart, int membraneIndexSize) {  
 	VolumeElement *pVolumeElement = mesh->getVolumeElements();
 	MembraneElement *pMembraneElement = mesh->getMembraneElements();
 	ASSERTION(pMembraneElement);	
 
-	Simulation *sim = SimTool::getInstance()->getSimulation();
 	SparseMatrixPCG* membraneElementCoupling = ((CartesianMesh*)mesh)->getMembraneCoupling();
 
 	MembraneElement* membraneElement = pMembraneElement;
@@ -521,7 +519,7 @@ void MembraneEqnBuilderDiffusion::buildEquation_Periodic(double deltaTime, int v
 
 #define PERIODIC_GEOMETRY_ERROR_MESSAGE "Geometry is not compatible with periodic boundary conditions. Couldn't find corresponding membrane element."
 #define PERIODIC_NORMAL_ERROR_MESSAGE "Non periodic surface at periodic membrane (normals don't agree)."; 
-void MembraneEqnBuilderDiffusion::preProcess() {
+void MembraneEqnBuilderDiffusion::preProcess(VCellModel* model) {
 	if (bPreProcessed) {
 		return;
 	}
@@ -531,7 +529,6 @@ void MembraneEqnBuilderDiffusion::preProcess() {
 
 	// check if there is periodic boundary condition in the model
 	bool bHasPeriodicBC = false;
-	VCellModel* model = SimTool::getInstance()->getModel();
 	for (int i = 0; i < model->getNumMembranes(); i ++) {
 		Membrane *membrane = model->getMembraneFromIndex(i);
 		if (membrane->getXmBoundaryType() == BOUNDARY_PERIODIC

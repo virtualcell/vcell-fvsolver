@@ -1,7 +1,7 @@
 #include "VCellMesh.h"
 #include <VCELL/CartesianMesh.h>
 #include <VCELL/DoubleVector3.h>
-#include <VCELL/Simulation.h>
+#include <VCELL/SimulationExpression.h>
 
 using namespace std;
 

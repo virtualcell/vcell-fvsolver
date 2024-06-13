@@ -18,14 +18,13 @@ EqnBuilderReactionForward::EqnBuilderReactionForward(VolumeVariable *Avar, Mesh 
 	odeSolver = Asolver;
 }
 
-void EqnBuilderReactionForward::buildEquation(double deltaTime, 
+void EqnBuilderReactionForward::buildEquation(Simulation* sim, double deltaTime,
                             int volumeIndexStart, int volumeIndexSize, 
 			    int membraneIndexStart, int membraneIndexSize)
 {
 	Feature *feature;
 	VolumeVarContextExpression *varContext;
 
-	Simulation *sim = SimTool::getInstance()->getSimulation();
 	long arraySize = odeSolver->getArraySize();
 	if(arraySize==0){
 		ASSERTION((volumeIndexStart>=0) && ((volumeIndexStart+volumeIndexSize)<=mesh->getNumVolumeElements()));

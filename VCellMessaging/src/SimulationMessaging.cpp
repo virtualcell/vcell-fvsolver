@@ -112,6 +112,7 @@ namespace {
 SimulationMessaging::~SimulationMessaging() throw()
 {
 	if (workerEventOutputMode == WORKEREVENT_OUTPUT_MODE_STDOUT) {
+		m_inst = nullptr;
 		return;
 	}
 	std::for_each(events.begin(), events.end( ),cleanupWorkerEvent);
@@ -134,6 +135,7 @@ SimulationMessaging::~SimulationMessaging() throw()
 #endif
 	curl_global_cleanup();
 #endif
+	m_inst = nullptr;
 }
 
 SimulationMessaging* SimulationMessaging::getInstVar() {
@@ -326,7 +328,7 @@ void SimulationMessaging::sendStatus() {
 #endif
 		}
 #else
-			throw "OUPUT_MODE_STANDOUT must be using if not using messaging!";
+			throw runtime_error("OUPUT_MODE_STANDOUT must be using if not using messaging!");
 #endif
 		}
 		delete workerEvent;
@@ -334,7 +336,7 @@ void SimulationMessaging::sendStatus() {
 
 void SimulationMessaging::setWorkerEvent(WorkerEvent* arg_workerEvent) {
 	if (m_inst == nullptr) {
-		throw "SimulationMessaging is not initialized";
+		throw runtime_error("SimulationMessaging is not initialized");
 	}
 	if (workerEventOutputMode == WORKEREVENT_OUTPUT_MODE_STDOUT) {
 		events.push_back(arg_workerEvent);

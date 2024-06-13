@@ -7,14 +7,12 @@
 
 #include <VCELL/SimTypes.h>
 #include <vector>
-#include <string>
 using std::vector;
 using std::string;
 
 class Feature;
 class Membrane;
-//class Contour;
-class Simulation;
+class SimulationExpression;
 struct MembraneElement;
 
 class VCellModel
@@ -23,27 +21,25 @@ public:
 	VCellModel();
 	~VCellModel();
 
-	//Contour *getContour(int type);
-	//int getNumContours();
-	//void addContour(Contour *contour);
-
-	int getNumFeatures() {
-		return (int)featureList.size();
+	int getNumFeatures() const
+	{
+		return static_cast<int>(featureList.size());
 	}
 	Feature* addFeature(string& name, FeatureHandle handle);
 	Feature* getFeatureFromHandle(FeatureHandle handle);
 	Feature* getFeatureFromName(string&  name);
 	Feature* getFeatureFromIndex(int index);
 
-	int getNumMembranes() {
-		return (int)membraneList.size();
+	int getNumMembranes() const
+	{
+		return static_cast<int>(membraneList.size());
 	}
 	Membrane* addMembrane(string& name, string& feature1_name, string& feature2_name);
 	Membrane* getMembraneFromIndex(int index);
 	Membrane* getMembraneFromName(string& mem_name);
 	Membrane* getMembrane(Feature* f1, Feature* f2);
 	   
-	void resolveReferences();
+	void resolveReferences(SimulationExpression* sim);
 
 	bool hasFastSystem();
    

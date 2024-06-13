@@ -17,21 +17,18 @@ using std::min;
 using std::set;
 
 #include <MathUtil.h>
-#include <assert.h>
-#include <string.h>
+#include <cassert>
+#include <cstring>
 #include <VCELL/ManagedArrayPtr.h>
 #include <VCELL/CartesianMesh.h>
 #include <VCELL/Element.h>
 #include <VCELL/Feature.h>
 #include <VCELL/Membrane.h>
-#include <VCELL/FVUtils.h>
 #include <VCELL/VolumeRegion.h>
 #include <VCELL/MembraneRegion.h>
 #include <VCELL/SimTool.h>
 #include <VCELL/SimTypes.h>
 #include <VCELL/VCellModel.h>
-#include <VCELL/MembraneVariable.h>
-#include <VCELL/VolumeVariable.h>
 #include <VCELL/SparseMatrixPCG.h>
 #include <VCELL/IncidenceMatrix.h>
 #include <VCELL/VoronoiRidge.h>
@@ -82,7 +79,22 @@ extern "C"
 
 //static const int NumNaturalNeighbors_Membrane[] = {0, 0, 2, 4};
 
-CartesianMesh::CartesianMesh(double AcaptureNeighborhood) : Mesh(AcaptureNeighborhood){
+CartesianMesh::CartesianMesh(double AcaptureNeighborhood) : Mesh(AcaptureNeighborhood), domainSizeX(0), domainSizeY(0),
+                                                            domainSizeZ(0),
+                                                            domainOriginX(0),
+                                                            domainOriginY(0),
+                                                            domainOriginZ(0), numX(0),
+                                                            numY(0), numZ(0),
+                                                            numXY(0),
+                                                            scaleX_um(0),
+                                                            scaleY_um(0),
+                                                            scaleZ_um(0),
+                                                            areaX_squm(0),
+                                                            areaY_squm(0),
+                                                            areaZ_squm(0),
+                                                            volume_cu(0),
+                                                            membraneInfo()
+{
 }
 
 //void CartesianMesh::setVolumeLists()
@@ -160,19 +172,19 @@ CartesianMesh::CartesianMesh(double AcaptureNeighborhood) : Mesh(AcaptureNeighbo
 //	}
 //}
 
-void CartesianMesh::initialize(istream& ifs)
+void CartesianMesh::initialize(VCellModel* model, istream& ifs)
 {
-	if (pVolumeElement!=NULL) {
+	if (pVolumeElement!=nullptr) {
 		return;
 	}
 
-	readGeometryFile(ifs);
+	readGeometryFile(model, ifs);
 	initScale();
 
 	//sampleContours();
 	//setVolumeLists();
 
-	printf("numVolume=%d\n",numVolume);
+	printf("numVolume=%ld\n",numVolume);
 
 	setBoundaryConditions();
 	findMembraneNeighbors();
@@ -217,7 +229,7 @@ assert (alt == v);
 return (unsigned char)v;
 }
 */
-void CartesianMesh::readGeometryFile(istream& ifs) {
+void CartesianMesh::readGeometryFile(VCellModel *model, istream& ifs) {
 	stringstream ss;
 
 	string line;
@@ -246,6 +258,8 @@ void CartesianMesh::readGeometryFile(istream& ifs) {
 	case 3:
 		ss >> name >> domainSizeX >> domainSizeY >> domainSizeZ;
 		break;
+	default:
+		throw std::runtime_error("CartesianMesh::readGeometryFile() : invalid dimension");
 	}
 	//origin
 	getline(ifs, line);
@@ -270,7 +284,10 @@ void CartesianMesh::readGeometryFile(istream& ifs) {
 		membraneInfo.nDirections = 4;
 		membraneInfo.oppositeDirection= 2;
 		break;
+	default:
+		throw std::runtime_error("CartesianMesh::readGeometryFile() : invalid dimension");
 	}
+
 	//volumeRegions
 	getline(ifs, line);
 	int numVolumeRegions;
@@ -278,7 +295,6 @@ void CartesianMesh::readGeometryFile(istream& ifs) {
 	ss.str(line);
 	ss >> name >> numVolumeRegions;
 
-	VCellModel* model = SimTool::getInstance()->getModel();
 	for (int i = 0; i < numVolumeRegions; i ++) {
 		int fhi;
 		double volume;
@@ -286,9 +302,9 @@ void CartesianMesh::readGeometryFile(istream& ifs) {
 		ss.clear();
 		ss.str(line);
 		ss >> name >> volume >> fhi;
-		FeatureHandle fh = (FeatureHandle)fhi;
+		auto fh = (FeatureHandle)fhi;
 		Feature *feature = model->getFeatureFromHandle(fh);
-		VolumeRegion* vr = new VolumeRegion(i, name, this, feature);
+		auto* vr = new VolumeRegion(i, name, this, feature);
 		vr->setSize(volume);
 
 		feature->addRegion(vr);
@@ -344,10 +360,10 @@ void CartesianMesh::readGeometryFile(istream& ifs) {
 
 	//volumeSamples compressed, changed from byte to short
 	int twiceNumVolume = 2 * numVolume;
-	unsigned char* bytes_from_compressed = new unsigned char[twiceNumVolume + 1000];
+	auto* bytes_from_compressed = new unsigned char[twiceNumVolume + 1000];
 	memset(bytes_from_compressed, 0, (twiceNumVolume + 1000) * sizeof(unsigned char));
 
-	unsigned char* compressed_hex = new unsigned char[twiceNumVolume + 1000];
+	auto* compressed_hex = new unsigned char[twiceNumVolume + 1000];
 	memset(compressed_hex, 0, (twiceNumVolume + 1000) * sizeof(unsigned char));
 	ifs.getline((char*)compressed_hex, twiceNumVolume + 1000);	
 	const std::streamsize line_len = ifs.gcount()  - 1; //don't count null termination character
@@ -364,13 +380,13 @@ void CartesianMesh::readGeometryFile(istream& ifs) {
 		bytes_from_compressed[j] = fromHex(compressed_hex + i);
 	}
 
-	unsigned char* inflated_bytes = new unsigned char[twiceNumVolume + 1];
+	auto* inflated_bytes = new unsigned char[twiceNumVolume + 1];
 	memset(inflated_bytes, 0, (twiceNumVolume + 1) * sizeof(unsigned char));
 
 	unsigned long inflated_len = twiceNumVolume;
 	int retVal = uncompress(inflated_bytes, &inflated_len, bytes_from_compressed, compressed_len/2);
 
-	unsigned short* volsamples = new unsigned short[numVolume];
+	auto* volsamples = new unsigned short[numVolume];
 	if (inflated_len == numVolume) {
 		for (unsigned long i = 0; i < inflated_len; i ++) {		
 			volsamples[i] = inflated_bytes[i];
@@ -1263,7 +1279,7 @@ void CartesianMesh::findMembranePointInCurve(int N,  long index, int neighbor_di
 		}
 	}
 	if (!found) {
-		throw "CartesianMesh::findMembranePointInCurve(), new_neighbor can never be < 0";
+		throw std::runtime_error("CartesianMesh::findMembranePointInCurve(), new_neighbor can never be < 0");
 	}
 	return findMembranePointInCurve(N, neighborIndex, new_neighbor_dir, leftOverN, returnNeighbor);
 }
@@ -1511,7 +1527,7 @@ void CartesianMesh::computeNormal(MembraneElement& meptr, const UnitVector3* nor
 	case 3: 
 		break;
 	default: 
-		throw "CartesianMesh::computeNormal(), dimension should be 2 or 3.";
+		throw std::runtime_error("CartesianMesh::computeNormal(), dimension should be 2 or 3.");
 	}
 
 	// overwriting the normal computed by neighborhood if unnormalized length is much smaller than 1.

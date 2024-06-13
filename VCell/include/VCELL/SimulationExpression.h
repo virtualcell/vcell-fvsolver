@@ -27,20 +27,21 @@ class MembraneParticleVariable;
 class SimulationExpression : public Simulation
 {
 public:
-	SimulationExpression(Mesh *mesh);
-	~SimulationExpression();
+	explicit SimulationExpression(CartesianMesh *mesh);
+	~SimulationExpression() override;
 
-	void resolveReferences(); // create symbol table
-	void update();           // copies new to old values 
-	void advanceTimeOn();
-	void advanceTimeOff();
+	void initSimulation(SimTool* sim_tool) override;
+	void resolveReferences(SimTool* sim_tool) override; // create symbol table
+	void update(SimTool* sim_tool);           // copies new to old values
+	void advanceTimeOn(SimTool* sim_tool);
+	void advanceTimeOff(SimTool* sim_tool);
 
-	void writeData(const char *filename, bool bCompress);
+	void writeData(const char *filename, bool bCompress) override;
 
 	void addFieldData(FieldData* fd) {
 		fieldDataList.push_back(fd);
 	}
-	int getNumFields() { return (int)fieldDataList.size(); }
+	int getNumFields() const { return static_cast<int>(fieldDataList.size()); }
 	string* getFieldSymbols();
 	void populateFieldValues(double* darray, int index);
 
@@ -48,36 +49,41 @@ public:
 		randomVarList.push_back(rv);
 	}
 	RandomVariable* getRandomVariableFromName(char* rvname);
-	int getNumRandomVariables() {
-		return (int)randomVarList.size();
+	int getNumRandomVariables() const
+	{
+		return static_cast<int>(randomVarList.size());
 	}
-	RandomVariable* getRandomVariable(int index) {
+	RandomVariable* getRandomVariable(int index) const
+	{
 		return randomVarList[index];
 	}
 	void populateRandomValues(double* darray, int index);
 
-	int* getIndices() { return indices; };
-	SymbolTable* getSymbolTable() { 
+	int* getIndices() const { return indices; };
+	SymbolTable* getSymbolTable() const
+	{
 		return symbolTable; 
 	};
 	void setCurrentCoordinate(WorldCoord& wc);
 
-	bool isVolumeVariableDefinedInRegion(int volVarIndex, int regionIndex) {
-		if (volVariableRegionMap[volVarIndex] == 0) {
+	bool isVolumeVariableDefinedInRegion(int volVarIndex, int regionIndex) const
+	{
+		if (volVariableRegionMap[volVarIndex] == nullptr) {
 			return true;
 		}
 		return volVariableRegionMap[volVarIndex][regionIndex];
 	}
 
 	void addParameter(string& param);
-	void setParameterValues(double* paramValues);
-	int getNumParameters() {
-		return (int)paramList.size();
+	void setParameterValues(SimTool* sim_tool, double* paramValues);
+	int getNumParameters() const
+	{
+		return static_cast<int>(paramList.size());
 	}
 	void populateParameterValues(double* darray);
 
 	// right now bSolveRegion is only applicable for volume variables
-	void addVariable(Variable *var, bool* bSolveRegions=0);
+	void addVariable(Variable *var, bool* bSolveRegions=nullptr);
 	void addVolumeVariable(VolumeVariable *var, bool* bSolveRegions);
 	void addVolumeParticleVariable(VolumeParticleVariable *var);
 	void addMembraneVariable(MembraneVariable *var);
@@ -85,57 +91,61 @@ public:
 	void addVolumeRegionVariable(VolumeRegionVariable *var);
 	void addMembraneRegionVariable(MembraneRegionVariable *var);
 
-	double* getDiscontinuityTimes() { return discontinuityTimes; }
+	double* getDiscontinuityTimes() const { return discontinuityTimes; }
 	void setDiscontinuityTimes(double* stopTimes) { discontinuityTimes=stopTimes; }
 
-	int getNumVolVariables() { return volVarSize; }
-	VolumeVariable* getVolVariable(int i) { return volVarList[i]; }
+	int getNumVolVariables() const { return volVarSize; }
+	VolumeVariable* getVolVariable(int i) const { return volVarList[i]; }
 
-	int getNumMemVariables() { return memVarSize; }
-	MembraneVariable* getMemVariable(int i) { return memVarList[i]; }
+	int getNumMemVariables() const { return memVarSize; }
+	MembraneVariable* getMemVariable(int i) const { return memVarList[i]; }
 
-	int getNumVolRegionVariables() { return volRegionVarSize; }
-	VolumeRegionVariable* getVolRegionVariable(int i) { return volRegionVarList[i]; }
+	int getNumVolRegionVariables() const { return volRegionVarSize; }
+	VolumeRegionVariable* getVolRegionVariable(int i) const { return volRegionVarList[i]; }
 
-	int getNumMemRegionVariables() { return memRegionVarSize; }
-	MembraneRegionVariable* getMemRegionVariable(int i) { return memRegionVarList[i]; }
+	int getNumMemRegionVariables() const { return memRegionVarSize; }
+	MembraneRegionVariable* getMemRegionVariable(int i) const { return memRegionVarList[i]; }
 
-	int getNumVolParticleVariables() {
+	int getNumVolParticleVariables() const
+	{
 		return volParticleVarSize;
 	}
-	int getNumMemParticleVariables() {
+	int getNumMemParticleVariables() const
+	{
 		return memParticleVarSize;
 	}
 
-	int getNumMemPde() { return numMemPde; }
-	int getNumVolPde() { return numVolPde; }
+	int getNumMemPde() const { return numMemPde; }
+	int getNumVolPde() const { return numVolPde; }
 
 	void setHasTimeDependentDiffusionAdvection() { bHasTimeDependentDiffusionAdvection = true; }
-	bool hasTimeDependentDiffusionAdvection() { return bHasTimeDependentDiffusionAdvection; }
+	bool hasTimeDependentDiffusionAdvection() const { return bHasTimeDependentDiffusionAdvection; }
 
 	void setPSFFieldDataIndex(int idx) {
 		psfFieldDataIndex = idx;
 	}
 
-	FieldData* getPSFFieldData() {
+	FieldData* getPSFFieldData() const
+	{
 		if (psfFieldDataIndex >= 0) {
 			return fieldDataList[psfFieldDataIndex];
 		}
-
-		return 0;
+		return nullptr;
 	}
 	bool isParameter(string& symbol); // can be serial scan parameter or opt parameter
 	bool isVariable(string& symbol);
 
-	int getNumRegionSizeVariables() {
+	int getNumRegionSizeVariables() const
+	{
 		return numRegionSizeVars;
 	}
-	RegionSizeVariable* getRegionSizeVariable(int index) {
+	RegionSizeVariable* getRegionSizeVariable(int index) const
+	{
 		return regionSizeVarList[index];
 	}
 	void populateRegionSizeVariableValues(double* darray, bool bVolumeRegion, int regionIndex);
 
-	void createPostProcessingBlock();
+	void createPostProcessingBlock() override;
 
 	void populateFieldValuesNew(double* darray, int index);
 	void populateRegionSizeVariableValuesNew(double* darray, bool bVolumeRegion, int regionIndex);
@@ -143,25 +153,25 @@ public:
 	void populateRandomValuesNew(double* darray, int index);
 	void populateParticleVariableValuesNew(double* array, bool bVolume, int index);
 
-	int symbolIndexOfT() { return symbolIndexOffset_T; }
-	int symbolIndexOfXyz() { return symbolIndexOffset_Xyz; }
-	int symbolIndexOfVolVar() { return symbolIndexOffset_VolVar; }
-	int symbolIndexOfMemVar() { return symbolIndexOffset_MemVar; }
-	int symbolIndexOfVolRegionVar() { return symbolIndexOffset_VolRegionVar; }
-	int symbolIndexOfMemRegionVar() { return symbolIndexOffset_MemRegionVar; }
-	int symbolIndexOfVolParticleVar() { return symbolIndexOffset_VolParticleVar; }
-	int symbolIndexOfMemParticleVar() { return symbolIndexOffset_MemParticleVar; }
-	int symbolIndexOfRegionSizeVariable() { return symbolIndexOffset_RegionSizeVariable; }
-	int symbolIndexOfFieldData() { return symbolIndexOffset_FieldData; }
-	int symbolIndexOfRandomVar() { return symbolIndexOffset_RandomVar; }
-	int symbolIndexOfParameters() { return symbolIndexOffset_Parameters; }
-	int numOfSymbols() { return numSymbols;}
+	int symbolIndexOfT() const { return symbolIndexOffset_T; }
+	int symbolIndexOfXyz() const { return symbolIndexOffset_Xyz; }
+	int symbolIndexOfVolVar() const { return symbolIndexOffset_VolVar; }
+	int symbolIndexOfMemVar() const { return symbolIndexOffset_MemVar; }
+	int symbolIndexOfVolRegionVar() const { return symbolIndexOffset_VolRegionVar; }
+	int symbolIndexOfMemRegionVar() const { return symbolIndexOffset_MemRegionVar; }
+	int symbolIndexOfVolParticleVar() const { return symbolIndexOffset_VolParticleVar; }
+	int symbolIndexOfMemParticleVar() const { return symbolIndexOffset_MemParticleVar; }
+	int symbolIndexOfRegionSizeVariable() const { return symbolIndexOffset_RegionSizeVariable; }
+	int symbolIndexOfFieldData() const { return symbolIndexOffset_FieldData; }
+	int symbolIndexOfRandomVar() const { return symbolIndexOffset_RandomVar; }
+	int symbolIndexOfParameters() const { return symbolIndexOffset_Parameters; }
+	int numOfSymbols() const { return numSymbols;}
 
 private:
 	SymbolTable* symbolTable;
 
 	int* indices;
-	void createSymbolTable();
+	void createSymbolTable(SimTool* sim_tool);
 
 	ScalarValueProxy* valueProxyTime;
 	ScalarValueProxy* valueProxyX;
@@ -200,7 +210,7 @@ private:
 
 	int psfFieldDataIndex;
 
-	void reinitConstantValues();
+	void reinitConstantValues(SimTool* sim_tool);
 
 	int numSymbols;
 	int symbolIndexOffset_T;

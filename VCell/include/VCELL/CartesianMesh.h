@@ -8,9 +8,8 @@
 #include <VCELL/Mesh.h>
 #include <VCELL/DoubleVector3.h>
 #include <vector>
-#include <set>
 #include <iostream>
-#include <cassert>
+
 using std::vector;
 using std::istream;
 
@@ -18,6 +17,7 @@ class Geometry;
 class VolumeRegion;
 class MembraneRegion;
 class VolumeVariable;
+class VCellModel;
 class Particle;
 class SparseMatrixPCG;
 template <class> class IncidenceMatrix;
@@ -31,68 +31,65 @@ enum BoundaryLocation {BL_Xm = 0, BL_Xp, BL_Ym, BL_Yp, BL_Zm, BL_Zp};
 class CartesianMesh : public Mesh
 {
 public:	   
-	CartesianMesh(double captureNeighborhood=0);	
-	void initialize(istream& ifs);
+	explicit CartesianMesh(double captureNeighborhood=0);
+	void initialize(VCellModel* model, istream& ifs);
 
-	virtual WorldCoord getVolumeWorldCoord(long volumeIndex);
-	virtual WorldCoord getMembraneWorldCoord(long membraneIndex);
-	virtual WorldCoord getMembraneWorldCoord(MembraneElement *element);
+	WorldCoord getVolumeWorldCoord(long volumeIndex) override;
+	WorldCoord getMembraneWorldCoord(long membraneIndex) override;
+	WorldCoord getMembraneWorldCoord(MembraneElement *element) override;
 	virtual long getVolumeIndex(WorldCoord coord);
 
-	virtual double getVolumeOfElement_cu(long volumeIndex);
+	double getVolumeOfElement_cu(long volumeIndex) override;
 
-	virtual void showSummary(FILE *fp);
-	virtual void write(FILE *fp);
-	virtual void writeMeshMetrics(FILE* fp);
+	void showSummary(FILE *fp) override;
+	void write(FILE *fp) override;
+	void writeMeshMetrics(FILE* fp) override;
 
-	inline double getDomainSizeX() { return domainSizeX; }
-	inline double getDomainSizeY() { return domainSizeY; }
-	inline double getDomainSizeZ() { return domainSizeZ; }
-	inline double getDomainOriginX() { return domainOriginX; }
-	inline double getDomainOriginY() { return domainOriginY; }
-	inline double getDomainOriginZ() { return domainOriginZ; }
+	double getDomainSizeX() const { return domainSizeX; }
+	double getDomainSizeY() const { return domainSizeY; }
+	double getDomainSizeZ() const { return domainSizeZ; }
+	double getDomainOriginX() const { return domainOriginX; }
+	double getDomainOriginY() const { return domainOriginY; }
+	double getDomainOriginZ() const { return domainOriginZ; }
 
-	inline int  getNumVolumeX()    { return numX; }
-	inline int  getNumVolumeY()    { return numY; }
-	inline int  getNumVolumeZ()    { return numZ; }
+	int  getNumVolumeX() const { return numX; }
+	int  getNumVolumeY() const { return numY; }
+	int  getNumVolumeZ() const { return numZ; }
 
-	double getXScale_um()     { return scaleX_um; }
-	double getYScale_um()     { return scaleY_um; }
-	double getZScale_um()     { return scaleZ_um; }
+	double getXScale_um() const { return scaleX_um; }
+	double getYScale_um() const { return scaleY_um; }
+	double getZScale_um() const { return scaleZ_um; }
 
-	double getXArea_squm()    { return areaX_squm; }
-	double getYArea_squm()    { return areaY_squm; }
-	double getZArea_squm()    { return areaZ_squm; }
+	double getXArea_squm() const { return areaX_squm; }
+	double getYArea_squm() const { return areaY_squm; }
+	double getZArea_squm() const { return areaZ_squm; }
 
-	double getVolume_cu()     { return volume_cu; }
+	double getVolume_cu() const { return volume_cu; }
 
 	VolumeRegion   *getVolumeRegion(int i); 
 	MembraneRegion *getMembraneRegion(int i); 
-	int getNumVolumeRegions()   { return static_cast<int>(pVolumeRegions.size()); }
-	int getNumMembraneRegions() { return static_cast<int>(pMembraneRegions.size()); }
+	int getNumVolumeRegions() const { return static_cast<int>(pVolumeRegions.size()); }
+	int getNumMembraneRegions() const { return static_cast<int>(pMembraneRegions.size()); }
 
+	int getMembraneNeighborMask(long meindex) override;
+	int getMembraneNeighborMask(MembraneElement* element) override;
+	double* getMembraneFluxArea(long index) override;
 
-	int getMembraneNeighborMask(long meindex);
-	int getMembraneNeighborMask(MembraneElement* element);
-	double* getMembraneFluxArea(long index);
-
-	MeshCoord getMeshCoord(long index) {
-	void asSigned();
+	MeshCoord getMeshCoord(long index) const
+	{
 		MeshCoord mc;
-		mc.x = index % numX; 
+		mc.x = index % numX;
 		mc.y = (index / numX) % numY;
 		mc.z = index/ numXY;
 		return mc;        
 	}
 
-private:	
-	//void setVolumeLists();
-	void readGeometryFile(istream& ifs);
+private:
+	void readGeometryFile(VCellModel* model, istream& ifs);
 	void setBoundaryConditions();
 
 	void initScale();
 
-	//long getVolumeIndex(MeshCoord);
 	void findMembraneNeighbors();
 	typedef StatusIndex<long,NeighborType::NeighborStatus> NeighborIndex;
 	NeighborIndex orthoIndex(long memIndex, long insideIndex, long outsideIndex, long indexer, int boundMask);
@@ -100,33 +97,33 @@ private:
 
 	void findMembranePointInCurve(int n,  long index, int neighborDir, int& leftOverN, int& returnNeighbor);
 
-	double domainSizeX;
-	double domainSizeY;
-	double domainSizeZ;
-	double domainOriginX;
-	double domainOriginY;
-	double domainOriginZ;
+	double domainSizeX{};
+	double domainSizeY{};
+	double domainSizeZ{};
+	double domainOriginX{};
+	double domainOriginY{};
+	double domainOriginZ{};
 
-	int      numX;
-	int      numY;
-	int      numZ;
-	int      numXY;
+	int      numX{};
+	int      numY{};
+	int      numZ{};
+	int      numXY{};
 
-	double   scaleX_um;
-	double   scaleY_um;
-	double   scaleZ_um;
+	double   scaleX_um{};
+	double   scaleY_um{};
+	double   scaleZ_um{};
 
-	double   areaX_squm;
-	double   areaY_squm;
-	double   areaZ_squm;
+	double   areaX_squm{};
+	double   areaY_squm{};
+	double   areaZ_squm{};
 
-	double   volume_cu;
+	double   volume_cu{};
 
 	struct {
 		int oppositeDirection;
 		int nDirections;
 
-	} membraneInfo;
+	} membraneInfo{};
 	/**
 	* return index of direction opposite "d"; value depends on number of dimensions
 	*/
@@ -139,11 +136,10 @@ private:
 	void writeVolumeElementsMapVolumeRegion(FILE *fp);
 	void writeMembraneRegionMapVolumeRegion(FILE *fp);
 	void writeMembraneElements_Connectivity_Region(FILE *fp);
-	//void writeContourElements(FILE *fp);
 
 	vector<VolumeRegion*>   pVolumeRegions;
 	vector<MembraneRegion*> pMembraneRegions;	
-	void computeMembraneCoupling(void);
+	void computeMembraneCoupling() override;
 
 	void computeExactNormals();
 	WorldCoord computeExactNormal(long meIndex);
@@ -169,7 +165,7 @@ private:
 	* it is a function of the curvature of the membrane 
 	*/
 	//review
-	ArrayHolder<int,4> getNormalApproximationHops(const long index);
+	ArrayHolder<int,4> getNormalApproximationHops(long index);
 
 	int computeNormalApproximationHops(int startingIndex, CurvePlane curvePlane, vector<double> curvex, vector<double> curvey, int currentMeIndexInVector, bool bClose);
 	bool findCurve(int startingIndex, CurvePlane curvePlane, vector<double>& curvex, vector<double>& curvey, int& currentMEInVector);

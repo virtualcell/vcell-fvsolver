@@ -13,8 +13,8 @@ class FastSystem;
 class Structure
 {
 public:
-	Structure(string& Aname);
-	~Structure(void);
+	explicit Structure(string& Aname);
+	virtual ~Structure() = default;
 
 	virtual BoundaryType getXmBoundaryType() { return boundaryType[0]; }
 	virtual BoundaryType getXpBoundaryType() { return boundaryType[1]; }
@@ -31,17 +31,19 @@ public:
 	virtual void setZpBoundaryType(BoundaryType bt) { boundaryType[5] = bt; }
 
 	const string& getName() { return name; }
-	int getNumRegions() {
-		return (int)regionList.size();
+	int getNumRegions() const
+	{
+		return static_cast<int>(regionList.size());
 	}
 	void addRegion(Region* r);
-	Region* getRegion(int i) {
+	Region* getRegion(int i) const
+	{
 		return regionList.at(i);
 	}
 	int getNumElements();
 
 	void setFastSystem(FastSystem* arg_fastSystem)	{fastSystem = arg_fastSystem; }
-	FastSystem *getFastSystem(){ return fastSystem; }
+	FastSystem *getFastSystem() const { return fastSystem; }
 
 protected:
 	string  name;

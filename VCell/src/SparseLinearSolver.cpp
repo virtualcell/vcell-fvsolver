@@ -85,11 +85,11 @@ SparseLinearSolver::~SparseLinearSolver()
 	delete[] pcg_workspace;	
 }
 
-void SparseLinearSolver::solveEqn(double dT_sec, 
+void SparseLinearSolver::solveEqn(SimTool* sim_tool, double dT_sec,
 				 int volumeIndexStart, int volumeIndexSize, 
 				 int membraneIndexStart, int membraneIndexSize, bool bFirstTime)
 {
-	int* IParm = PCGSolve(bFirstTime);
+	int* IParm = PCGSolve(sim_tool, bFirstTime);
 	int returnCode = IParm[50];
 	int additionalSpace = IParm[53];
 	delete[] IParm;	
@@ -106,7 +106,7 @@ void SparseLinearSolver::solveEqn(double dT_sec,
 				enableRetry = false;
 				cout << endl << "!!Note: Insufficient PCG workspace (" << nWork << "), need additional (" << additionalSpace << "), for variable " << var->getName() << ", try again" << endl;
 				initPCGWorkspace(additionalSpace);
-				solveEqn(dT_sec, volumeIndexStart, volumeIndexSize, membraneIndexStart, membraneIndexSize, true);
+				solveEqn(sim_tool, dT_sec, volumeIndexStart, volumeIndexSize, membraneIndexStart, membraneIndexSize, true);
 			} else {
 				throwPCGExceptions(returnCode, additionalSpace); // this throws exception
 			}
@@ -120,7 +120,7 @@ void SparseLinearSolver::solveEqn(double dT_sec,
 }
 
 // --------------------------------------------------
-int* SparseLinearSolver::PCGSolve(bool bRecomputeIncompleteFactorization)
+int* SparseLinearSolver::PCGSolve(SimTool* sim_tool, bool bRecomputeIncompleteFactorization)
 // --------------------------------------------------
 {
 	//  prepare data to call pcgpak
@@ -137,7 +137,7 @@ int* SparseLinearSolver::PCGSolve(bool bRecomputeIncompleteFactorization)
 	long size = smEqnBuilder->getSize();
 
 	string timername = var->getName() + " PCG";
-	TimerHandle tHndPCG = SimTool::getInstance()->getTimerHandle(timername);
+	TimerHandle tHndPCG = sim_tool->getTimerHandle(timername);
 
 	int* IParm = new int[75];
 	memset(IParm, 0, 75 * sizeof(int));
@@ -169,14 +169,14 @@ int* SparseLinearSolver::PCGSolve(bool bRecomputeIncompleteFactorization)
 	// Set tolerance
 	double PCG_Tolerance = pcgRelErr;
 
-	SimTool::getInstance()->startTimer(tHndPCG);
+	sim_tool->startTimer(tHndPCG);
 
 	string varname = var->getName();
 	double RHSscale = computeRHSscale(size, pRHS, varname);
 
 #ifdef SHOW_MATRIX
 		cout << setprecision(10);
-		cout << "----SparseLinearSolver----Variable " << var->getName() << " at " << SimTool::getInstance()->getSimulation()->getTime_sec() << "---------------" << endl;
+		cout << "----SparseLinearSolver----Variable " << var->getName() << " at " << sim_tool->getSimulation()->getTime_sec() << "---------------" << endl;
 		A->show();
 		cout << "--------SparseLinearSolver----RHS-----------" << endl;
 		for (int index = 0; index < size; index++){
@@ -187,7 +187,7 @@ int* SparseLinearSolver::PCGSolve(bool bRecomputeIncompleteFactorization)
 #endif
 
 	PCGWRAPPER(&size, &Nrsp, &symmetricflg, ija, sa, pRHS, pNew, &PCG_Tolerance, IParm, RParm, pcg_workspace, pcg_workspace, &RHSscale); 
-	SimTool::getInstance()->stopTimer(tHndPCG);
+	sim_tool->stopTimer(tHndPCG);
 
 #ifdef SHOW_IPARM
 	cout << endl << "-------SparseLinearSolver----numNonZeros=" << A->getNumNonZeros() << "--------------------" << endl;

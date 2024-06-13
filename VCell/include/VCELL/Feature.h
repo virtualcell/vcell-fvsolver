@@ -11,11 +11,9 @@ using std::vector;
 
 class VolumeVarContextExpression;
 class VolumeRegionVarContextExpression;
-//class VolumeParticleContext;
-//class ContourParticleContext;
 class FastSystem;
 class Feature;
-class Simulation;
+class SimulationExpression;
 class VolumeVariable;
 class MembraneVariable;
 class VolumeRegionVariable;
@@ -25,16 +23,13 @@ class Feature : public Structure
 {
 public:
 	Feature(string& name, unsigned char findex, FeatureHandle handle);
-	~Feature();
 
-	void resolveReferences(Simulation *sim);
+	void resolveReferences(SimulationExpression *sim);
 	virtual void initVolumeValues(long volumeIndex);
 	virtual void initVolumeRegionValues(int volumeRegionIndex);
 
 	FeatureHandle   getHandle();
-	unsigned char getIndex() {
-		return index;
-	}
+	unsigned char getIndex() const { return index; }
 
 	VolumeVarContextExpression *getVolumeVarContext(VolumeVariable *var);
 	VolumeRegionVarContextExpression *getVolumeRegionVarContext(VolumeRegionVariable *var);
@@ -42,7 +37,7 @@ public:
 	void addVolumeVarContext(VolumeVarContextExpression *vc);	
 	void addVolumeRegionVarContext(VolumeRegionVarContextExpression *vc);	
 	   
-	void reinitConstantValues();
+	void reinitConstantValues(SimulationExpression* sim);
 
 	//VolumeParticleContext     *getVolumeParticleContext(){return vpc;}
 	//MembraneParticleContext   *getMembraneParticleContext(){return mpc;}

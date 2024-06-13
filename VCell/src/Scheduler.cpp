@@ -22,7 +22,7 @@ Scheduler::Scheduler(Simulation *Asim)
 	bHasFastSystem = false;
 }
 
-void Scheduler::initValues()
+void Scheduler::initValues(VCellModel* model)
 {
 	bFirstTime = true;
 	//
@@ -80,10 +80,10 @@ void Scheduler::initValues()
 		} 
 	}
 
-	bHasFastSystem = SimTool::getInstance()->getModel()->hasFastSystem();
+	bHasFastSystem = model->hasFastSystem();
 }
 
-void Scheduler::solveFastSystem(int volStart, int volSize, int memStart, int memSize)
+void Scheduler::solveFastSystem(SimTool* sim_tool, int volStart, int volSize, int memStart, int memSize)
 {
 	Feature *feature = NULL;
 	FastSystem *fs = NULL;
@@ -104,8 +104,8 @@ void Scheduler::solveFastSystem(int volStart, int volSize, int memStart, int mem
 		if (fs = feature->getFastSystem()){
 			fs->setCurrIndex(i);
 			WorldCoord wc = mesh->getVolumeWorldCoord(i);
-			fs->setCoordinates(sim->getTime_sec(), wc);
-			fs->initVars();			
+			fs->setCoordinates(sim->getTime_sec(sim_tool), wc);
+			fs->initVars(sim_tool);
 			fs->solveSystem();
 			fs->updateVars();			
 		}
@@ -121,8 +121,8 @@ void Scheduler::solveFastSystem(int volStart, int volSize, int memStart, int mem
 		if (fs = membrane->getFastSystem()){
 			fs->setCurrIndex(i);
 			WorldCoord wc = mesh->getMembraneWorldCoord(i);
-			fs->setCoordinates(sim->getTime_sec(), wc);
-			fs->initVars();
+			fs->setCoordinates(sim->getTime_sec(sim_tool), wc);
+			fs->initVars(sim_tool);
 			fs->solveSystem();
 			fs->updateVars();			
 		}

@@ -3,22 +3,17 @@
  * All rights reserved.
  */
 #include <VCELL/SimTypes.h>
-#include <VCELL/Mesh.h>
 #include <VCELL/Element.h>
-#include <VCELL/Feature.h>
 #include <VCELL/Variable.h>
 #include <VCELL/Solver.h>
 #include <VCELL/Simulation.h>
-#include <VCELL/EqnBuilder.h>
 #include <VCELL/FVDataSet.h>
 #include <VCELL/VCellModel.h>
 #include <VCELL/SimTool.h>
-#include <VCELL/CartesianMesh.h>
-#include <VCELL/SerialScheduler.h>
 #include <VCELL/SundialsPdeScheduler.h>
 #include <VCELL/PostProcessingBlock.h>
 
-Simulation::Simulation(Mesh *mesh)
+Simulation::Simulation(CartesianMesh *mesh)
 {
 	ASSERTION(mesh);
 	//
@@ -60,9 +55,9 @@ void Simulation::advanceTimeOff() {
 	_advanced=false;
 }
 
-void Simulation::iterate()
+void Simulation::iterate(SimTool* sim_tool)
 {
-	_scheduler->iterate();
+	_scheduler->iterate(sim_tool);
 }
 
 void Simulation::update()
@@ -154,51 +149,22 @@ void Simulation::readData(const char *filename)
 //-------------------------------------------------------
 // determines scheduler and resets _time_sec and initializes var's
 //-------------------------------------------------------
-void Simulation::resolveReferences() {
-	VCellModel *model = SimTool::getInstance()->getModel();
-	model->resolveReferences();
+void Simulation::resolveReferences(SimTool* sim_tool) {
+	sim_tool->getModel()->resolveReferences(sim_tool->getSimulation());
 	if (postProcessingBlock != NULL) {
 		postProcessingBlock->resolveReferences();
 	}
 }
 
-void Simulation::initSimulation()
-{
-	if (_scheduler == 0) {
-		int odeCount = 0, pdeCount = 0;
-		for (int i = 0; i < (int)varList.size(); i ++) {
-			Variable* var = varList[i];
-			if (var->isDiffusing()){
-				pdeCount ++;
-			} else {
-				odeCount ++;
-			}
-		}
-
-		printf("pdeCount=%d, odeCount=%d\n", pdeCount, odeCount);
-	
-		SimTool* simTool = SimTool::getInstance();
-		if (simTool->isSundialsPdeSolver()) {
-			_scheduler = new SundialsPdeScheduler(this, simTool->getSundialsSolverOptions(), 
-				simTool->getNumDiscontinuityTimes(), simTool->getDiscontinuityTimes(), simTool->isSundialsOneStepOutput());
-		} else {
-			_scheduler = new SerialScheduler(this);
-		}
-	}
-
-	_scheduler->initValues();
-	currIteration = 0;
-}
-
-double Simulation::getTime_sec() {
-	if (SimTool::getInstance()->isSundialsPdeSolver()) {
+double Simulation::getTime_sec(SimTool* sim_tool) {
+	if (sim_tool->isSundialsPdeSolver()) {
 		return ((SundialsPdeScheduler*)_scheduler)->getCurrentTime();
 	}
 	return _advanced ? (currIteration + 1) * _dT_sec : currIteration * _dT_sec;
 }
 
-void Simulation::setSimStartTime(double st) {
-	if (SimTool::getInstance()->isSundialsPdeSolver()) {
+void Simulation::setSimStartTime(SimTool* sim_tool, double st) {
+	if (sim_tool->isSundialsPdeSolver()) {
 		((SundialsPdeScheduler*)_scheduler)->setSimStartTime(st);
 	}
 }

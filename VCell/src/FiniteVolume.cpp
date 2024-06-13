@@ -132,16 +132,17 @@ int main(int argc, char *argv[])
 			exit(102);
 		}
 
-		fvSolver = new FVSolver(ifsInput, vcgInput, taskID, outputPath, bSimZip);
+		fvSolver = new FVSolver(outputPath);
+		SimTool* sim_tool = fvSolver->createSimTool(ifsInput, vcgInput, taskID, bSimZip);
 		ifsInput.close();
 		vcgInput.close();
 
-		if(fvSolver->getNumVariables() == 0){
+		if(fvSolver->getNumVariables(sim_tool) == 0){
 			//sims with no reactions and no diffusing species cause exit logic to 'wait' forever
 			//never sending a job failed or job finished message and never cleaning up threads
 			throw invalid_argument("FiniteVolume error: Must have at least 1 variable or reaction to solve");
 		}
-		fvSolver->solve();
+		fvSolver->solve(sim_tool);
 
 	} catch (const char *exStr){
 		errorMsg += exStr;

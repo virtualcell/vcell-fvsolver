@@ -1,11 +1,10 @@
 #include <VCELL/FVSolver.h>
 
-#include <assert.h>
+#include <cassert>
 #include <sys/stat.h>
-#include <string.h>
+#include <cstring>
 #include <fstream>
 #include <sstream>
-#include <exception>
 using std::ifstream;
 using std::istringstream;
 using std::stringstream;
@@ -56,8 +55,8 @@ using VCell::Expression;
 #include <VCELL/VariableStatisticsDataGenerator.h>
 #include <VCELL/RoiDataGenerator.h>
 
-FieldData *getPSFFieldData() {
-	return ((SimulationExpression*)SimTool::getInstance()->getSimulation())->getPSFFieldData();
+FieldData *getPSFFieldData(const SimulationExpression* sim) {
+	return sim->getPSFFieldData();
 }
 
 /*
@@ -88,7 +87,7 @@ void FVSolver::loadJMSInfo(istream& ifsInput, int taskID) {
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}
 		if (nextToken == "JMS_PARAM_END") {
@@ -137,9 +136,9 @@ FEATURE ec 1 value value value value
 MEMBRANE cyt_ec_membrane cyt ec value value value value 
 MODEL_END
 */
-void FVSolver::loadModel(istream& ifsInput) {
+VCellModel* FVSolver::loadModel(istream& ifsInput) {
 	//cout << "loading model " << endl;
-	model = new VCellModel();
+	auto* model = new VCellModel();
 	string nextToken, line;
 	string feature_name;
 	int handle;
@@ -151,14 +150,14 @@ void FVSolver::loadModel(istream& ifsInput) {
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		} 
 		if (nextToken == "MODEL_END") {
 			break;
 		} 
 		
-		Structure* structure = 0;
+		Structure* structure = nullptr;
 		if (nextToken == "FEATURE") {
 			numFeatures ++;
 			lineInput >> feature_name >> handle;
@@ -178,7 +177,7 @@ void FVSolver::loadModel(istream& ifsInput) {
 				break;
 			}
 			lineInput >> btstr;
-			if (btstr.length() == 0) {
+			if (btstr.empty()) {
 				break;
 			}
 			BoundaryType bt = BOUNDARY_VALUE;
@@ -191,7 +190,7 @@ void FVSolver::loadModel(istream& ifsInput) {
 			} else {
 				stringstream ss1;
 				ss1 << "loadModel(), wrong boundary type " << btstr;
-				throw ss1.str();
+				throw runtime_error(ss1.str());
 			}
 			switch (i) {
 				case 0: // XM
@@ -215,26 +214,28 @@ void FVSolver::loadModel(istream& ifsInput) {
 			}
 		}
 	}
+	return model;
 }
 
-int FVSolver::loadSolveRegions(istream& lineInput, int*& solveRegions) {
+int FVSolver::loadSolveRegions(VCellModel* model, istream& lineInput, int*& solveRegions) const
+{
 	int numVolumeRegions = mesh->getNumVolumeRegions();
 	int regionCount = 0;
 	while (true) {
-		string feature_name = "";
+		string feature_name;
 		lineInput >> feature_name;
-		if (feature_name == "") {
+		if (feature_name.empty()) {
 			break;
 		}
 		for (int i = 0; i < numVolumeRegions; i++){
 			VolumeRegion *volRegion = mesh->getVolumeRegion(i);
-			Feature* feature = SimTool::getInstance()->getModel()->getFeatureFromName(feature_name);
-			if (feature == NULL) {
+			Feature* feature = model->getFeatureFromName(feature_name);
+			if (feature == nullptr) {
 				stringstream ss;
 				ss << "Feature '" << feature_name << "' doesn't exist!";
-				throw ss.str();
+				throw runtime_error(ss.str());
 			}
-			if (solveRegions == 0) {
+			if (solveRegions == nullptr) {
 				solveRegions = new int[numVolumeRegions];
 			}
 			if (volRegion->getFeature()->getHandle() == feature->getHandle()){
@@ -256,9 +257,9 @@ VOLUME_PDE Na false false true
 MEMBRANE_REGION Voltage_membrane
 VARIABLE_END
 */
-void FVSolver::loadSimulation(istream& ifsInput) {
+SimulationExpression* FVSolver::loadSimulation(SimTool* simTool, VCellModel *model, istream& ifsInput) {
 	//cout << "loading simulation" << endl;
-	simulation = new SimulationExpression(mesh);
+	auto* simulation = new SimulationExpression(mesh);
 	string nextToken, line;
 	long sizeX = mesh->getNumVolumeX();
 	long sizeY = mesh->getNumVolumeY();
@@ -272,7 +273,7 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}
 		if (nextToken == "VARIABLE_END") {
@@ -282,12 +283,12 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 		if (nextToken == "VOLUME_RANDOM") {
 			string name;
 			ifsInput >> name;
-			RandomVariable* rv = new RandomVariable(name, VAR_VOLUME, mesh->getNumVolumeElements());
+			auto* rv = new RandomVariable(name, VAR_VOLUME, mesh->getNumVolumeElements());
 			simulation->addRandomVariable(rv);
 		} else if (nextToken == "MEMBRANE_RANDOM") {
 			string name;
 			ifsInput >> name;
-			RandomVariable* rv = new RandomVariable(name, VAR_MEMBRANE, mesh->getNumMembraneElements());
+			auto* rv = new RandomVariable(name, VAR_MEMBRANE, mesh->getNumMembraneElements());
 			simulation->addRandomVariable(rv);
 		} else if (nextToken == "VOLUME_PDE" || nextToken == "VOLUME_PDE_STEADY") {
 			bool bSteady = false;
@@ -305,7 +306,7 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 
 			bool bSolveVariable = true;
 			int numSolveRegions = 0;  // flag specifying to solve for all regions
-			int *solveRegions = 0;
+			int *solveRegions = nullptr;
 
 			bool* vrmap = new bool[numVolumeRegions];
 			for (int i = 0; i < numVolumeRegions; i ++) {
@@ -314,7 +315,7 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 
 			if (solve_whole_mesh_flag == "false") {
 				memset(vrmap, 0, numVolumeRegions * sizeof(bool)); // if not solve everywhere;
-				numSolveRegions = loadSolveRegions(lineInput, solveRegions);
+				numSolveRegions = loadSolveRegions(model, lineInput, solveRegions);
 
 				if (numSolveRegions == 0) {
 					bSolveVariable = false;
@@ -335,9 +336,9 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 
 			bool bGradient = gradient_flag == "true";
 			Feature* feature = model->getFeatureFromName(structure_name);
-			VolumeVariable* volumeVar = new VolumeVariable(variable_name, feature, sizeX, sizeY, sizeZ, true, !bNoConvection, bGradient);
+			auto* volumeVar = new VolumeVariable(variable_name, feature, sizeX, sizeY, sizeZ, true, !bNoConvection, bGradient);
 			if (bSolveVariable && !simTool->isSundialsPdeSolver()) {
-				SparseMatrixEqnBuilder* builder = 0;
+				SparseMatrixEqnBuilder* builder = nullptr;
 				if (bSteady) {
 					builder = new EllipticVolumeEqnBuilder(volumeVar,mesh, numSolveRegions, solveRegions);
 				} else {
@@ -354,7 +355,7 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 			assert(solve_whole_mesh_flag == "true" ||  solve_whole_mesh_flag == "false");
 
 			int numSolveRegions = 0;  // flag specifying to solve for all regions
-			int *solveRegions = 0;
+			int *solveRegions = nullptr;
 
 			bool* vrmap = new bool[numVolumeRegions];
 			for (int i = 0; i < numVolumeRegions; i ++) {
@@ -364,7 +365,7 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 			bool bSolveVariable = true;
 			if (solve_whole_mesh_flag == "false") {
 				memset(vrmap, 0, numVolumeRegions * sizeof(bool)); // if not solve everywhere;
-				numSolveRegions = loadSolveRegions(lineInput, solveRegions);
+				numSolveRegions = loadSolveRegions(model, lineInput, solveRegions);
 
 				if (numSolveRegions == 0) {
 					bSolveVariable = false;
@@ -376,9 +377,9 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 			}
 
 			Feature* feature = model->getFeatureFromName(structure_name);
-			VolumeVariable* volumeVar = new VolumeVariable(variable_name, feature, sizeX, sizeY, sizeZ, false);
+			auto* volumeVar = new VolumeVariable(variable_name, feature, sizeX, sizeY, sizeZ, false);
 			if (bSolveVariable && !simTool->isSundialsPdeSolver()) {
-				ODESolver* odeSolver = new ODESolver(volumeVar,mesh,numSolveRegions,solveRegions);
+				auto* odeSolver = new ODESolver(volumeVar,mesh,numSolveRegions,solveRegions);
 				EqnBuilder* builder = new EqnBuilderReactionForward(volumeVar,mesh,odeSolver);
 				odeSolver->setEqnBuilder(builder);
 				simulation->addSolver(odeSolver);
@@ -387,22 +388,22 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 		} else if (nextToken == "VOLUME_PARTICLE") {
 			lineInput >> variable_name >> structure_name;
 			Feature* feature = model->getFeatureFromName(structure_name);
-			VolumeParticleVariable* volumeParticleVar = new VolumeParticleVariable(variable_name, feature, sizeX, sizeY, sizeZ);
+			auto* volumeParticleVar = new VolumeParticleVariable(variable_name, feature, sizeX, sizeY, sizeZ);
 			simulation->addVolumeParticleVariable(volumeParticleVar);
 		} else if (nextToken == "MEMBRANE_PARTICLE") {
 			lineInput >> variable_name >> structure_name;
 			Membrane* membrane = model->getMembraneFromName(structure_name);
-			MembraneParticleVariable* membraneParticleVar = new MembraneParticleVariable(variable_name, membrane, mesh->getNumMembraneElements());
+			auto* membraneParticleVar = new MembraneParticleVariable(variable_name, membrane, mesh->getNumMembraneElements());
 			simulation->addMembraneParticleVariable(membraneParticleVar);
 		} else if (nextToken == "MEMBRANE_ODE") {
 			lineInput >> variable_name >> structure_name;
 			int numSolveRegions = 0;  // flag specifying to solve for all regions
-			int *solveRegions = NULL;
+			int *solveRegions = nullptr;
 
 			Membrane* membrane = model->getMembraneFromName(structure_name);
 			MembraneVariable* membraneVar = new MembraneVariable(variable_name, membrane, mesh->getNumMembraneElements(), false);
 			if (!simTool->isSundialsPdeSolver()) {
-				ODESolver* odeSolver = new ODESolver(membraneVar,mesh,numSolveRegions,solveRegions);
+				auto* odeSolver = new ODESolver(membraneVar,mesh,numSolveRegions,solveRegions);
 				EqnBuilder* builder = new MembraneEqnBuilderForward(membraneVar,mesh,odeSolver);
 				odeSolver->setEqnBuilder(builder);
 				simulation->addSolver(odeSolver);
@@ -419,22 +420,22 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 			}
 
 			Membrane* membrane = model->getMembraneFromName(structure_name);
-			MembraneVariable* membraneVar = new MembraneVariable(variable_name, membrane, mesh->getNumMembraneElements(), true);
+			auto* membraneVar = new MembraneVariable(variable_name, membrane, mesh->getNumMembraneElements(), true);
 			if (!simTool->isSundialsPdeSolver()) {
 				SparseMatrixEqnBuilder* smbuilder = new MembraneEqnBuilderDiffusion(membraneVar,mesh);
-				SparseLinearSolver* slSolver = new SparseLinearSolver(membraneVar,smbuilder,simTool->getPCGRelativeErrorTolerance(),bTimeDependent);
+				auto* slSolver = new SparseLinearSolver(membraneVar,smbuilder,simTool->getPCGRelativeErrorTolerance(),bTimeDependent);
 				simulation->addSolver(slSolver);
 			}
 			simulation->addMembraneVariable(membraneVar);
 		} else if (nextToken == "VOLUME_REGION") {
 			lineInput >> variable_name >> structure_name;
 			int numSolveRegions = 0;  // flag specifying to solve for all regions
-			int *solveRegions = NULL;
+			int *solveRegions = nullptr;
 
 			Feature* feature = model->getFeatureFromName(structure_name);
-			VolumeRegionVariable* volumeRegionVar = new VolumeRegionVariable(variable_name, feature, mesh->getNumVolumeRegions());
+			auto* volumeRegionVar = new VolumeRegionVariable(variable_name, feature, mesh->getNumVolumeRegions());
 			if (!simTool->isSundialsPdeSolver()) {
-				ODESolver* odeSolver = new ODESolver(volumeRegionVar,mesh,numSolveRegions,solveRegions);
+				auto* odeSolver = new ODESolver(volumeRegionVar,mesh,numSolveRegions,solveRegions);
 				EqnBuilder* builder = new VolumeRegionEqnBuilder(volumeRegionVar,mesh,odeSolver);
 				odeSolver->setEqnBuilder(builder);
 				simulation->addSolver(odeSolver);
@@ -443,12 +444,12 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 		} else if (nextToken == "MEMBRANE_REGION") {
 			lineInput >> variable_name >> structure_name;
 			int numSolveRegions = 0;  // flag specifying to solve for all regions
-			int *solveRegions = NULL;
+			int *solveRegions = nullptr;
 
 			Membrane* membrane = model->getMembraneFromName(structure_name);
-			MembraneRegionVariable* memRegionVariable = new MembraneRegionVariable(variable_name, membrane, mesh->getNumMembraneRegions());
+			auto* memRegionVariable = new MembraneRegionVariable(variable_name, membrane, mesh->getNumMembraneRegions());
 			if (!simTool->isSundialsPdeSolver()) {
-				ODESolver* odeSolver = new ODESolver(memRegionVariable,mesh,numSolveRegions,solveRegions);
+				auto* odeSolver = new ODESolver(memRegionVariable,mesh,numSolveRegions,solveRegions);
 				EqnBuilder* builder = new MembraneRegionEqnBuilder(memRegionVariable,mesh,odeSolver);
 				odeSolver->setEqnBuilder(builder);
 				simulation->addSolver(odeSolver);
@@ -456,9 +457,10 @@ void FVSolver::loadSimulation(istream& ifsInput) {
 			simulation->addMembraneRegionVariable(memRegionVariable);
 		}
 	}
+	return simulation;
 }
 
-Expression* FVSolver::readExpression(istream& lineInput, string& var_name, string prefix) {
+Expression* FVSolver::readExpression(istream& lineInput, string& var_name, const string& prefix) {
 	string expStr;
 	getline(lineInput, expStr);
 	expStr = prefix + expStr;
@@ -466,7 +468,7 @@ Expression* FVSolver::readExpression(istream& lineInput, string& var_name, strin
 	if (expStr[expStr.size()-1] != ';') {
 		stringstream msg;
 		msg << "Expression for [" << var_name << "] is not terminated by ';'";
-		throw msg.str();
+		throw runtime_error(msg.str());
 	}
 	return new Expression(expStr);
 }
@@ -488,7 +490,7 @@ VarContext* FVSolver::loadEquation(istream& ifsInput, Structure* structure, Vari
 
 	//cout << "loading volume var context " << var_name << endl;
 
-	VarContext* varContext = NULL;
+	VarContext* varContext = nullptr;
 	if (var->getVarType() == VAR_VOLUME) {
 		varContext = new VolumeVarContextExpression((Feature*)structure, (VolumeVariable*)var);
 	} else if (var->getVarType() == VAR_VOLUME_REGION) {
@@ -500,7 +502,7 @@ VarContext* FVSolver::loadEquation(istream& ifsInput, Structure* structure, Vari
 	} else {
 		stringstream ss;
 		ss << "loadEquation: variable type not supported yet: " << var->getName();
-		throw ss.str();
+		throw runtime_error(ss.str());
 	}
 
 	string nextToken, line;
@@ -511,7 +513,7 @@ VarContext* FVSolver::loadEquation(istream& ifsInput, Structure* structure, Vari
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}
 		if (nextToken == "EQUATION_END") {
@@ -569,7 +571,7 @@ FLUX Nucleus (150.0 * (Ca_Cytosol_membrane - Ca_Nucleus_membrane));
 FLUX Cytosol  - (150.0 * (Ca_Cytosol_membrane - Ca_Nucleus_membrane));
 JUMP_CONDITION_END
 */
-void FVSolver::loadJumpCondition(istream& ifsInput, Membrane* membrane, string& var_name) {
+void FVSolver::loadJumpCondition(SimulationExpression* simulation, VCellModel* model, istream& ifsInput, Membrane* membrane, string& var_name) {
 	//cout << "loading jump condition " << var_name << endl;
 	string nextToken, line;
 
@@ -580,7 +582,7 @@ void FVSolver::loadJumpCondition(istream& ifsInput, Membrane* membrane, string& 
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}  
 		if (nextToken == "JUMP_CONDITION_END") {
@@ -593,22 +595,22 @@ void FVSolver::loadJumpCondition(istream& ifsInput, Membrane* membrane, string& 
 			Feature* f = model->getFeatureFromName(featurename);
 			string var_name = var->getName();
 			Expression* exp = readExpression(lineInput, var_name);
-			VarContext *varContext = 0;
+			VarContext *varContext = nullptr;
 			if (var->getVarType() == VAR_VOLUME) {
 				varContext = f->getVolumeVarContext((VolumeVariable*)var);
 			} else if (var->getVarType() == VAR_VOLUME_REGION) {
 				varContext = f->getVolumeRegionVarContext((VolumeRegionVariable*)var);
 			} else {
-				throw "Only volume variables and volume region variables have jump conditions";
+				throw runtime_error("Only volume variables and volume region variables have jump conditions");
 			}
-			if (varContext == NULL) {
+			if (varContext == nullptr) {
 				stringstream ss;
 				ss << "variable '" << var->getName() << "' is not defined in " << featurename;
-				throw ss.str();
+				throw runtime_error(ss.str());
 			}
 			varContext->addJumpCondition(membrane, exp);
 		} else {
-			throw "Expecting FLUX in JumpCondition.";
+			throw runtime_error("Expecting FLUX in JumpCondition.");
 		}
 	}
 }
@@ -624,8 +626,8 @@ void FVSolver::loadPseudoConstants(istream& ifsInput, FastSystemExpression* fast
 	string nextToken, line;
 	int count = 0;
 	int numDep = fastSystem->getNumDependents();
-	string* vars = new string[numDep];
-	Expression **expressions = new Expression*[numDep];
+	auto* vars = new string[numDep];
+	auto **expressions = new Expression*[numDep];
 
 	while (!ifsInput.eof()) {
 		getline(ifsInput, line);
@@ -633,7 +635,7 @@ void FVSolver::loadPseudoConstants(istream& ifsInput, FastSystemExpression* fast
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		} 
 		if (nextToken == "PSEUDO_CONSTANT_END") {
@@ -661,7 +663,7 @@ void FVSolver::loadFastRates(istream& ifsInput, FastSystemExpression* fastSystem
 	string nextToken, line;
 	int count = 0;
 	int numIndep = fastSystem->getDimension();
-	Expression **expressions = new Expression*[numIndep];
+	auto **expressions = new Expression*[numIndep];
 
 	while (!ifsInput.eof()) {
 		getline(ifsInput, line);
@@ -669,7 +671,7 @@ void FVSolver::loadFastRates(istream& ifsInput, FastSystemExpression* fastSystem
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		} 
 		if (nextToken == "FAST_RATE_END") {
@@ -681,7 +683,7 @@ void FVSolver::loadFastRates(istream& ifsInput, FastSystemExpression* fastSystem
 		count ++;
 	}
 	if (count != numIndep) {
-		throw "In the fast system the number of fast rates should be the same as that of independent variables";
+		throw runtime_error("In the fast system the number of fast rates should be the same as that of independent variables");
 	}
 	fastSystem->setFastRateExpressions(expressions);
 }
@@ -697,8 +699,8 @@ void FVSolver::loadFastDependencies(istream& ifsInput, FastSystemExpression* fas
 	string nextToken, line;
 	int count = 0;
 	int numDep = fastSystem->getNumDependents();
-	string* vars = new string[numDep];
-	Expression **expressions = new Expression*[numDep];
+	auto* vars = new string[numDep];
+	auto **expressions = new Expression*[numDep];
 
 	while (!ifsInput.eof()) {
 		getline(ifsInput, line);
@@ -706,7 +708,7 @@ void FVSolver::loadFastDependencies(istream& ifsInput, FastSystemExpression* fas
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		} 
 		if (nextToken == "FAST_DEPENDENCY_END") {
@@ -720,7 +722,7 @@ void FVSolver::loadFastDependencies(istream& ifsInput, FastSystemExpression* fas
 	fastSystem->setFastDependencyExpressions(vars, expressions);
 	delete[] vars;
 	if (count != numDep) {
-		throw "In the fast system the number of fast dependencies should be the same as that of dependent variables";
+		throw runtime_error("In the fast system the number of fast dependencies should be the same as that of dependent variables");
 	}
 }
 
@@ -737,7 +739,7 @@ void FVSolver::loadJacobians(istream& ifsInput, FastSystemExpression* fastSystem
 	string nextToken, line;
 	int count = 0;
 	int numIndep = fastSystem->getDimension();
-	Expression **expressions = new Expression*[numIndep * numIndep];
+	auto **expressions = new Expression*[numIndep * numIndep];
 
 	while (!ifsInput.eof()) {
 		getline(ifsInput, line);
@@ -745,7 +747,7 @@ void FVSolver::loadJacobians(istream& ifsInput, FastSystemExpression* fastSystem
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		} 
 		if (nextToken == "JACOBIAN_END") {
@@ -757,7 +759,7 @@ void FVSolver::loadJacobians(istream& ifsInput, FastSystemExpression* fastSystem
 		count ++;
 	}
 	if (count != numIndep * numIndep) {
-		throw "In the fast system the number of Jacobian should dim*dim";
+		throw runtime_error("In the fast system the number of Jacobian should dim*dim");
 	}
 	fastSystem->setJacobianExpressions(expressions);
 }
@@ -804,7 +806,7 @@ void FVSolver::loadFastSystem(istream& ifsInput, FastSystemExpression* fastSyste
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}  
 		if (nextToken == "FAST_SYSTEM_END") {
@@ -812,14 +814,14 @@ void FVSolver::loadFastSystem(istream& ifsInput, FastSystemExpression* fastSyste
 		} 
 		
 		if (nextToken == "DEPENDENT_VARIALBES") {
-			string* vars = new string[numDep];
+			auto* vars = new string[numDep];
 			for (int i = 0; i < numDep; i ++) {
 				lineInput >> vars[i];
 			}
 			fastSystem->setDependentVariables(vars);
 			delete[] vars;
 		} else if (nextToken == "INDEPENDENT_VARIALBES") {
-			string* vars = new string[numIndep];
+			auto* vars = new string[numIndep];
 			for (int i = 0; i < numIndep; i ++) {
 				lineInput >> vars[i];
 			}
@@ -874,7 +876,7 @@ EQUATION_END
 
 COMPARTMENT_END
 */
-void FVSolver::loadFeature(istream& ifsInput, Feature* feature) {
+void FVSolver::loadFeature(SimulationExpression* simulation, istream& ifsInput, Feature* feature) {
 	//cout << "loading feature " << feature->getName() << endl;
 	string nextToken, line;
 
@@ -884,7 +886,7 @@ void FVSolver::loadFeature(istream& ifsInput, Feature* feature) {
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}
 		if (nextToken == "COMPARTMENT_END") {
@@ -904,7 +906,7 @@ void FVSolver::loadFeature(istream& ifsInput, Feature* feature) {
 		} else if (nextToken == "FAST_SYSTEM_BEGIN") {
 			int dimension, num_of_dependents;
 			lineInput >> dimension >> num_of_dependents;
-			FastSystemExpression* fastSystem = new FastSystemExpression(dimension, num_of_dependents, simulation);
+			auto* fastSystem = new FastSystemExpression(dimension, num_of_dependents, simulation);
 			loadFastSystem(ifsInput, fastSystem);
 			feature->setFastSystem(fastSystem);
 		}
@@ -949,7 +951,7 @@ JUMP_CONDITION_END
 
 MEMBRANE_END
 */
-void FVSolver::loadMembrane(istream& ifsInput, Membrane* membrane) {
+void FVSolver::loadMembrane(SimulationExpression* simulation, VCellModel* model, istream& ifsInput, Membrane* membrane) {
 	//cout << "loading membrane " << var_name << endl;
 	string nextToken, line;
 
@@ -959,7 +961,7 @@ void FVSolver::loadMembrane(istream& ifsInput, Membrane* membrane) {
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}
 		if (nextToken == "MEMBRANE_END") {
@@ -979,13 +981,13 @@ void FVSolver::loadMembrane(istream& ifsInput, Membrane* membrane) {
 		}  else if (nextToken == "FAST_SYSTEM_BEGIN") {
 			int dimension, num_of_dependents;
 			lineInput >> dimension >> num_of_dependents;
-			FastSystemExpression* fastSystem = new FastSystemExpression(dimension, num_of_dependents, simulation);
+			auto* fastSystem = new FastSystemExpression(dimension, num_of_dependents, simulation);
 			loadFastSystem(ifsInput, fastSystem);
 			membrane->setFastSystem(fastSystem);
 		} else if (nextToken == "JUMP_CONDITION_BEGIN") {
 			string var_name;
 			lineInput >> var_name;
-			loadJumpCondition(ifsInput, membrane, var_name);
+			loadJumpCondition(simulation, model, ifsInput, membrane, var_name);
 		}
 	}
 }
@@ -1009,7 +1011,8 @@ TIME_STEP 0.01
 KEEP_EVERY 10
 SIMULATION_PARAM_END
 */
-void FVSolver::loadSimulationParameters(istream& ifsInput) {
+void FVSolver::loadSimulationParameters(SimTool* simTool, istream& ifsInput) const
+{
 	string nextToken, line;
 
 	while (!ifsInput.eof()) {
@@ -1018,7 +1021,7 @@ void FVSolver::loadSimulationParameters(istream& ifsInput) {
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		} 
 		if (nextToken == "SIMULATION_PARAM_END") {
@@ -1026,7 +1029,7 @@ void FVSolver::loadSimulationParameters(istream& ifsInput) {
 		}
 		
 		if (nextToken == "SOLVER") {
-			string solver="";
+			string solver;
 			lineInput >> solver;
 			simTool->setSolver(solver);
 			if (solver == FV_SOLVER) {
@@ -1065,7 +1068,7 @@ void FVSolver::loadSimulationParameters(istream& ifsInput) {
 			int numDisTimes = 0;
 			lineInput >> numDisTimes;
 			if (numDisTimes > 0) {
-				double* discontinuityTimes = 0;
+				double* discontinuityTimes = nullptr;
 				discontinuityTimes = new double[numDisTimes];
 				for (int i = 0; i < numDisTimes; i ++) {
 					lineInput >> discontinuityTimes[i];
@@ -1076,11 +1079,11 @@ void FVSolver::loadSimulationParameters(istream& ifsInput) {
 			string basefilename;
 			getline(lineInput, basefilename);
 			trimString(basefilename);
-			if (outputPath == 0) {
+			if (outputPath == nullptr) {
 				simTool->setBaseFilename((char*)basefilename.c_str());
 			} else {
 				const char* baseSimName = strrchr(basefilename.c_str(), DIRECTORY_SEPARATOR);
-				if (baseSimName == NULL) {
+				if (baseSimName == nullptr) {
 					baseSimName = basefilename.c_str();
 				} else {
 					baseSimName += 1;
@@ -1128,9 +1131,7 @@ void FVSolver::loadSimulationParameters(istream& ifsInput) {
 			lineInput >> bStoreEnable;
 			simTool->setStoreEnable(bStoreEnable!=0);
 		} else {
-			stringstream ss;
-			ss << "loadSimulationParameters(), encountered unknown token " << nextToken << endl;
-			throw ss.str();
+			throw runtime_error("loadSimulationParameters(), encountered unknown token " + nextToken);
 		}
 	}
 	
@@ -1143,14 +1144,14 @@ MESH_BEGIN
 VCG_FILE \\cfs01.vcell.uchc.edu\raid\Vcell\users\fgao\SimID_36230826_0_.vcg
 MESH_END
 */
-void FVSolver::loadMeshFromVcg(istream& vcgInput) {
-	if (SimTool::getInstance()->getModel() == nullptr) {
+void FVSolver::loadMeshFromVcg(VCellModel* model, istream& vcgInput) {
+	if (model == nullptr) {
 		throw std::runtime_error("Model has to be initialized before mesh initialization");
 	}
 
 	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, "initializing mesh"));
 	mesh = new CartesianMesh();
-	mesh->initialize(vcgInput);
+	mesh->initialize(model, vcgInput);
 	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, "mesh initialized"));
 }
 
@@ -1161,9 +1162,9 @@ FIELD_DATA_BEGIN
 0 _VCell_FieldData_0 FRAP_binding_ALPHA rfB 0.1 \\\\SAN2\\raid\\Vcell\\users\\fgao\\SimID_22489731_0_FRAP_binding_ALPHA_rfB_0_1.fdat
 FIELD_DATA_END
 */
-void FVSolver::loadFieldData(istream& ifsInput) {
-	if (simulation == 0) {
-		throw "Simulation has to be initialized before loading field data";
+void FVSolver::loadFieldData(SimulationExpression* simulation, istream& ifsInput) {
+	if (simulation == nullptr) {
+		throw runtime_error("Simulation has to be initialized before loading field data");
 	}
 
 	string nextToken, line;
@@ -1177,7 +1178,7 @@ void FVSolver::loadFieldData(istream& ifsInput) {
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}
 		if (nextToken == "FIELD_DATA_END") {
@@ -1195,8 +1196,8 @@ void FVSolver::loadFieldData(istream& ifsInput) {
 			lineInput >> fdVarType >> fdID >> fdName >> fdVarName >> fdTime;
 			getline(lineInput,  fdFile);
 			trimString(fdFile);
-			if (fdVarType == "" || fdID == "" || fdName == "" || fdVarName == "" || fdFile == "" || fdIndex < 0 || fdTime < 0) {
-				throw "loadFieldData(), wrong input";
+			if (fdVarType.empty() || fdID.empty() || fdName.empty() || fdVarName.empty() || fdFile.empty() || fdIndex < 0 || fdTime < 0) {
+				throw runtime_error("loadFieldData(), wrong input");
 			}
 			VariableType varType = VAR_UNKNOWN;
 			if (fdVarType == "Membrane") {
@@ -1204,7 +1205,7 @@ void FVSolver::loadFieldData(istream& ifsInput) {
 			} else if (fdVarType == "Volume") {
 				varType = VAR_VOLUME;
 			} else {
-				throw "field data is only supported for volume and membrane variables";
+				throw runtime_error("field data is only supported for volume and membrane variables");
 			}
 			simulation->addFieldData(new FieldData(fdIndex, varType, fdID, fdName, fdVarName, fdTime, fdFile));
 		}
@@ -1219,9 +1220,9 @@ U0
 U1
 PARAMETER_END
 */
-void FVSolver::loadParameters(istream& ifsInput, int numParameters) {
-	if (simulation == 0) {
-		throw "Simulation has to be initialized before loading field data";
+void FVSolver::loadParameters(SimulationExpression* simulation, istream& ifsInput, int numParameters) {
+	if (simulation == nullptr) {
+		throw runtime_error("Simulation has to be initialized before loading field data");
 	}
 
 	string nextToken, line;
@@ -1231,7 +1232,7 @@ void FVSolver::loadParameters(istream& ifsInput, int numParameters) {
 		istringstream lineInput(line);
 
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}
 		if (nextToken == "PARAMETER_END") {
@@ -1244,9 +1245,9 @@ void FVSolver::loadParameters(istream& ifsInput, int numParameters) {
 	assert(nread == numParameters);
 }
 
-void FVSolver::loadSerialScanParameters(istream& ifsInput, int numSerialScanParameters) {
-	if (simulation == 0) {
-		throw "Simulation has to be initialized before loading serial scan parameters";
+void FVSolver::loadSerialScanParameters(SimulationExpression* simulation, istream& ifsInput, int numSerialScanParameters) {
+	if (simulation == nullptr) {
+		throw runtime_error("Simulation has to be initialized before loading serial scan parameters");
 	}
 
 	string nextToken, line;
@@ -1256,7 +1257,7 @@ void FVSolver::loadSerialScanParameters(istream& ifsInput, int numSerialScanPara
 		istringstream lineInput(line);
 
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}
 		if (nextToken == "SERIAL_SCAN_PARAMETER_END") {
@@ -1276,14 +1277,14 @@ PARAMETER_SCAN_BEGIN 2
 2.0 
 PARAMETER_SCAN_END
 */
-void FVSolver::loadSerialScanParameterValues(istream& ifsInput, int numSerialScanParameterValues) {
-	if (simulation == 0) {
-		throw "Simulation has to be initialized before loading serial scan parameter values";
+void FVSolver::loadSerialScanParameterValues(SimTool* simTool, SimulationExpression* simulation, istream& ifsInput, int numSerialScanParameterValues) {
+	if (simulation == nullptr) {
+		throw runtime_error("Simulation has to be initialized before loading serial scan parameter values");
 	}
 	string nextToken, line;
 
 	int numSerialScanParameters = simulation->getNumParameters();
-	double** serialScanParameterValues = new double*[numSerialScanParameterValues];
+	auto** serialScanParameterValues = new double*[numSerialScanParameterValues];
 
 	for (int i = 0; i < numSerialScanParameterValues; i ++) {
 		serialScanParameterValues[i] = new double[numSerialScanParameters];
@@ -1302,7 +1303,7 @@ void FVSolver::loadSerialScanParameterValues(istream& ifsInput, int numSerialSca
 
 		lineInput >> nextToken;
 
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}
 		if (nextToken == "SERIAL_SCAN_PARAMETER_VALUE_END") {
@@ -1398,10 +1399,9 @@ JUMP_CONDITION_END
 
 MEMBRANE_END
 */
-void FVSolver::createSimTool(istream& ifsInput, istream& vcgInput, int taskID)
+SimTool* FVSolver::createSimTool(istream& ifsInput, istream& vcgInput, int taskID, bool bSimZip)
 {
-	SimTool::create();
-	simTool = SimTool::getInstance();
+	SimTool* simTool = new SimTool();
 
 	if (taskID < 0) { // no messaging
 		SimulationMessaging::create();
@@ -1428,14 +1428,14 @@ void FVSolver::createSimTool(istream& ifsInput, istream& vcgInput, int taskID)
 			SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, "preprocessing started"));
 
 		} else if (nextToken == "SIMULATION_PARAM_BEGIN") {
-			loadSimulationParameters(ifsInput);
+			loadSimulationParameters(simTool, ifsInput);
 			simTool->checkTaskIdLockFile();//check if taskid compatible with taskid lockfile
 		} else if (nextToken == "POST_PROCESSING_BLOCK_BEGIN") {
-			loadPostProcessingBlock(ifsInput);
+			loadPostProcessingBlock(simTool, ifsInput);
 		} else if (nextToken == "MODEL_BEGIN") {
-			loadModel(ifsInput);
-			if (model == NULL) {
-				throw "Model has 0 features";
+			VCellModel* model = loadModel(ifsInput);
+			if (model == nullptr) {
+				throw runtime_error("Model has 0 features");
 			}
 			simTool->setModel(model);
 		} else if (nextToken == "MESH_BEGIN") {
@@ -1454,55 +1454,57 @@ void FVSolver::createSimTool(istream& ifsInput, istream& vcgInput, int taskID)
 					break;
 				}
 			}
-			loadMeshFromVcg(vcgInput);
+			loadMeshFromVcg(simTool->getModel(), vcgInput);
 		} else if (nextToken == "VARIABLE_BEGIN") {
-			loadSimulation(ifsInput);
+			SimulationExpression* simulation = loadSimulation(simTool, simTool->getModel(), ifsInput);
 			simTool->setSimulation(simulation);
 		} else if (nextToken == "SMOLDYN_BEGIN") {
-			loadSmoldyn(ifsInput);
+			loadSmoldyn(simTool, ifsInput);
 		} else if (nextToken == "PARAMETER_BEGIN") {
 			int numParams = 0;
 			lineInput >> numParams;
-			loadParameters(ifsInput, numParams);
+			loadParameters(simTool->getSimulation(), ifsInput, numParams);
 		} else if (nextToken == "SERIAL_SCAN_PARAMETER_BEGIN") {
 			int numSerialScanParams = 0;
 			lineInput >> numSerialScanParams;
-			loadSerialScanParameters(ifsInput, numSerialScanParams);
+			loadSerialScanParameters(simTool->getSimulation(), ifsInput, numSerialScanParams);
 		} else if (nextToken == "SERIAL_SCAN_PARAMETER_VALUE_BEGIN") {
 			int numSerialScanParamValues = 0;
 			lineInput >> numSerialScanParamValues;
-			loadSerialScanParameterValues(ifsInput, numSerialScanParamValues);
+			loadSerialScanParameterValues(simTool, simTool->getSimulation(), ifsInput, numSerialScanParamValues);
 		} else if (nextToken == "FIELD_DATA_BEGIN") {
-			loadFieldData(ifsInput);
+			loadFieldData(simTool->getSimulation(), ifsInput);
 		} else if (nextToken == "COMPARTMENT_BEGIN") {
 			string feature_name;
 			lineInput >> feature_name;
-			Feature* feature = model->getFeatureFromName(feature_name);
-			if (feature != NULL) {
-				loadFeature(ifsInput, feature);
+			Feature* feature = simTool->getModel()->getFeatureFromName(feature_name);
+			if (feature != nullptr) {
+				loadFeature(simTool->getSimulation(), ifsInput, feature);
 			} else {
-				throw "createSimTool(), Invalid compartment when loading feature!";
+				throw runtime_error("createSimTool(), Invalid compartment when loading feature!");
 			}
 		} else if (nextToken == "MEMBRANE_BEGIN") {
 			string mem_name, feature1_name, feature2_name;
 			lineInput >> mem_name >> feature1_name >> feature2_name;
-			Membrane* membrane = model->getMembraneFromName(mem_name);
-			if (membrane != 0) {
-				loadMembrane(ifsInput, membrane);
+			Membrane* membrane = simTool->getModel()->getMembraneFromName(mem_name);
+			if (membrane != nullptr) {
+				loadMembrane(simTool->getSimulation(), simTool->getModel(), ifsInput, membrane);
 			} else {
-				throw "createSimTool(), Invalid compartment when loading membrane!";
+				throw runtime_error("createSimTool(), Invalid compartment when loading membrane!");
 			}
 		} else {
-			stringstream ss;
-			ss << "createSimTool(), encountered unknown token " << nextToken << endl;
-			throw ss.str();
+			throw runtime_error("createSimTool(), encountered unknown token " + nextToken);
 		}
 	}
+	if (!bSimZip) {
+		simTool->requestNoZip();
+	}
+	return simTool;
 }
 
-void FVSolver::loadSmoldyn(istream& ifsInput) {
-	if (simulation == 0) {
-		throw "Simulation has to be initialized before loading smoldyn";
+void FVSolver::loadSmoldyn(SimTool* sim_tool, istream& ifsInput) {
+	if (sim_tool->getSimulation() == nullptr) {
+		throw runtime_error("Simulation has to be initialized before loading smoldyn");
 	}
 
 	string nextToken, line;
@@ -1512,7 +1514,7 @@ void FVSolver::loadSmoldyn(istream& ifsInput) {
 		istringstream lineInput(line);
 
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}
 		if (nextToken == "SMOLDYN_END") {
@@ -1522,35 +1524,31 @@ void FVSolver::loadSmoldyn(istream& ifsInput) {
 			string inputfile;
 			getline(lineInput, inputfile);
 			trimString(inputfile);
-			simTool->setSmoldynInputFile(inputfile);
+			sim_tool->setSmoldynInputFile(inputfile);
 		}
 	}
 }
 
-FVSolver::FVSolver(istream& fvinput, istream& vcgInput, int taskID, const char* outdir, bool bSimZip) {
-	simTool = nullptr;
-	simulation = nullptr;
-	model = nullptr;
+FVSolver::FVSolver(const char* outdir) {
+	// simTool = nullptr;
+	// simulation = nullptr;
+	// model = nullptr;
 	mesh = nullptr;
 	outputPath = outdir;
-	createSimTool(fvinput, vcgInput, taskID);
-	if (!bSimZip) {
-		SimTool::getInstance()->requestNoZip();
-	}
 }
 
 FVSolver::~FVSolver() {
 	delete SimulationMessaging::getInstVar();
-	delete simulation;
-	delete model;
+	// delete simulation;
+	// delete model;
 	delete mesh;
-	delete simTool;	
+	// delete simTool;
 }
 
-void FVSolver::solve(bool bLoadFinal, double* paramValues)
+void FVSolver::solve(SimTool* simTool, bool bLoadFinal, double* paramValues)
 {
 	if (paramValues != nullptr) {
-		simulation->setParameterValues(paramValues);
+		simTool->getSimulation()->setParameterValues(simTool, paramValues);
 	}
 	simTool->setLoadFinal(bLoadFinal);
 
@@ -1559,63 +1557,59 @@ void FVSolver::solve(bool bLoadFinal, double* paramValues)
 	simTool->start();
 }
 
-void FVSolver::init(double* paramValues){
+void FVSolver::init(SimTool* sim_tool, double* paramValues){
 	// setting initial conditions.
-	simulation->setParameterValues(paramValues);
-	simulation->initSimulation();
+	sim_tool->getSimulation()->setParameterValues(sim_tool, paramValues);
+	sim_tool->getSimulation()->initSimulation(sim_tool);
 }
 
-void FVSolver::step(double* paramValues)
+void FVSolver::step(SimTool* sim_tool, double* paramValues)
 {
 	//simulation->setParameterValues(paramValues);
-	simulation->iterate();
-	simulation->update();
+	sim_tool->getSimulation()->iterate(sim_tool);
+	sim_tool->getSimulation()->update(sim_tool);
 }
 
-string FVSolver::getVariableName(int index){
-	return simulation->getVariable(index)->getName();
+string FVSolver::getVariableName(const SimTool* sim_tool, int index){
+	return sim_tool->getSimulation()->getVariable(index)->getName();
 }
 
-int FVSolver::getNumVariables(){
-	return simulation->getNumVariables();
+int FVSolver::getNumVariables(const SimTool* sim_tool){
+	return sim_tool->getSimulation()->getNumVariables();
 }
 
-double* FVSolver::getValue(string& var, int arrayID) {
+double* FVSolver::getValue(const SimTool* sim_tool, string& var, int arrayID) {
 	if (arrayID==0){
-		return simulation->getVariableFromName(var)->getOld();
+		return sim_tool->getSimulation()->getVariableFromName(var)->getOld();
 	} else if (arrayID==1){
-		return simulation->getVariableFromName(var)->getCurr();
+		return sim_tool->getSimulation()->getVariableFromName(var)->getCurr();
 	} else {
-		throw "arrayID out of bounds";
+		throw runtime_error("arrayID out of bounds");
 	}
 }
 
-int FVSolver::getVariableLength(string& var) {
-	return simulation->getVariableFromName(var)->getSize();
+int FVSolver::getVariableLength(const SimTool* sim_tool, string& var) {
+	return sim_tool->getSimulation()->getVariableFromName(var)->getSize();
 }
 
-void FVSolver::setInitialCondition(string& varName, int dataLength, const double* data) {
-	Variable* var = simulation->getVariableFromName(varName);
-	if (var == 0) {
-		char errMsg[512];
-		sprintf(errMsg, "FVSolver::setInitialCondition() : variable %s doesn't exist", varName.c_str());
-		throw errMsg;
+void FVSolver::setInitialCondition(SimTool* sim_tool, string& varName, int dataLength, const double* data) {
+	Variable* var = sim_tool->getSimulation()->getVariableFromName(varName);
+	if (var == nullptr) {
+		throw runtime_error("FVSolver::setInitialCondition() : variable " + varName + " doesn't exist");
 	}
 	if (var->getSize() != dataLength) {
-		char errMsg[512];
-		sprintf(errMsg, "FVSolver::setInitialCondition() : variable %s doesn't match in size, %d, %d", varName.c_str(), var->getSize(), dataLength);
-		throw errMsg;
+		throw runtime_error("FVSolver::setInitialCondition() : variable " + varName + " doesn't match in size, " + to_string(var->getSize()) + ", " + to_string(dataLength));
 	}
 	memcpy(var->getCurr(), data, dataLength * sizeof(double));
 	var->update();
 }
 
-double FVSolver::getCurrentTime(){
-	return simulation->getTime_sec();
+double FVSolver::getCurrentTime(SimTool* sim_tool){
+	return sim_tool->getSimulation()->getTime_sec(sim_tool);
 }
 
-void FVSolver::setEndTime(double endTime){
-	simTool->setEndTimeSec(endTime);
+void FVSolver::setEndTime(SimTool* sim_tool, double endTime){
+	sim_tool->setEndTimeSec(endTime);
 }
 
 /**
@@ -1624,14 +1618,14 @@ POST_PROCESSING_BLOCK_BEGIN
 PROJECTION_DATA_GENERATOR postDex cell x sum (5.0 * Dex_cell);
 POST_PROCESSING_BLOCK_END
 */
-void FVSolver::loadPostProcessingBlock(istream& ifsInput){
-	if (simulation == 0) {
-		throw "Simulation has to be initialized before loading field data";
+void FVSolver::loadPostProcessingBlock(SimTool* sim_tool, istream& ifsInput){
+	if (sim_tool->getSimulation() == nullptr) {
+		throw runtime_error("Simulation has to be initialized before loading field data");
 	}
 
 	// create post processing block;
-	simulation->createPostProcessingBlock();
-	PostProcessingBlock* postProcessingBlock = simulation->getPostProcessingBlock();
+	sim_tool->getSimulation()->createPostProcessingBlock();
+	PostProcessingBlock* postProcessingBlock = sim_tool->getSimulation()->getPostProcessingBlock();
 	// add var statistics data generator always
 	postProcessingBlock->addDataGenerator(new VariableStatisticsDataGenerator());
 	
@@ -1642,7 +1636,7 @@ void FVSolver::loadPostProcessingBlock(istream& ifsInput){
 
 		nextToken = "";
 		lineInput >> nextToken;
-		if (nextToken.size() == 0 || nextToken[0] == '#') {
+		if (nextToken.empty() || nextToken[0] == '#') {
 			continue;
 		}
 		if (nextToken == "POST_PROCESSING_BLOCK_END") {
@@ -1652,15 +1646,15 @@ void FVSolver::loadPostProcessingBlock(istream& ifsInput){
 		if (nextToken == "PROJECTION_DATA_GENERATOR") {
 			string name, domain_name, op, axis;
 			lineInput >> name >> domain_name >> axis >> op; 
-			Feature* feature = model->getFeatureFromName(domain_name);
+			Feature* feature = sim_tool->getModel()->getFeatureFromName(domain_name);
 			Expression* function = readExpression(lineInput, name);
-			ProjectionDataGenerator* dataGenerator = new ProjectionDataGenerator(name, feature, axis, op, function);
+			auto* dataGenerator = new ProjectionDataGenerator(name, feature, axis, op, function);
 			postProcessingBlock->addDataGenerator(dataGenerator);
 		} else if (nextToken == "GAUSSIAN_CONVOLUTION_DATA_GENERATOR") {
 			string name, domain_name;
 			double sigmaXY, sigmaZ;
 			lineInput >> name >> domain_name >> sigmaXY >> sigmaZ;
-			Feature* feature = model->getFeatureFromName(domain_name);
+			Feature* feature = sim_tool->getModel()->getFeatureFromName(domain_name);
 			string volFunctionKeyword = "GAUSSIAN_CONVOLUTION_VOL_FUNCTION";
 			string memFunctionKeyword = "GAUSSIAN_CONVOLUTION_MEM_FUNCTION";
 			size_t indexOfVolumeFunctionKeyword = line.find(volFunctionKeyword);
@@ -1669,21 +1663,21 @@ void FVSolver::loadPostProcessingBlock(istream& ifsInput){
 			size_t indexOfVolumeExp = indexOfVolumeFunctionKeyword+volFunctionKeyword.size();
 			string volumeFunctionString = line.substr(indexOfVolumeExp, indexOfMembraneFunctionKeyword-indexOfVolumeExp);
 			trimString(volumeFunctionString);
-			Expression* volumeFunction = new Expression(volumeFunctionString);
+			auto* volumeFunction = new Expression(volumeFunctionString);
 
 			size_t indexOfMembraneExp = indexOfMembraneFunctionKeyword+memFunctionKeyword.size();
 			string membraneFunctionString = line.substr(indexOfMembraneExp, string::npos);
 			trimString(membraneFunctionString);
-			Expression* membraneFunction = new Expression(membraneFunctionString);
-			GaussianConvolutionDataGenerator* dataGenerator = new GaussianConvolutionDataGenerator(name, feature, sigmaXY, sigmaZ, volumeFunction, membraneFunction);
+			auto* membraneFunction = new Expression(membraneFunctionString);
+			auto* dataGenerator = new GaussianConvolutionDataGenerator(name, feature, sigmaXY, sigmaZ, volumeFunction, membraneFunction);
 			postProcessingBlock->addDataGenerator(dataGenerator);
 
 			string garbage;
 			getline(lineInput, garbage);
 
 		} else if (nextToken == "ROI_DATA_GENERATOR_BEGIN") {
-			int* volumePoints = 0;
-			int* membranePoints = 0;
+			int* volumePoints = nullptr;
+			int* membranePoints = nullptr;
 			int numVolumePoints = 0;
 			int numMembranePoints = 0;
 			FieldData* sampleImage;
@@ -1699,7 +1693,7 @@ void FVSolver::loadPostProcessingBlock(istream& ifsInput){
 
 				nextToken = "";
 				lineInput_roi >> nextToken;
-				if (nextToken.size() == 0 || nextToken[0] == '#') {
+				if (nextToken.empty() || nextToken[0] == '#') {
 					continue;
 				}
 				if (nextToken == "ROI_DATA_GENERATOR_END") {
@@ -1724,7 +1718,7 @@ void FVSolver::loadPostProcessingBlock(istream& ifsInput){
 				} else if (nextToken == "StoreEnabled") {
 					lineInput_roi >> storeEnabledStr;
 					if (storeEnabledStr == "false") {
-						simTool->setStoreEnable(false);
+						sim_tool->setStoreEnable(false);
 					}
 				} else if (nextToken == "SampleImage") {
 					lineInput_roi >> numImageRegions >> zSlice;
@@ -1741,12 +1735,10 @@ void FVSolver::loadPostProcessingBlock(istream& ifsInput){
 					sampleImage = new FieldData(0, VAR_VOLUME, "", fieldName, varName, time, fieldfilename);
 				}
 			}// end while loop for roi data generator
-			RoiDataGenerator* dataGenerator = new RoiDataGenerator(roiDGName,  volumePoints, numVolumePoints, membranePoints, numMembranePoints, sampleImage, numImageRegions, zSlice);
+			auto* dataGenerator = new RoiDataGenerator(roiDGName,  volumePoints, numVolumePoints, membranePoints, numMembranePoints, sampleImage, numImageRegions, zSlice);
 			postProcessingBlock->addDataGenerator(dataGenerator);
 		} else {
-			stringstream ss;
-			ss << "loadPostProcessingBlock(), encountered unknown token " << nextToken << endl;
-			throw ss.str();
+			throw runtime_error("loadPostProcessingBlock(), encountered unknown token " + nextToken);
 		}
 	}
 }

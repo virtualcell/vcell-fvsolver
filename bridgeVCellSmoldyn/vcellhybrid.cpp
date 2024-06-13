@@ -48,7 +48,7 @@ simptr vcellhybrid::smoldynInit(SimTool* simTool, string& fileName) {
 	sim->clockstt=time(NULL);
 	er=simdocommands(sim);
 
-	SimulationExpression* vcellSim = (SimulationExpression*)simTool->getSimulation();
+	SimulationExpression* vcellSim = simTool->getSimulation();
 	SymbolTable* symbolTable = vcellSim->getSymbolTable();
 	char erstr[1024];
 	//initialization for reaction rates (as expression)

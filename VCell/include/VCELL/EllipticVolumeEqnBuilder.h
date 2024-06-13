@@ -23,11 +23,11 @@ struct VolumeNeighbor;
 class EllipticVolumeEqnBuilder : public SparseMatrixEqnBuilder
 {
 public:
-	EllipticVolumeEqnBuilder(VolumeVariable *species, CartesianMesh *mesh, int numSolveRegions=0, int* solveRegions=0);
-	~EllipticVolumeEqnBuilder();
+	EllipticVolumeEqnBuilder(VolumeVariable *species, CartesianMesh *mesh, int numSolveRegions=0, int* solveRegions=nullptr);
+	~EllipticVolumeEqnBuilder() override;
 
-	void initEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);
-	void buildEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);
+	void initEquation(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);
+	void buildEquation(Simulation *sim, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);
 	void postProcess();
 
 	bool isElliptic() { 
@@ -57,8 +57,8 @@ private:
 
 	void init();
 	void computeLHS(int index, double& Aii, int& numCols, int* columnIndices, double* columnValues, bool& bSort);
-	double computeRHS(int index);
-	void preProcess();
+	double computeRHS(Simulation* sim, int index);
+	void preProcess(VCellModel *model);
 	bool checkPeriodicCoupledPairsInRegions(int indexm, int indexp);
 };    
 

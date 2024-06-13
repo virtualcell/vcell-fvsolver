@@ -22,11 +22,11 @@ class Feature;
 class SundialsPdeScheduler : public Scheduler
 {
 public:
-	SundialsPdeScheduler(Simulation *sim, const SundialsSolverOptions& sso, int numDisTimes, double* disTimes, bool bDefaultOutput);
-	~SundialsPdeScheduler();
+	SundialsPdeScheduler(SimulationExpression *sim, const SundialsSolverOptions& sso, int numDisTimes, double* disTimes, bool bDefaultOutput);
+	~SundialsPdeScheduler() override;
 
-	void iterate();
-	double getCurrentTime() { return currentTime; }
+	void iterate(SimTool* sim_tool) override;
+	double getCurrentTime() const { return currentTime; }
 	void setSimStartTime(double st) {
 		currentTime = st;
 	}
@@ -112,19 +112,19 @@ private:
 			fy		is the current value of the vector f(t; y).
 			r		is the right-hand side vector of the linear system.
 			z		is the output vector computed.
-			gamma	is the scalar ° appearing in the Newton matrix M = I - gammaJ.
+			gamma	is the scalar ï¿½ appearing in the Newton matrix M = I - gammaJ.
 			delta	is an input tolerance to be used if an iterative method is employed in the solu-
 					tion. In that case, the residual vector Res = r - Pz of the system should be
-					made less than delta in weighted l2 norm, i.e., pPi(Resi ¢ ewti)2 < delta.
+					made less than delta in weighted l2 norm, i.e., pPi(Resi ï¿½ ewti)2 < delta.
 					To obtain the N Vector ewt, call CVodeGetErrWeights (see x5.5.7.1).
-			lr		is an input °ag indicating whether the preconditioner solve function is to use
+			lr		is an input ï¿½ag indicating whether the preconditioner solve function is to use
 					the left preconditioner (lr = 1) or the right preconditioner (lr = 2);
 			p_data	is a pointer to user data | the same as the p data parameter passed to the
 					function CVSp*SetPreconditioner.
 			tmp		is a pointer to memory allocated for a variable of type N Vector which can be
 					used for work space.
 	Return value
-			The value to be returned by the preconditioner solve function is a °ag indicating whether
+			The value to be returned by the preconditioner solve function is a ï¿½ag indicating whether
 			it was successful. This value should be 0 if successful, positive for a recoverable error
 			(in which case the step will be retried), negative for an unrecoverable error (in which
 			case the integration is halted).
@@ -178,8 +178,8 @@ private:
 	void applyMembraneFluxOperator(double t, double* yinput, double* rhs);
 	void applyVolumeRegionReactionOperator(double t, double* yinput, double* rhs);
 	void applyMembraneRegionReactionOperator(double t, double* yinput, double* rhs);
-	void initSundialsSolver();
-	void solve();
+	void initSundialsSolver(VCellModel* model);
+	void solve(SimTool* sim_tool);
 
 	double *statePointValues, **neighborStatePointValues;
 	void updateVolumeStatePointValues(int volIndex, double t, double* yinput, double* values);

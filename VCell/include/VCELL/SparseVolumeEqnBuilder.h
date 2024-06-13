@@ -23,12 +23,12 @@ struct CoupledNeighbors;
 class SparseVolumeEqnBuilder : public SparseMatrixEqnBuilder
 {
 public:
-	SparseVolumeEqnBuilder(VolumeVariable *species, CartesianMesh *mesh, bool bNoConvection, int numSolveRegions=0, int* solveRegions=0);
-	~SparseVolumeEqnBuilder();
+	SparseVolumeEqnBuilder(VolumeVariable *species, CartesianMesh *mesh, bool bNoConvection, int numSolveRegions=0, int* solveRegions=nullptr);
+	~SparseVolumeEqnBuilder() override;
 
-	void initEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);
-	void buildEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);
-	void postProcess();
+	void initEquation(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize) override;
+	void buildEquation(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize) override;
+	void postProcess() override;
 
 private:
 	bool bSymmetricStorage; // no convection, A would be symmetric
@@ -52,8 +52,8 @@ private:
 
 	void init();
 	void computeLHS(int index, double* lambdas, double& Aii, int& numCols, int* columnIndices, double* columnValues, bool& bSort);
-	double computeRHS(int index, double deltaTime, double* lambdas, double bInit);
-	void preProcess();
+	double computeRHS(Simulation* sim, int index, double deltaTime, double* lambdas, double bInit);
+	void preProcess(VCellModel* model);
 	bool checkPeriodicCoupledPairsInRegions(int indexm, int indexp);
 };    
 

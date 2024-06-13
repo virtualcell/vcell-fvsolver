@@ -17,7 +17,7 @@ VolumeRegionEqnBuilder::VolumeRegionEqnBuilder(VolumeRegionVariable *Avar, Carte
 	odeSolver = Asolver;
 }
 
-void VolumeRegionEqnBuilder::buildEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize) {
+void VolumeRegionEqnBuilder::buildEquation(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize) {
 	int size = ((CartesianMesh*)mesh)->getNumVolumeRegions();
 	ASSERTION(size==var->getSize());
 	double *pRate = odeSolver->getRates();

@@ -75,17 +75,15 @@ using std::max;
 #endif
 */
 
-SimTool* SimTool::instance = 0;
-
 static int NUM_TOKENS_PER_LINE = 4;
 static const int numRetries = 2;
 static const int retryWaitSeconds = 5;
 
 SimTool::SimTool()
 	:bSimZip(true ),
-	 vcellModel(0),
-	simulation(0),
-	_timer(0),
+	 vcellModel(nullptr),
+	simulation(nullptr),
+	_timer(nullptr),
 	bSimFileCompress(false),
 	simEndTime(0),
 	simStartTime(0),
@@ -94,13 +92,10 @@ SimTool::SimTool()
 	smoldynStepMultiplier(1),
 	keepEvery(100),
 	bStoreEnable(true),
-	baseFileName(0),
 	simFileCount(0),
-	baseSimName(0),
-	baseDirName(0 ),
 	zipFileCount(0),
 	solver(FV_SOLVER ),
-    discontinuityTimes(0),
+    discontinuityTimes(nullptr),
 	numDiscontinuityTimes(0),
 	bLoadFinal(true ),
 	sundialsSolverOptions( ),
@@ -111,22 +106,16 @@ SimTool::SimTool()
 	bSundialsOneStepOutput(false),
 	keepAtMost(5000),
 
-	 serialScanParameterValues(0),
+    serialScanParameterValues(nullptr),
 	numSerialParameterScans(0),
 
-	postProcessingHdf5Writer(0),
-	smoldynSim(0 ),
+	postProcessingHdf5Writer(nullptr),
+	smoldynSim(nullptr),
 	smoldynInputFile("" )
 { }
 
 SimTool::~SimTool()
 {
-	if (baseSimName != baseDirName) {
-		delete[] baseSimName;
-	}
-	delete[] baseDirName;
-	delete[] baseFileName;
-
 	delete[] discontinuityTimes;
 
 	for (int i = 0; i < numSerialParameterScans; i ++) {
@@ -138,14 +127,14 @@ SimTool::~SimTool()
 }
 
 void SimTool::setModel(VCellModel* model) {
-	if (model == 0) {
+	if (model == nullptr) {
 		throw "SimTool::setModel(), model can't be null";
 	}
 	vcellModel = model;
 }
 
-void SimTool::setSimulation(Simulation* sim) {
-	if (sim == 0) {
+void SimTool::setSimulation(SimulationExpression* sim) {
+	if (sim == nullptr) {
 		throw "SimTool::setSimulation(), simulation can't be null";
 	}
 	simulation = sim;
@@ -161,21 +150,6 @@ void SimTool::setSmoldynStepMultiplier(int steps) {
         throw "SimTool::setSmoldynStepMultiplier(), smoldynStepMultiplier must be a positive integer";
     }
 	smoldynStepMultiplier = steps;
-}
-
-void SimTool::create() {
-	if (instance == 0) {
-		instance = new SimTool();
-	} else {
-		throw "SimTool (singleton) has been created";
-	}
-}
-
-SimTool* SimTool::getInstance() {
-	if (instance == 0) {
-		throw "SimTool (singleton) has not been created";
-	}
-	return instance;
 }
 
 void SimTool::requestNoZip() {
@@ -215,7 +189,7 @@ void SimTool::showSummary(FILE *fp)
 {
 	fprintf(fp,"--------------- sim summary ----------------\n");
 	simulation->getMesh()->showSummary(fp);
-	fprintf(fp,"\ttime = %lg sec\n",simulation->getTime_sec());
+	fprintf(fp,"\ttime = %lg sec\n",simulation->getTime_sec(this));
 	fprintf(fp,"\tdT   = %lg sec\n",simulation->getDT_sec());
 	fprintf(fp,"--------------------------------------------\n");
 	if (_timer){
@@ -225,28 +199,13 @@ void SimTool::showSummary(FILE *fp)
 	}
 }
 
-void SimTool::setBaseFilename(char *fname) {
-	if (fname == 0 || strlen(fname) == 0) {
-		throw "invalid base file name for data set";
+void SimTool::setBaseFilename(const string& fname) {
+	if (fname.empty()) {
+		throw runtime_error("invalid base file name for data set");
 	}
-	baseFileName = new char[strlen(fname) + 1];
-	memset(baseFileName, 0, strlen(fname) + 1);
-	memcpy(baseFileName, fname, strlen(fname) * sizeof(char));
-
-	// extract directory
-	baseDirName = new char[strlen(baseFileName) + 1];
-	baseSimName = NULL;
-
-	strcpy(baseDirName, baseFileName);
-	char* p = strrchr(baseDirName, DIRECTORY_SEPARATOR);
-	if (p == NULL) {
-		baseSimName = baseDirName;
-		baseDirName = 0;
-	} else {
-		baseSimName = new char[strlen(p+1) + 1];
-		strcpy(baseSimName, p + 1);
-		*(p + 1)= 0;
-	}
+	baseFileName = fname;
+	baseDirName = baseFileName.parent_path();
+	baseSimName = baseFileName.filename();
 }
 
 static void retryWait(int seconds) {
@@ -273,7 +232,7 @@ static FILE* openFileWithRetry(const char* fileName, const char* mode) {
 	return fp;
 }
 
-static bool zipUnzipWithRetry(bool bZip, const char* zipFileName, const char* simFileName, std::string* errmsg) {
+static bool zipUnzipWithRetry(bool bZip, filesystem::path zipFileName, filesystem::path simFileName, std::string* errmsg) {
 	bool bSuccess = false;
 	for (int attemptNum = 0; attemptNum <= numRetries; attemptNum++) {
 		try {
@@ -324,21 +283,20 @@ void SimTool::loadFinal()
 
 	bool bStartOver = true;
 
-	std::string logFileName{baseFileName};
+	std::filesystem::path logFileName = baseFileName;
 	logFileName.append(LOG_FILE_EXT);
-	std::string zipFileName{baseFileName};
-	const std::string dataFileName;
+	std::filesystem::path zipFileName = baseFileName;
+	const std::filesystem::path dataFileName;
 
 
 	FILE* tidFP = lockForReadWrite();
 	FILE* logFP = fopen(logFileName.c_str(), "r");
 
-	if (logFP != NULL) {
+	if (logFP != nullptr) {
 		bStartOver = false; // log file exists, there is old data
-		struct stat buf;
 		zipFileName.append("00").append(ZIP_FILE_EXT);
 
-		if (stat(zipFileName.c_str(), &buf)) {
+		if (exists(zipFileName)) {
 			bSimZip = false;
 			NUM_TOKENS_PER_LINE = 3;
 		} else {
@@ -359,7 +317,7 @@ void SimTool::loadFinal()
 			//
 			// look for line with a valid filename (includes basename)
 			//
-			if (strstr(logBuffer, baseSimName)){
+			if (strstr(logBuffer, baseSimName.c_str())){
 				//
 				// parse iteration number and time
 				//
@@ -389,15 +347,14 @@ void SimTool::loadFinal()
 		if (!bStartOver) {
 			if (bSimZip) {
 				// check if zip file exists
-				std::string zipFileAbsoluteName;
-				const bool needs_path_completion =
-					strchr(zipFileName.c_str(), DIRECTORY_SEPARATOR) == 0 && baseDirName != 0;
+				std::filesystem::path zipFileAbsoluteName;
+				const bool needs_path_completion = zipFileName.is_absolute() && is_directory(baseDirName);
 				if (needs_path_completion) {
-					zipFileAbsoluteName = std::string(baseDirName) + zipFileName;
+					zipFileAbsoluteName = baseDirName / zipFileName;
 				} else {
-					zipFileAbsoluteName = std::string(zipFileName);
+					zipFileAbsoluteName = zipFileName;
 				}
-				if (stat(zipFileAbsoluteName.c_str(), &buf)) {
+				if (exists(zipFileAbsoluteName)) {
 					cout << "SimTool::loadFinal(), unable to open zip file <" << zipFileAbsoluteName << ">" << endl;
 					bStartOver = true;
 				} else {
@@ -410,7 +367,7 @@ void SimTool::loadFinal()
 
 			if (!bStartOver) {
 				// otherwise check if sim file exists
-				if (stat(dataFileName.c_str(), &buf)) {
+				if (exists(dataFileName)) {
 					cout << "SimTool::loadFinal(), unable to open sim file <" << dataFileName << ">" << endl;
 					bStartOver = true;
 				} else {
@@ -424,20 +381,20 @@ void SimTool::loadFinal()
 							simulation->setCurrIteration(tempIteration);
 							// set start time on sundials
 							if (isSundialsPdeSolver()) {
-								simulation->setSimStartTime(simStartTime);
+								simulation->setSimStartTime(this, simStartTime);
 							}
 							simFileCount = tempFileCount;
 
 							if (bSimZip) {
 								remove(dataFileName.c_str());
-								zipFileCount = getZipCount(&zipFileName);
+								zipFileCount = getZipCount(zipFileName);
 								// wrong zip file Name
 								if (zipFileCount < 0) { // should never happen
 									bStartOver = true;
 								}  else {
 									// check if this zip file is already big enough
-									if (stat(zipFileName.c_str(), &buf) == 0) {
-										if (buf.st_size > ZIP_FILE_LIMIT) {
+									if (exists(zipFileName)) {
+										if (file_size(zipFileName) > ZIP_FILE_LIMIT) {
 											zipFileCount ++;
 										}
 									}
@@ -457,7 +414,7 @@ void SimTool::loadFinal()
 	} // if (logFP != NULL)
 
 	// close tid file
-	if (tidFP != 0) {
+	if (tidFP != nullptr) {
 		fclose(tidFP);
 	}
 	if (bStartOver) {
@@ -473,7 +430,7 @@ void SimTool::checkTaskIdLockFile(){
 
 FILE* SimTool::lockForReadWrite() {
 	const int myTaskID = SimulationMessaging::getInstVar()->getTaskID();
-	if (myTaskID < 0) return 0;
+	if (myTaskID < 0) return nullptr;
 
 
 	std::string tidFileName{baseFileName};
@@ -583,7 +540,7 @@ void SimTool::updateLog(double progress, double time, int iteration)
 
 		logFP = openFileWithRetry(logFileName.c_str(), "a");
 
-		if (logFP == 0) {
+		if (logFP == nullptr) {
 			errorMsg.append("SimTool::updateLog() - error opening log file <").append(logFileName).append(">");
 			bSuccess = false;
 		} else {
@@ -592,7 +549,7 @@ void SimTool::updateLog(double progress, double time, int iteration)
 			if (bSimZip) {
 				//int retcode = 0;
 				std::stringstream zipFileNameStream;
-				zipFileNameStream << baseFileName << std::setfill('0') << std::setw(2) << zipFileCount << ZIP_FILE_EXT;
+				zipFileNameStream << baseFileName.string() << std::setfill('0') << std::setw(2) << zipFileCount << ZIP_FILE_EXT;
 				std::string zipFileName{zipFileNameStream.str()};
 				if (stat(particleFileName.c_str(), &buf) == 0) {	// has particle
 				//	retcode = zip32(2, zipFileName, simFileName, particleFileName);
@@ -607,7 +564,7 @@ void SimTool::updateLog(double progress, double time, int iteration)
 				if (bSuccess) {
 					// write hdf5 post processing before writing log entry
 					if (postProcessingHdf5Writer != NULL) {
-						postProcessingHdf5Writer->writeOutput();
+						postProcessingHdf5Writer->writeOutput(this);
 					}
 
 
@@ -649,7 +606,7 @@ void SimTool::updateLog(double progress, double time, int iteration)
 	} else{
 		// write hdf5 post processing before writing log entry
 		if (postProcessingHdf5Writer != NULL) {
-			postProcessingHdf5Writer->writeOutput();
+			postProcessingHdf5Writer->writeOutput(this);
 		}
 
 	}
@@ -657,9 +614,9 @@ void SimTool::updateLog(double progress, double time, int iteration)
 	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_DATA, progress, time));
 }
 
-int SimTool::getZipCount(char* zipFileName) {
-	char* p = strstr(zipFileName, ZIP_FILE_EXT);
-	if (p == NULL) {
+int SimTool::getZipCount(filesystem::path zipFileName) {
+	const char* p = strstr(zipFileName.string().c_str(), ZIP_FILE_EXT);
+	if (p == nullptr) {
 		return -1;
 	}
 
@@ -669,21 +626,14 @@ int SimTool::getZipCount(char* zipFileName) {
 	return atoi(str);
 }
 
-int SimTool::getZipCount(const std::string* zipFileName) {
-	// We need a char buffer because underlying ststr() call needs non-const char-ptr
-	char buffer[zipFileName->size()]; // C99 is great
-	strcpy(buffer, zipFileName->c_str());
-	return this->getZipCount(buffer);
-}
-
 void SimTool::clearLog()
 {
 	simStartTime = 0;
 	simFileCount = 0;
 	zipFileCount = 0;
 
-	if (SimTool::getInstance()->isSundialsPdeSolver()) {
-		simulation->setSimStartTime(0);
+	if (isSundialsPdeSolver()) {
+		simulation->setSimStartTime(this, 0);
 	}
 
 	FILE *fp;
@@ -746,7 +696,7 @@ void SimTool::clearLog()
 		buffer.clear();
 
 		if (!bSimZip) continue;
-		const int count = getZipCount(&zipFileName);
+		const int count = getZipCount(zipFileName);
 		if (oldCount != count && count >= 0) {
 			remove(zipFileName.c_str());
 			oldCount = count;
@@ -775,7 +725,7 @@ void SimTool::start() {
 	if (simulation->getNumVariables() == 0) {
 		return;
 	}
-	simulation->resolveReferences();
+	simulation->resolveReferences(this);
     if (numSerialParameterScans == 0 ) {
         // Is Not paramScan, the .fvinput had no SERIAL_SCAN_PARAMETER_... section
         start1();
@@ -783,13 +733,13 @@ void SimTool::start() {
         // Is paramScan, the .fvinput had 'SERIAL_SCAN_PARAMETER_...' section
         // Is also a remote server (green-button) run , the .fvinput has 'JMS_PARAM_BEGIN' section
         // Each paramScan is run as a separate job with serial jobIndex in the 'JMS_PARAM_BEGIN' section
-        SimulationExpression* sim = (SimulationExpression*)simulation;
-        sim->setParameterValues(serialScanParameterValues[SimulationMessaging::getInstVar()->getJobIndex()]);
+        SimulationExpression* sim = simulation;
+        sim->setParameterValues(this, serialScanParameterValues[SimulationMessaging::getInstVar()->getJobIndex()]);
 		start1();
 	} else {
         // Is paramScan, the .fvinput had SERIAL_SCAN_PARAMETER_... section
         // Is also a local (blue-button) run where each paramScan is run in the following loop
-		SimulationExpression* sim = (SimulationExpression*)simulation;
+		SimulationExpression* sim = simulation;
 		for (int scan = 0; scan < numSerialParameterScans; scan ++) {
 			if (scan > 0) {
 				string bfn(baseFileName);
@@ -800,7 +750,7 @@ void SimTool::start() {
 				bfn.replace(p, strlen(oldIndex), newIndex);
 				setBaseFilename((char*)bfn.c_str());
 			}
-			sim->setParameterValues(serialScanParameterValues[scan]);
+			sim->setParameterValues(this, serialScanParameterValues[scan]);
 			start1();
 		}
 	}
@@ -821,7 +771,7 @@ void SimTool::start1() {
 		}
 	}
 
-	simulation->initSimulation();
+	simulation->initSimulation(this);
 
 	if (smoldynInputFile != "") {
 		smoldynSim = vcellhybrid::smoldynInit(this, smoldynInputFile);//smoldynInit will write output therefore computeHistogram is called by VCellSmoldynOutput.write().
@@ -840,8 +790,8 @@ void SimTool::start1() {
 		return;
 	}
 
-	if (bStoreEnable && (baseFileName == NULL || strlen(baseFileName) == 0)) {
-		throw "Invalid base file name for dataset";
+	if (bStoreEnable && !baseFileName.has_filename()) {
+		throw runtime_error("Invalid base file name "+baseFileName.string()+"for dataset");
 	}
 
 	std::string message;
@@ -870,9 +820,9 @@ void SimTool::start1() {
 			simulation->getMesh()->write(fp);
 			fclose(fp);
 
-			filename.erase(strlen(baseFileName), 5);
+			filename.erase(strlen(baseFileName.c_str()), 5);
 			filename.append(MESHMETRICS_FILE_EXT);
-			if ((fp=fopen(filename.c_str(),"w")) == NULL){
+			if ((fp=fopen(filename.c_str(),"w")) == nullptr){
 				std::string errorMessage;
 				errorMessage.append("cannot open mesh metrics file ").append(filename).append(" for writing");
 				throw errorMessage.c_str();
@@ -896,8 +846,8 @@ void SimTool::start1() {
 	clock_t oldTime = clock(); // to control the output of progress, send progress every 2 seconds.
 	int counter = 0;
 	while (true) {
-		if (simulation->getTime_sec() - simEndTime > epsilon // currentTime past endTime
-				|| fabs(simEndTime - simulation->getTime_sec()) < epsilon) { // reached the end time
+		if (simulation->getTime_sec(this) - simEndTime > epsilon // currentTime past endTime
+				|| fabs(simEndTime - simulation->getTime_sec(this)) < epsilon) { // reached the end time
 			break;
 		}
 		if (isSundialsPdeSolver() && bSundialsOneStepOutput) {
@@ -911,7 +861,7 @@ void SimTool::start1() {
 		}
 
 		counter++;
-		simulation->iterate();
+		simulation->iterate(this);
 		if (smoldynSim != NULL && counter == smoldynStepMultiplier) {
 			vcellhybrid::smoldynOneStep(smoldynSim);//smoldynOneStep includes computeHistogram after each time step.
 			copyParticleCountsToConcentration();
@@ -922,19 +872,19 @@ void SimTool::start1() {
 			return;
 		}
 
-		simulation->update();
+		simulation->update(this);
 
-		if (simulation->getCurrIteration() % keepEvery == 0 || fabs(simEndTime - simulation->getTime_sec()) < epsilon) {
-			updateLog(percentile,simulation->getTime_sec(), simulation->getCurrIteration());
+		if (simulation->getCurrIteration() % keepEvery == 0 || fabs(simEndTime - simulation->getTime_sec(this)) < epsilon) {
+			updateLog(percentile,simulation->getTime_sec(this), simulation->getCurrIteration());
         }
 
 		clock_t currentTime = clock();
 		double duration = (double)(currentTime - oldTime) / CLOCKS_PER_SEC;
 		if (duration >= 2){
-			percentile = (simulation->getTime_sec() - simStartTime)/(simEndTime - simStartTime);
+			percentile = (simulation->getTime_sec(this) - simStartTime)/(simEndTime - simStartTime);
 			if (percentile - lastSentPercentile >= increment) {
-				std::cout << "SimTool.start1() sending JOB_PROGRESS to SimulationMessaging: percentile=" << percentile << ", time=" << simulation->getTime_sec() << std::endl;
-				SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_PROGRESS, percentile, simulation->getTime_sec()));
+				std::cout << "SimTool.start1() sending JOB_PROGRESS to SimulationMessaging: percentile=" << percentile << ", time=" << simulation->getTime_sec(this) << std::endl;
+				SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_PROGRESS, percentile, simulation->getTime_sec(this)));
 				lastSentPercentile = percentile;
 				oldTime = currentTime;
 			}
@@ -949,9 +899,9 @@ void SimTool::start1() {
 				}
 			}
 			if (uniform) {
-				cout << endl << "!!!Spatially Uniform reached at " << simulation->getTime_sec() << endl;
+				cout << endl << "!!!Spatially Uniform reached at " << simulation->getTime_sec(this) << endl;
 				if (simulation->getCurrIteration() % keepEvery != 0) {
-					updateLog(percentile,simulation->getTime_sec(), simulation->getCurrIteration());
+					updateLog(percentile,simulation->getTime_sec(this), simulation->getCurrIteration());
 				}
 				break;
 			}
@@ -965,8 +915,8 @@ void SimTool::start1() {
 		return;
 	}
 
-	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_PROGRESS, 1.0, simulation->getTime_sec()));
-	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_COMPLETED, percentile, simulation->getTime_sec()));
+	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_PROGRESS, 1.0, simulation->getTime_sec(this)));
+	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_COMPLETED, percentile, simulation->getTime_sec(this)));
 
 	showSummary(stdout);
 }

@@ -392,7 +392,7 @@ void EllipticVolumeEqnBuilder::computeLHS(int index, double& Aii, int& numCols, 
 // Left Hand Side
 //
 //------------------------------------------------------------------
-void EllipticVolumeEqnBuilder::initEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
+void EllipticVolumeEqnBuilder::initEquation(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
 {    
 	/**
 	 * we decided to scale both sides with deltaT/VOLUME
@@ -406,7 +406,7 @@ void EllipticVolumeEqnBuilder::initEquation(double deltaTime, int volumeIndexSta
 	 * B_i = U_old * volumeScale_i + R * deltaT + boundary conditions
 	 **/
 	if (!bPreProcessed) {
-		preProcess();
+		preProcess(model);
 	}
 
 	ASSERTION(solver->getVar() == var);
@@ -494,10 +494,9 @@ void EllipticVolumeEqnBuilder::initEquation(double deltaTime, int volumeIndexSta
 	delete[] columnValues;
 }
 
-double EllipticVolumeEqnBuilder::computeRHS(int index) {
+double EllipticVolumeEqnBuilder::computeRHS(Simulation* sim, int index) {
 	string varname = var->getName();
 	double b = 0;
-	Simulation* sim = SimTool::getInstance()->getSimulation();
 	VolumeElement *pVolumeElement = mesh->getVolumeElements();
 	MembraneElement *pMembraneElement = mesh->getMembraneElements();
 
@@ -640,16 +639,16 @@ double EllipticVolumeEqnBuilder::computeRHS(int index) {
 // Right Hand side
 //
 //------------------------------------------------------------------
-void EllipticVolumeEqnBuilder::buildEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
+void EllipticVolumeEqnBuilder::buildEquation(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
 {    
 	if (bSolveWholeMesh) {
 		for (int index = volumeIndexStart; index < volumeIndexStart + volumeIndexSize; index ++){
-			B[index] = computeRHS(index);
+			B[index] = computeRHS(sim, index);
 		}
 	} else {
 		for (int localIndex = 0; localIndex < getSize() ; localIndex ++) {
 			int globalIndex = LocalToGlobalMap[localIndex];			
-			B[localIndex] = computeRHS(globalIndex);
+			B[localIndex] = computeRHS(sim, globalIndex);
 		}
 	}
 	// to make the matrix symmetric
@@ -684,7 +683,7 @@ bool EllipticVolumeEqnBuilder::checkPeriodicCoupledPairsInRegions(int indexm, in
 	return false; // both of them are not in the solved regions, so we don't have to add them to the list
 }
 
-void EllipticVolumeEqnBuilder::preProcess() {
+void EllipticVolumeEqnBuilder::preProcess(VCellModel *model) {
 	if (bPreProcessed) {
 		return;
 	}
@@ -693,8 +692,8 @@ void EllipticVolumeEqnBuilder::preProcess() {
 
 	// check if there is periodic boundary condition in the model
 	bool bPeriodic = false;
-	for (int i = 0; i < SimTool::getInstance()->getModel()->getNumFeatures(); i ++) {
-		Feature* feature = SimTool::getInstance()->getModel()->getFeatureFromIndex(i);
+	for (int i = 0; i < model->getNumFeatures(); i ++) {
+		Feature* feature = model->getFeatureFromIndex(i);
 		if (feature->getXmBoundaryType() == BOUNDARY_PERIODIC 
 			|| feature->getYmBoundaryType() == BOUNDARY_PERIODIC 
 			|| feature->getZmBoundaryType() == BOUNDARY_PERIODIC) {

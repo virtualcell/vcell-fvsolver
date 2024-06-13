@@ -1,6 +1,6 @@
 #include <pybind11/pybind11.h>
 
-#include "SolverMain.h"
+#include <VCell/SolverMain.h>
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)

@@ -8,7 +8,9 @@
 #ifndef ZIPUTILS_H
 #define ZIPUTILS_H
 
-extern void extractFileFromZip(const char *zipFilename, const char *zipEntryName);
-extern void addFilesToZip(const char *zipFilename, const char *filename1, const char *filename2=NULL);
+#include <filesystem>
+
+extern void extractFileFromZip(std::filesystem::path zipFilename, std::filesystem::path zipEntryName);
+extern void addFilesToZip(std::filesystem::path zipFilename, std::filesystem::path filename1, std::filesystem::path filename2="");
 
 #endif
