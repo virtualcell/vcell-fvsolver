@@ -7,6 +7,8 @@
 
 #include <vector>
 #include <string>
+
+#include "Expression.h"
 using std::string;
 using std::vector;
 
@@ -30,7 +32,7 @@ static string String_Expression_Index[] = {"INITIAL_VALUE_EXP", "DIFF_RATE_EXP",
 class Variable;
 class VolumeVariable;
 class Structure;
-class Simulation;
+class SimulationExpression;
 class Mesh;
 class EqnBuilder;
 class SimulationExpression;
@@ -44,62 +46,61 @@ namespace VCell {
 class VarContext {
 
 public:
-	~VarContext();
+	virtual ~VarContext();
 
-	Variable *getVar() { return species; }
+	Variable *getVar() const { return species; }
 	
 	//
 	// ALWAYS CALL ParentClass::resolveReferences() first
 	//
-	virtual void resolveReferences(Simulation *sim);
+	virtual void resolveReferences(SimulationExpression *sim);
 
 	virtual double getInitialValue(long index);
 	
 	virtual bool hasExact() { return false; }
 	virtual bool hasRemainders() { return false; }
 	
-	Structure  *getStructure() { return structure; }
+	Structure  *getStructure() const { return structure; }
 
 	void setExpression(VCell::Expression* newexp, int expIndex);
 
 	// exclusively for sundials pde
-	double evaluateJumpCondition(MembraneElement*, double* values);
-	double evaluateExpression(long expIndex, double* values);
-	double evaluateConstantExpression(long expIndex);
+	double evaluateJumpCondition(MembraneElement*, double* values) const;
+	double evaluateExpression(long expIndex, double* values) const;
+	double evaluateConstantExpression(long expIndex) const;
 
-	void addJumpCondition(Membrane* membrane, VCell::Expression* exp);	
-	JumpCondition* getJumpCondition();
-	void reinitConstantValues();
+	void addJumpCondition(Membrane* membrane, VCell::Expression* exp);
+	void reinitConstantValues(SimulationExpression* sim);
 
 protected:
     VarContext(Structure *s, Variable* var);
 
     Variable *species;
     Structure *structure;
-    Simulation    *sim;
+    SimulationExpression    *sim;
 
 	void bindAll(SimulationExpression* simulation);
-	double evaluateJumpCondition(MembraneElement*);
-	double evaluateExpression(long volIndex, long expIndex); // for volume
-	double evaluateMembraneRegionExpression(long memRegionIdex, long expIndex); // for membrane region
-	double evaluateVolumeRegionExpression(long volRegionIdex, long expIndex); // for volume regin
-	double evaluateExpression(MembraneElement* element, long expIndex); // for membrane
+	double evaluateJumpCondition(MembraneElement*) const;
+	double evaluateExpression(long volIndex, long expIndex) const; // for volume
+	double evaluateMembraneRegionExpression(long memRegionIdex, long expIndex) const; // for membrane region
+	double evaluateVolumeRegionExpression(long volRegionIdex, long expIndex) const; // for volume regin
+	double evaluateExpression(MembraneElement* element, long expIndex) const; // for membrane
 
-	virtual bool isNullExpressionOK(int expIndex) { return false; }
-	bool isConstantExpression(long expIndex);
-	bool isXYZOnlyExpression(long expIndex);
-	bool isNullExpression(int expIndex) {
-		return expressions[expIndex] == NULL;
+	virtual bool isNullExpressionOK(int expIndex) const = 0;
+	bool isConstantExpression(long expIndex) const;
+	bool isXYZOnlyExpression(long expIndex) const;
+	bool isNullExpression(int expIndex) const
+	{
+		return expressions[expIndex] == nullptr;
 	}
 
 private:
-	VCell::Expression** expressions;
-	double** constantValues;
-	//bool* needsXYZ;
-
+	vector<VCell::Expression*> expressions;
+	vector<double*> constantValues;
+	vector<unsigned char> dependencyMask;
 	vector<JumpCondition*> jumpConditionList;
-	unsigned char* dependencyMask;
-	void computeDependencyMask(int expIndex);
+
+	void computeDependencyMask(SimulationExpression* sim, int expIndex);
 };
 
 #endif

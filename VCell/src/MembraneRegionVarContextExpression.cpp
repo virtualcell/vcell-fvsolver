@@ -17,9 +17,9 @@ double MembraneRegionVarContextExpression::getMembraneReactionRate(MembraneEleme
 	return evaluateExpression(element, REACT_RATE_EXP);
 }
 
-void MembraneRegionVarContextExpression::resolveReferences(Simulation* sim) {
+void MembraneRegionVarContextExpression::resolveReferences(SimulationExpression* sim) {
 	VarContext::resolveReferences(sim);
-	bindAll((SimulationExpression*)sim);
+	bindAll(sim);
 }
 
 double MembraneRegionVarContextExpression::getInitialValue(long regionIndex) {
@@ -30,7 +30,7 @@ double MembraneRegionVarContextExpression::getUniformRate(MembraneRegion *region
 	return evaluateMembraneRegionExpression(region->getIndex(), UNIFORM_RATE_EXP);
 }
 
-bool MembraneRegionVarContextExpression::isNullExpressionOK(int expIndex) {
+bool MembraneRegionVarContextExpression::isNullExpressionOK(int expIndex) const {
 	if (expIndex == INITIAL_VALUE_EXP || expIndex == REACT_RATE_EXP || expIndex == UNIFORM_RATE_EXP) {
 		return false;
 	}

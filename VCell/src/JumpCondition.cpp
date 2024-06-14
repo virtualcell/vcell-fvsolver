@@ -64,7 +64,7 @@ double JumpCondition::evaluateExpression(double* values) {
 	return expression->evaluateVector(values);	
 }
 
-bool JumpCondition::isConstantExpression() {
+bool JumpCondition::isConstantExpression(SimulationExpression *sim) {
 	// pure constant
 	if (constantValue != 0) {
 		return true;
@@ -81,19 +81,19 @@ bool JumpCondition::isConstantExpression() {
 	vector<string> symbols;
 	expression->getSymbols(symbols);
 	for (int i = 0; i < (int)symbols.size(); i ++) {
-		if (!((SimulationExpression*)SimTool::getInstance()->getSimulation())->isParameter(symbols[i])) {
+		if (!sim->isParameter(symbols[i])) {
 			return false;
 		}
 	}
 	return true;
 }
 
-void JumpCondition::reinitConstantValues() {
-	if (expression == 0 || !isConstantExpression()) {
+void JumpCondition::reinitConstantValues(SimulationExpression *sim) {
+	if (expression == nullptr || !isConstantExpression(sim)) {
 		return;
 	}
 	double d = expression->evaluateProxy();
-	if (constantValue == 0) {
+	if (constantValue == nullptr) {
 		constantValue = new double[1];
 	}
 	constantValue[0] = d;

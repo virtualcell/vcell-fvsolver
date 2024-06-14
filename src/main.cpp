@@ -1,6 +1,6 @@
 #include <pybind11/pybind11.h>
 
-#include "SolverMain.h"
+#include <VCELL/SolverMain.h>
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
@@ -32,7 +32,7 @@ PYBIND11_MODULE(_core, m) {
 
         The inputFilename expects a .fvinput file, the outputDir will be created as needed.
     )pbdoc",
-        py::arg("inputFilename"), py::arg("outputDir"));
+        py::arg("fvInputFilename"), py::arg("vcgInputFilename"), py::arg("outputDir"));
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);

@@ -13,7 +13,7 @@ class SerialScheduler : public Scheduler
 {
 public:
 	SerialScheduler(Simulation *Asim);
-	virtual void iterate();
+	void iterate(SimTool* sim_tool) override;
 };
 
 #endif

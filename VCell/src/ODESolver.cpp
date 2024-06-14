@@ -38,7 +38,7 @@ ODESolver::~ODESolver()
 	if (rate) delete[] rate;
 }
 
-void ODESolver::solveEqn(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime)
+void ODESolver::solveEqn(SimTool* sim_tool, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime)
 {
 	if(arraySize==0){  
 		ASSERTION((volumeIndexStart>=0) && 

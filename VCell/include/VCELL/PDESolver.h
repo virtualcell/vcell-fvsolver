@@ -13,20 +13,17 @@ class MembraneVariable;
 class EqnBuilder;
 class Mesh;
 class CartesianMesh;
+class VCellModel;
 
 class PDESolver : public Solver
 {
 public:
 	PDESolver(Variable *var, bool bTimeDependent);
-	virtual ~PDESolver();
 
-	virtual void initEqn(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime);
-	virtual bool isPDESolver() { 
-		return true;
-	}
-	bool isTimeDependent() { 
-		return bTimeDependent; 
-	}
+	void initEqn(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime) override;
+
+	bool isPDESolver() override { return true; }
+	bool isTimeDependent() const { return bTimeDependent; }
 private:
 	bool  bTimeDependent;
 };

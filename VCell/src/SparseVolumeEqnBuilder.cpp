@@ -438,7 +438,7 @@ void SparseVolumeEqnBuilder::computeLHS(int index, double* lambdas, double& Aii,
 // Left Hand Side
 //
 //------------------------------------------------------------------
-void SparseVolumeEqnBuilder::initEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
+void SparseVolumeEqnBuilder::initEquation(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
 {
 	/**
 	 * we decided to scale both sides with deltaT/VOLUME
@@ -461,7 +461,7 @@ void SparseVolumeEqnBuilder::initEquation(double deltaTime, int volumeIndexStart
 	double lambdas[] = {LAMBDAX, LAMBDAY, LAMBDAZ, LAMBDAAREAX, LAMBDAAREAY, LAMBDAAREAZ};
 
 	if (!bPreProcessed) {
-		preProcess();
+		preProcess(model);
 	}
 
 	ASSERTION(solver->getVar() == var);
@@ -542,10 +542,10 @@ void SparseVolumeEqnBuilder::initEquation(double deltaTime, int volumeIndexStart
 	delete[] columnValues;
 }
 
-double SparseVolumeEqnBuilder::computeRHS(int index, double deltaTime, double* lambdas, double bInit) {
+double SparseVolumeEqnBuilder::computeRHS(Simulation* sim, int index, double deltaTime, double* lambdas, double bInit) {
 	string varname = var->getName();
 	double b = bInit;
-	Simulation* sim = SimTool::getInstance()->getSimulation();
+
 	VolumeElement *pVolumeElement = mesh->getVolumeElements();
 	MembraneElement *pMembraneElement = mesh->getMembraneElements();
 
@@ -725,7 +725,7 @@ double SparseVolumeEqnBuilder::computeRHS(int index, double deltaTime, double* l
 // Right Hand side
 //
 //------------------------------------------------------------------
-void SparseVolumeEqnBuilder::buildEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
+void SparseVolumeEqnBuilder::buildEquation(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
 {
 	double lambdaAreaX = deltaTime/DELTAX;
 	double lambdaAreaY = deltaTime/DELTAY;
@@ -735,7 +735,7 @@ void SparseVolumeEqnBuilder::buildEquation(double deltaTime, int volumeIndexStar
 	if (bSolveWholeMesh) {
 		memcpy(B, var->getCurr(), var->getSize() * sizeof(double));
 		for (int index = volumeIndexStart; index < volumeIndexStart + volumeIndexSize; index ++){
-			B[index] = computeRHS(index, deltaTime, lambdas, B[index]);
+			B[index] = computeRHS(sim, index, deltaTime, lambdas, B[index]);
 		}
 	} else {
 		double* currVal = var->getCurr();
@@ -744,7 +744,7 @@ void SparseVolumeEqnBuilder::buildEquation(double deltaTime, int volumeIndexStar
 			// to initialize X, which will be passed to solver as intial guess and final solution.
 			// or set initial guess to zero (need to revisit, we also want to revisit fill-in parameter)
 			X[localIndex] = currVal[globalIndex];
-			B[localIndex] = computeRHS(globalIndex, deltaTime, lambdas, X[localIndex]);
+			B[localIndex] = computeRHS(sim, globalIndex, deltaTime, lambdas, X[localIndex]);
 		}
 	}
 	// to make the matrix symmetric
@@ -781,7 +781,7 @@ bool SparseVolumeEqnBuilder::checkPeriodicCoupledPairsInRegions(int indexm, int 
 
 #define PERIODIC_GEOMETRY_ERROR_MESSAGE "geometry is not compatible with periodic boundary conditions. Couldn't find corresponding volume element."
 
-void SparseVolumeEqnBuilder::preProcess() {
+void SparseVolumeEqnBuilder::preProcess(VCellModel* model) {
 	if (bPreProcessed) {
 		return;
 	}
@@ -790,7 +790,6 @@ void SparseVolumeEqnBuilder::preProcess() {
 
 	// check if there is periodic boundary condition in the model
 	bool bPeriodic = false;
-	VCellModel* model = SimTool::getInstance()->getModel();
 	for (int i = 0; i < model->getNumFeatures(); i ++) {
 		Feature* feature = model->getFeatureFromIndex(i);
 		if (feature->getXmBoundaryType() == BOUNDARY_PERIODIC

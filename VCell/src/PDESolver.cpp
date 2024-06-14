@@ -11,16 +11,13 @@ PDESolver::PDESolver(Variable *Var, bool AbTimeDependent) : Solver(Var)
 	bTimeDependent = AbTimeDependent;
 }
 
-PDESolver::~PDESolver()
-{
-}
 
-void PDESolver::initEqn(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime) {
+void PDESolver::initEqn(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime) {
 	if (!bFirstTime && !isTimeDependent()) {
 		return;
 	}
 
 	ASSERTION(eqnBuilder);
 
-	eqnBuilder->initEquation(deltaTime, volumeIndexStart, volumeIndexSize, membraneIndexStart, membraneIndexSize);
+	eqnBuilder->initEquation(model, deltaTime, volumeIndexStart, volumeIndexSize, membraneIndexStart, membraneIndexSize);
 }

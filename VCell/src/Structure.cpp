@@ -10,10 +10,6 @@ Structure::Structure(string& Aname) {
 	}
 }
 
-Structure::~Structure(void)
-{
-}
-
 int Structure::getNumElements() {
 	if (numElements == 0) {
 		int num = 0;

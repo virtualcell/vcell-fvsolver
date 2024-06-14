@@ -8,7 +8,7 @@
 #include <VCELL/SimTypes.h>
 #include <VCELL/AlgebraicSystem.h>
 
-class Simulation;
+class SimulationExpression;
 class Variable;
 
 class FastSystem : public AlgebraicSystem 
@@ -17,11 +17,11 @@ public:
     FastSystem(int dimension, int numDependents);
     void setCurrIndex(long index){currIndex = index;}
     void updateVars();
-    inline int getNumDependents() {return numDependents;} 
+    int getNumDependents() const {return numDependents;}
     void setDependencyMatrix(int i, int j, double value); 
     virtual void updateDependentVars();
     void showVars();
-    virtual void resolveReferences(Simulation *sim)=0;
+    virtual void resolveReferences(SimulationExpression *sim)=0;
 	virtual void setCoordinates(double time_sec, WorldCoord& wc){};
 
 protected:

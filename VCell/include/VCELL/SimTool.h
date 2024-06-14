@@ -7,11 +7,13 @@
 ///////////////////////////////////////////////////////////
 #ifndef SIMTOOL_H
 #define SIMTOOL_H
+#include <filesystem>
 
 #include <VCELL/Timer.h>
 #include <VCELL/SundialsSolverOptions.h>
 
 #include <smoldyn.h>
+
 
 #ifndef DIRECTORY_SEPARATOR
 #if ( defined(WIN32) || defined(WIN64) )
@@ -23,70 +25,61 @@
 
 class VCellModel;
 class Mesh;
-class Simulation;
+class SimulationExpression;
 class Variable;
 class PostProcessingHdf5Writer;
 
 class SimTool {
 public:
-	static SimTool* getInstance();
-	static void create();
-	~SimTool();
+	SimTool();
+	virtual ~SimTool();
 
 	virtual void start();
 	virtual void loadFinal();
 
 	void setModel(VCellModel* model);
-	void setSimulation(Simulation* sim);
+	void setSimulation(SimulationExpression* sim);
 	void setTimeStep(double period);
 	void setSmoldynStepMultiplier(int steps);
 	void setCheckSpatiallyUniform();
 
-	bool isCheckingSpatiallyUniform() { return bCheckSpatiallyUniform; }
+	bool isCheckingSpatiallyUniform() const { return bCheckSpatiallyUniform; }
 	void setEndTimeSec(double timeSec) { simEndTime = timeSec; }
-	double getEndTime() { return simEndTime; }
+	double getEndTime() const { return simEndTime; }
 
 	void setKeepEvery(int ke) { keepEvery = ke; }
 	void setKeepAtMost(int kam) { keepAtMost = kam; }
-	void setBaseFilename(char *fname);
-	char* getBaseFileName() {
-		return baseFileName;
-	}
-	char* getBaseDirName() {
-		return baseDirName;
-	}
-	void setStoreEnable(bool enable) {
-		bStoreEnable = enable;
-	}
-	void setFileCompress(bool compress) {
-		bSimFileCompress = compress;
-	}
+	void setBaseFilename(const std::filesystem::path& fname);
+	[[nodiscard]] std::filesystem::path getBaseFileName() const { return baseFileName; }
+	[[nodiscard]] std::filesystem::path getBaseDirName() const { return baseDirName; }
+	void setStoreEnable(bool enable) { bStoreEnable = enable; }
+	void setFileCompress(bool compress) { bSimFileCompress = compress; }
 	void requestNoZip();
 
-	Simulation* getSimulation() { return simulation; }
-	VCellModel* getModel() { return vcellModel; }
-	bool checkStopRequested();
+	SimulationExpression* getSimulation() const { return simulation; }
+	VCellModel* getModel() const { return vcellModel; }
+	static bool checkStopRequested();
 	TimerHandle getTimerHandle(string& timerName);
-	void        startTimer(TimerHandle hnd);
-	void        stopTimer(TimerHandle hnd);
-	double      getElapsedTimeSec(TimerHandle hnd);
+	void        startTimer(TimerHandle hnd) const;
+	void        stopTimer(TimerHandle hnd) const;
+	double      getElapsedTimeSec(TimerHandle hnd) const;
 	virtual void showSummary(FILE *fp);
 
-	void setSolver(string& s);
-	bool isSundialsPdeSolver();
+	void setSolver(const string& s);
+	bool isSundialsPdeSolver() const;
 
 	void setDiscontinuityTimes(int num, double* times) {
 		numDiscontinuityTimes = num;
 		discontinuityTimes = times;
 	}
-	int getNumDiscontinuityTimes() { return numDiscontinuityTimes; }
-	double* getDiscontinuityTimes() { return discontinuityTimes; }
+	int getNumDiscontinuityTimes() const { return numDiscontinuityTimes; }
+	double* getDiscontinuityTimes() const { return discontinuityTimes; }
 	
-	void setSundialsSolverOptions(SundialsSolverOptions& sso) {
+	void setSundialsSolverOptions(const SundialsSolverOptions& sso) {
 		sundialsSolverOptions = sso;
 	}
 
-	const SundialsSolverOptions& getSundialsSolverOptions() { return sundialsSolverOptions; }
+	const SundialsSolverOptions& getSundialsSolverOptions() const { return sundialsSolverOptions; }
 
 	void setSpatiallyUniformErrorTolerance(double atol, double rtol) {
 		spatiallyUniformAbsTol = atol;
@@ -96,32 +89,30 @@ public:
 	void setPCGRelativeErrorTolerance(double rtol) {
 		pcgRelTol = rtol;
 	}
-	double getPCGRelativeErrorTolerance() {
+	double getPCGRelativeErrorTolerance() const
+	{
 		return pcgRelTol;
 	}
 
-	double getSimStartTime() { return simStartTime; }
+	double getSimStartTime() const { return simStartTime; }
 	void setSundialsOneStepOutput() { bSundialsOneStepOutput = true; }
-	bool isSundialsOneStepOutput() { return bSundialsOneStepOutput; }
+	bool isSundialsOneStepOutput() const { return bSundialsOneStepOutput; }
 	
 	void setSerialParameterScans(int numScans, double** values);
 	void setLoadFinal(bool b) {
 		bLoadFinal = b;
 	}
-	void checkTaskIdLockFile();
+	void checkTaskIdLockFile() const;
 
-	void setSmoldynInputFile(string& inputfile);
+	void setSmoldynInputFile(const string& inputfile);
 
 private:
-	SimTool();
-
-	FILE* lockForReadWrite();
+	FILE* lockForReadWrite() const;
 
 	bool checkSpatiallyUniform(Variable*);	
 	void updateLog(double progress,double time,int iteration);
 	void clearLog();
-	int	getZipCount(char* zipFileName);
-	int	getZipCount(const std::string* zipFileName);
+	static int	getZipCount(const std::filesystem::path& zipFileName);
 	void start1();
 	void copyParticleCountsToConcentration();
 
@@ -129,7 +120,7 @@ private:
 
 	bool bSimZip;
 	VCellModel* vcellModel;
-	Simulation  *simulation;
+	SimulationExpression  *simulation;
 	Timer  *_timer;
 
 	bool bSimFileCompress;
@@ -140,10 +131,10 @@ private:
 	int smoldynStepMultiplier;
 	int keepEvery;
 	bool bStoreEnable;
-	char* baseFileName;
+	std::filesystem::path baseFileName;
 	int simFileCount;
-	char* baseSimName;
-	char* baseDirName;
+	std::filesystem::path baseSimName;
+	std::filesystem::path baseDirName;
 	int zipFileCount;
 	string solver;
 	double* discontinuityTimes;

@@ -25,7 +25,7 @@ using std::endl;
 
 #define CONVOLVE_SUFFIX "_Convolved"
 
-FieldData* getPSFFieldData();
+FieldData* getPSFFieldData(const SimulationExpression* sim);
 
 void FVDataSet::readRandomVariables(char *filename, SimulationExpression *sim)
 {
@@ -161,9 +161,9 @@ void FVDataSet::read(const char *filename, Simulation *sim)
 	fclose(fp);
 }
 
-void FVDataSet::convolve(Simulation* sim, Variable* var, double* values) {
+void FVDataSet::convolve(SimulationExpression* sim, Variable* var, double* values) {
 
-	FieldData* psfFieldData = getPSFFieldData();
+	FieldData* psfFieldData = getPSFFieldData(sim);
 	if (psfFieldData == 0) {
 		throw "psf field data is not defined";
 	}
@@ -293,7 +293,7 @@ void FVDataSet::write(const char *filename, SimulationExpression *sim, bool bCom
 		cout << "DataSet::write() - no variables defined" << endl;
 	}
    
-	FieldData* psfFieldData = getPSFFieldData();
+	FieldData* psfFieldData = getPSFFieldData(sim);
 	int numBlocks = psfFieldData == 0 ? numVars : numVars*2;
 
 	// region size variable

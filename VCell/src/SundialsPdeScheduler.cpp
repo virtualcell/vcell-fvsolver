@@ -71,10 +71,10 @@ static int plusMasks[3] = {NEIGHBOR_XP_MASK, NEIGHBOR_YP_MASK, NEIGHBOR_ZP_MASK}
 #define PRECOMPUTE_DIFFUSION_COEFFICIENT
 
 
-SundialsPdeScheduler::SundialsPdeScheduler(Simulation *sim, const SundialsSolverOptions& sso, int numDisTimes, double* disTimes, bool bDefaultOuptput) : Scheduler(sim)
+SundialsPdeScheduler::SundialsPdeScheduler(SimulationExpression *sim, const SundialsSolverOptions& sso, int numDisTimes, double* disTimes, bool bDefaultOuptput) : Scheduler(sim)
 {
-    simulation = (SimulationExpression*)sim;
-    mesh = (CartesianMesh*)simulation->getMesh();
+    simulation = sim;
+    mesh = simulation->getMesh();
 
     y = 0;
     sundialsSolverMemory = 0;
@@ -141,12 +141,12 @@ SundialsPdeScheduler::~SundialsPdeScheduler()
     delete[] rhsGradients;
 }
 
-void SundialsPdeScheduler::iterate() {
+void SundialsPdeScheduler::iterate(SimTool* sim_tool) {
     if (bFirstTime) {
         setupOrderMaps();
-        initSundialsSolver();
+        initSundialsSolver(sim_tool->getModel());
     }
-    solve();
+    solve(sim_tool);
     bFirstTime = false;
 }
 
@@ -419,7 +419,7 @@ int SundialsPdeScheduler::CVodeRHS(double t, double* yinput, double* rhs) {
     return 0;
 }
 
-void SundialsPdeScheduler::initSundialsSolver() {
+void SundialsPdeScheduler::initSundialsSolver(VCellModel* model) {
     if (!bFirstTime) {
         return;
     }
@@ -429,7 +429,7 @@ void SundialsPdeScheduler::initSundialsSolver() {
     int numVolRegionVar = simulation->getNumVolRegionVariables();
     int numMemRegionVar = simulation->getNumMemRegionVariables();
     if (sundialsSolverMemory == 0) {
-        numSymbolsPerVolVar = SimTool::getInstance()->getModel()->getNumFeatures() + 1;
+        numSymbolsPerVolVar = model->getNumFeatures() + 1;
 
         // t, x, y, z, (U, U_Feature1_membrane, U_Feature2_membrane, ...), (M),
         // (VR, VR_Feature1_membrane, ...), (MR), (RegionSize), (FieldData), (RandomVariable), (Parameter)
@@ -643,10 +643,10 @@ void SundialsPdeScheduler::printCVodeStats()
     printf("last step  = %f\n\n", hlast);
 }
 
-void SundialsPdeScheduler::solve() {
+void SundialsPdeScheduler::solve(SimTool* sim_tool) {
     double endTime = 0;
     if (bSundialsOneStepOutput) {
-        endTime = SimTool::getInstance()->getEndTime();
+        endTime = sim_tool->getEndTime();
     } else {
         endTime = currentTime + simulation->getDT_sec();
     }
@@ -671,8 +671,8 @@ void SundialsPdeScheduler::solve() {
 
         if (bStop && fabs(stopTime - currentTime) < epsilon) {
             currDiscontinuityTimeCount ++;
-            if (SimTool::getInstance()->getEndTime() - currentTime > epsilon  // currentTime less than endTime
-                || fabs(SimTool::getInstance()->getEndTime() - currentTime) > epsilon) { // if this is the last solve, we don't have to reinit
+            if (sim_tool->getEndTime() - currentTime > epsilon  // currentTime less than endTime
+                || fabs(sim_tool->getEndTime() - currentTime) > epsilon) { // if this is the last solve, we don't have to reinit
                 cout << endl << "SundialsPdeScheduler::solve() : cvode reinit at time " << currentTime << endl;
                 returnCode = CVodeReInit(sundialsSolverMemory, RHS_callback, currentTime, y, ToleranceType,
                                          sundialsSolverOptions.relTol, &sundialsSolverOptions.absTol);
@@ -698,8 +698,8 @@ void SundialsPdeScheduler::solve() {
         }
     }
 
-    if (currentTime - SimTool::getInstance()->getEndTime() > epsilon // currentTime greater than endTime
-        || (SimTool::getInstance()->getEndTime() - currentTime) < epsilon) {
+    if (currentTime - sim_tool->getEndTime() > epsilon // currentTime greater than endTime
+        || (sim_tool->getEndTime() - currentTime) < epsilon) {
         printCVodeStats();
     }
     updateSolutions();

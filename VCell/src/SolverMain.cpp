@@ -6,7 +6,7 @@
 #include <windows.h> 
 #endif
 
-#include "SolverMain.h"
+#include "../include/VCELL/SolverMain.h"
 
 #include <iostream>
 #include <fstream>
@@ -16,25 +16,19 @@ using namespace std;
 
 #undef USE_MESSAGING
 
-#include <VCELL/FVSolver.h>
+#include <../include/VCELL/FVSolver.h>
 #include <sys/stat.h>
-#include <VCELL/SimTool.h>
-#include <VCELL/SimulationMessaging.h>
-#include <VCELL/GitDescribe.h>
-#include <Exception.h>
-#include <vcellhybrid.h>
+#include <../include/VCELL/SimTool.h>
+#include <../../VCellMessaging/include/VCELL/SimulationMessaging.h>
+#include <../../VCellMessaging/include/VCELL/GitDescribe.h>
+#include <../../ExpressionParser/Exception.h>
+#include <../../bridgeVCellSmoldyn/vcellhybrid.h>
 
 
 
 void vcellExit(int returnCode, string& errorMsg) {
-	if (SimulationMessaging::getInstVar() == 0) {
-		if (returnCode != 0) {
-			cerr << errorMsg << endl;
-		}
-	} else if (!SimulationMessaging::getInstVar()->isStopRequested()) {
-		if (returnCode != 0) {
-			SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_FAILURE, errorMsg.c_str()));
-		}
+	if (returnCode != 0) {
+		cerr << errorMsg << endl;
 	}
 }
 
@@ -43,17 +37,23 @@ std::string version()
 	return "Finite Volume version " + std::string(g_GIT_DESCRIBE) + " with smoldyn version " + std::string(VERSION);
 }
 
-int solve(const std::string& inputFilename, const std::string& outputDir) {
+int solve(const std::string& inputFilename, const std::string& vcgFilename, const std::string& outputDir) {
 	// Check if output directory exists, if not create it
 	std::filesystem::path dirPath(outputDir);
-	if (!std::filesystem::exists(dirPath)) {
-		std::filesystem::create_directories(dirPath);
+	if (!exists(dirPath)) {
+		create_directories(dirPath);
 	}
 
 	// Open the input file
 	std::ifstream inputFile(inputFilename);
 	if (!inputFile.is_open()) {
 		throw std::runtime_error("Could not open input file: " + inputFilename);
+	}
+
+	// Open the vcg file
+	std::ifstream vcgFile(vcgFilename);
+	if (!vcgFile.is_open()) {
+		throw std::runtime_error("Could not open vcg file: " + vcgFilename);
 	}
 
 	vcellhybrid::setHybrid(); //get smoldyn library in correct state
@@ -63,21 +63,26 @@ int solve(const std::string& inputFilename, const std::string& outputDir) {
 	bool bSimZip = true;
 	int taskID = 0;
 
-	SimulationMessaging::create();
+	if (SimulationMessaging::getInstVar() == nullptr)
+	{
+		SimulationMessaging::create();
+	}
 
 	FVSolver* fvSolver = nullptr;
+	SimTool* sim_tool = nullptr;
 
 	try {
-		fvSolver = new FVSolver(inputFile, taskID, outputDir.c_str(), bSimZip);
+		fvSolver = new FVSolver(outputDir.c_str());
+		sim_tool = fvSolver->createSimTool(inputFile, vcgFile, taskID, bSimZip);
 
 		inputFile.close();
 
-		if(fvSolver->getNumVariables() == 0){
+		if (FVSolver::getNumVariables(sim_tool) == 0){
 			//sims with no reactions and no diffusing species cause exit logic to 'wait' forever
 			//never sending a job failed or job finished message and never cleaning up threads
 			throw invalid_argument("FiniteVolume error: Must have at least 1 variable or reaction to solve");
 		}
-		fvSolver->solve();
+		FVSolver::solve(sim_tool);
 
 	} catch (const char *exStr){
 		errorMsg += exStr;
@@ -100,6 +105,11 @@ int solve(const std::string& inputFilename, const std::string& outputDir) {
 		inputFile.close();
 	}
 	vcellExit(returnCode, errorMsg);
-	delete fvSolver;
+	if (sim_tool != nullptr) {
+		delete sim_tool;
+	}
+	if (fvSolver != nullptr) {
+		delete fvSolver;
+	}
 	return returnCode;
 }

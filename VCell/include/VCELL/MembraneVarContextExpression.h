@@ -15,7 +15,7 @@ class MembraneVarContextExpression : public VarContext
 public:
 	MembraneVarContextExpression(Membrane *membrane, MembraneVariable* var);
 
-	void resolveReferences(Simulation *sim);
+	void resolveReferences(SimulationExpression *sim) override;
 
     double  getInitialValue(MembraneElement *element);
     double  getMembraneReactionRate(MembraneElement *element);
@@ -36,7 +36,7 @@ public:
     double getZpBoundaryFlux(MembraneElement *element);
 
 protected:
-	bool isNullExpressionOK(int expIndex);
+	bool isNullExpressionOK(int expIndex) const override;
 };
 
 #endif

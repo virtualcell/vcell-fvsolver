@@ -18,7 +18,7 @@ MembraneRegionEqnBuilder::MembraneRegionEqnBuilder(MembraneRegionVariable *Avar,
 	odeSolver = Asolver;
 }
 
-void MembraneRegionEqnBuilder::buildEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
+void MembraneRegionEqnBuilder::buildEquation(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
 {
 	int size = ((CartesianMesh*)mesh)->getNumMembraneRegions();
 	ASSERTION(size==var->getSize());

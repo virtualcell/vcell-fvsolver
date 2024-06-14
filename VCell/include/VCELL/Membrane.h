@@ -6,7 +6,7 @@
 using std::vector;
 
 class Feature;
-class Simulation;
+class SimulationExpression;
 struct MembraneElement;
 class MembraneVarContextExpression;
 class MembraneRegionVarContextExpression;
@@ -17,29 +17,23 @@ class Membrane : public Structure
 {
 public:
 	Membrane(string& name, Feature* f1, Feature* f2);
-	~Membrane();
-
+	~Membrane() override;
 
 	virtual void initMembraneValues(MembraneElement *membraneElement);
 	virtual void initMembraneRegionValues(int membraneRegionIndex);
 
-	MembraneVarContextExpression *getMembraneVarContext(string& membraneVarName);
 	MembraneVarContextExpression *getMembraneVarContext(MembraneVariable *var);
 	void addMembraneVarContext(MembraneVarContextExpression *vc);
 
 	MembraneRegionVarContextExpression *getMembraneRegionVarContext(MembraneRegionVariable *var);	
 	void addMembraneRegionVarContext(MembraneRegionVarContextExpression *vc);
 
-	void resolveReferences(Simulation *sim);
+	void resolveReferences(SimulationExpression *sim);
 
-	Feature* getFeature1() {
-		return feature1;
-	}
-	Feature* getFeature2() {
-		return feature2;
-	}
+	Feature* getFeature1() const { return feature1; }
+	Feature* getFeature2() const { return feature2; }
 	bool inBetween(Feature* f1, Feature* f2);
-	void reinitConstantValues();
+	void reinitConstantValues(SimulationExpression* sim);
 
 private:
 	Feature* feature1;

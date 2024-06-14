@@ -2,11 +2,12 @@
 #define FASTSYSTEMEXPRESSION_H
 
 #include <VCELL/FastSystem.h>
-#include <string>
+
 using std::string;
 
 class SimulationExpression;
 class SimpleSymbolTable;
+class SimTool;
 namespace VCell {
 	class Expression;
 }
@@ -19,22 +20,22 @@ namespace VCell {
 class FastSystemExpression : public FastSystem {
 public:
     FastSystemExpression(int dimension, int numDepend, SimulationExpression* sim);
-	~FastSystemExpression();
-	
-	virtual void resolveReferences(Simulation *sim);
-	void updateDependentVars();
+	~FastSystemExpression() override;
+
+    void resolveReferences(SimulationExpression *sim) override;
+	void updateDependentVars() override;
 
 	void setPseudoConstants(string* symbols, VCell::Expression** expressions);
     void setFastRateExpressions(VCell::Expression** expressions);
 	void setFastDependencyExpressions(string* symbols, VCell::Expression** expressions);
 	void setJacobianExpressions(VCell::Expression** expressions);
-	void setCoordinates(double time_sec, WorldCoord& wc);
+	void setCoordinates(double time_sec, WorldCoord& wc) override;
 
-    void initVars();
-	void setDependentVariables(string* vars); // must be called before other setters
-	void setIndependentVariables(string* vars); // must be called before other setters
-	void updateIndepValues();
-	void updateMatrix();	
+    void initVars(SimTool *sim_tool) override;
+	void setDependentVariables(string* vars) const; // must be called before other setters
+	void setIndependentVariables(string* vars) const; // must be called before other setters
+	void updateIndepValues() const;
+	void updateMatrix() override;
 
 private:
 	string* pseudoSymbols;

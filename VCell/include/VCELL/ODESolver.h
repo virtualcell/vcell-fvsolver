@@ -16,11 +16,11 @@ public:
 				int   *solveRegions);
 	virtual ~ODESolver();
 
-	virtual void solveEqn(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime);
+	void solveEqn(SimTool* sim_tool, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime) override;
 
-	double *getRates() { return rate; }
-	long getArraySize() {return arraySize;}
-	long getGlobalIndex(long arrayIndex) {return Gridmap[arrayIndex];}
+	double *getRates() const { return rate; }
+	long getArraySize() const {return arraySize;}
+	long getGlobalIndex(long arrayIndex) const {return Gridmap[arrayIndex];}
     
 protected:
 	Mesh         *mesh;

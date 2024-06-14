@@ -2,6 +2,8 @@
 #define FVSOLVER_H
 
 #include <string>
+
+#include "VCellModel.h"
 using std::string;
 using std::istream;
 
@@ -18,61 +20,55 @@ class FastSystemExpression;
 class SimulationExpression;
 class Structure;
 class Membrane;
-//class PdeResultSet;
 
 class FVSolver {
 public:
-	FVSolver(istream& fvinput, int taskID=-1, const char* outdir=0, bool bSimZip=true);
+	FVSolver(const char* outdir=nullptr);
 	virtual ~FVSolver();
 
-	void createSimTool(istream& ifsInput, int taskID);
-	void solve(bool bLoadFinal=true, double* paramValues=0);
+	SimTool* createSimTool(istream& ifsInput, istream& vcgInput, int taskID, bool bSimZip=true);
+	static void solve(SimTool* sim_tool, bool bLoadFinal=true, double* paramValues=nullptr);
 
-	void init(double* paramValues=0);
-	void step(double* paramValues=0);
+	static void init(SimTool* sim_tool, double* paramValues=nullptr);
+	static void step(SimTool* sim_tool, double* paramValues=nullptr);
 	
-	double getCurrentTime();
-	void setEndTime(double endTime);
+	static double getCurrentTime(SimTool* sim_tool);
+	static void setEndTime(SimTool* sim_tool, double endTime);
 
-	int getNumVariables();
-	string getVariableName(int index);
-	int getVariableLength(string& varName);
-	double* getValue(string& varName, int arrayID);  // arrayID=0 for "old" and 1 for "current"
-	void setInitialCondition(string& varName, int dataLength, const double* data);
+	static int getNumVariables(const SimTool* sim_tool);
+	static string getVariableName(const SimTool* sim_tool, int index);
+	static int getVariableLength(const SimTool* sim_tool, string& varName);
+	static double* getValue(const SimTool* sim_tool, string& varName, int arrayID);  // arrayID=0 for "old" and 1 for "current"
+	static void setInitialCondition(SimTool* sim_tool, string& varName, int dataLength, const double* data);
 
-	//void reinit(double *paramValues);
-	//PdeResultSet* getPdeResultSet();
 private:
-	void loadJMSInfo(istream& ifsInput, int taskID);
-	void loadModel(istream& ifsInput);
-	void loadSimulation(istream& ifsInput);
-	void loadSmoldyn(istream& ifsInput);
-	VCell::Expression* readExpression(istream& ifsInput, string& var_name, string prefix="");
-	VarContext* loadEquation(istream& ifsInput, Structure* structure, Variable* var);
-	void loadJumpCondition(istream& ifsInput, Membrane*, string& var_name);
-	void loadPseudoConstants(istream& ifsInput, FastSystemExpression* fastSystem);
-	void loadFastRates(istream& ifsInput, FastSystemExpression* fastSystem);
-	void loadFastDependencies(istream& ifsInput, FastSystemExpression* fastSystem);
-	void loadJacobians(istream& ifsInput, FastSystemExpression* fastSystem);
-	void loadFastSystem(istream& ifsInput, FastSystemExpression* fastSystem);
-	void loadFeature(istream& ifsInput, Feature* feature);
-	void loadMembrane(istream& ifsInput, Membrane*);
-	void loadSimulationParameters(istream& ifsInput);
-	void loadMesh(istream& ifsInput);
-	void loadFieldData(istream& ifsInput);
-	void loadParameters(istream& ifsInput, int numParams);
-	void loadSerialScanParameters(istream& ifsInput, int numSerialScanParameters);
-	void loadSerialScanParameterValues(istream& ifsInput, int numSerialScanParamValues);
+	static void loadJMSInfo(istream& ifsInput, int taskID);
+	static VCellModel* loadModel(istream& ifsInput);
+	SimulationExpression* loadSimulation(SimTool* sim_tool, VCellModel* model, istream& ifsInput);
+	static void loadSmoldyn(SimTool* sim_tool, istream& ifsInput);
+	static VCell::Expression* readExpression(istream& ifsInput, string& var_name, const string& prefix="");
+	static VarContext* loadEquation(istream& ifsInput, Structure* structure, Variable* var);
+	static void loadJumpCondition(SimulationExpression* simulation, VCellModel* model, istream& ifsInput, Membrane*, string& var_name);
+	static void loadPseudoConstants(istream& ifsInput, FastSystemExpression* fastSystem);
+	static void loadFastRates(istream& ifsInput, FastSystemExpression* fastSystem);
+	static void loadFastDependencies(istream& ifsInput, FastSystemExpression* fastSystem);
+	static void loadJacobians(istream& ifsInput, FastSystemExpression* fastSystem);
+	static void loadFastSystem(istream& ifsInput, FastSystemExpression* fastSystem);
+	static void loadFeature(SimulationExpression* simulation, istream& ifsInput, Feature* feature);
+	static void loadMembrane(SimulationExpression* simulation, VCellModel* model, istream& ifsInput, Membrane*);
+	void loadSimulationParameters(SimTool* sim_tool, istream& ifsInput) const;
+	void loadMeshFromVcg(VCellModel* model, istream& vcgInput);
+	static void loadFieldData(SimulationExpression* simulation, istream& ifsInput);
+	static void loadParameters(SimulationExpression* simulation, istream& ifsInput, int numParams);
+	static void loadSerialScanParameters(SimulationExpression* simulation, istream& ifsInput, int numSerialScanParameters);
+	static void loadSerialScanParameterValues(SimTool* simTool, SimulationExpression* simulation, istream& ifsInput, int numSerialScanParamValues);
 
 	const char* outputPath;
-	SimTool* simTool;
-	SimulationExpression *simulation;
-	VCellModel *model;
 	CartesianMesh *mesh;
 	
-	int loadSolveRegions(istream& instream, int*& solveRegions);
+	int loadSolveRegions(VCellModel* model, istream& instream, int*& solveRegions) const;
 
-	void loadPostProcessingBlock(istream& ifsInput);
+	static void loadPostProcessingBlock(SimTool* sim_tool, istream& ifsInput);
 };
 
 #endif

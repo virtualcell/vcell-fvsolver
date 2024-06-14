@@ -16,10 +16,8 @@ MembraneEqnBuilderForward::MembraneEqnBuilderForward(MembraneVariable *Avar, Mes
 	odeSolver = Asolver;
 }
 
-void MembraneEqnBuilderForward::buildEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
+void MembraneEqnBuilderForward::buildEquation(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize)
 {
-	Simulation *sim = SimTool::getInstance()->getSimulation();
-
 	ASSERTION((membraneIndexStart>=0) && ((membraneIndexStart+membraneIndexSize)<=mesh->getNumMembraneElements()));
 
 	MembraneElement *pMembraneElement = mesh->getMembraneElements() + membraneIndexStart;

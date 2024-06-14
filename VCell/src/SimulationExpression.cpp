@@ -26,6 +26,9 @@
 
 #include <iostream>
 #include <sstream>
+
+#include "VCELL/SerialScheduler.h"
+#include "VCELL/SundialsPdeScheduler.h"
 using std::endl;
 using std::stringstream;
 
@@ -88,7 +91,7 @@ private:
 	Feature* feature;
 };
 
-SimulationExpression::SimulationExpression(Mesh *mesh) : Simulation(mesh) {
+SimulationExpression::SimulationExpression(CartesianMesh *mesh) : Simulation(mesh) {
 	symbolTable = NULL;
 
 	indices = new int[NUM_VAR_INDEX];
@@ -222,19 +225,19 @@ void SimulationExpression::addMembraneRegionVariable(MembraneRegionVariable *var
 	memRegionVarSize ++;
 }
 
-void SimulationExpression::advanceTimeOn() {
+void SimulationExpression::advanceTimeOn(SimTool* sim_tool) {
 	Simulation::advanceTimeOn();
-	valueProxyTime->setValue(getTime_sec()); 
+	valueProxyTime->setValue(getTime_sec(sim_tool));
 }
 
-void SimulationExpression::advanceTimeOff() {
+void SimulationExpression::advanceTimeOff(SimTool* sim_tool) {
 	Simulation::advanceTimeOff();
-	valueProxyTime->setValue(getTime_sec());
+	valueProxyTime->setValue(getTime_sec(sim_tool));
 }
 
-void SimulationExpression::update() {
+void SimulationExpression::update(SimTool* sim_tool) {
 	Simulation::update();
-	valueProxyTime->setValue(getTime_sec());
+	valueProxyTime->setValue(getTime_sec(sim_tool));
 }
 
 void SimulationExpression::addParameter(string& param) {
@@ -242,18 +245,18 @@ void SimulationExpression::addParameter(string& param) {
 	paramValueProxies.push_back(new ScalarValueProxy());
 }
 
-void SimulationExpression::createSymbolTable() {	
+void SimulationExpression::createSymbolTable(SimTool* sim_tool) {
 	if (symbolTable != NULL) {
 		return;
 	}
 
-	if (SimTool::getInstance()->isSundialsPdeSolver()) {
+	if (sim_tool->isSundialsPdeSolver()) {
 		if (volParticleVarSize > 0 || memParticleVarSize > 0) {
 			throw "Fully implicit solver does not support hybrid simulations";
 		}
 	}
 	CartesianMesh *mesh = (CartesianMesh*)_mesh;
-	VCellModel* model = SimTool::getInstance()->getModel();
+	VCellModel* model = sim_tool->getModel();
 
 	// volume size, membrane size, for each feature
 	numRegionSizeVars = 1 + 1 + model->getNumFeatures();
@@ -357,7 +360,7 @@ void SimulationExpression::createSymbolTable() {
 		}
 	}
 	
-	bool bSundialsPdeSolver = SimTool::getInstance()->isSundialsPdeSolver();	
+	bool bSundialsPdeSolver = sim_tool->isSundialsPdeSolver();
 
 	// t, x, y, z, VOL, VOL_Feature1_membrane, VOL_Feature2_membrane, ... (for computing membrane flux for volume variables), 
 	// MEM, VOLREG, VOLREG_Feature1_membrane, VOLREG_Feature2_membrane, ... (for computing membrane flux for volume region variables), 
@@ -495,7 +498,7 @@ void SimulationExpression::createSymbolTable() {
 	// add random variable
 	if (randomVarList.size() > 0) {
 		char rvfile[512];
-		sprintf(rvfile, "%s%s", SimTool::getInstance()->getBaseFileName(), RANDOM_VARIABLE_FILE_EXTENSION);
+		sprintf(rvfile, "%s%s", sim_tool->getBaseFileName().c_str(), RANDOM_VARIABLE_FILE_EXTENSION);
 		FVDataSet::readRandomVariables(rvfile, this);
 		for (int i = 0; i < (int)randomVarList.size(); i ++) {
 			RandomVariable* rv = randomVarList[i];
@@ -527,7 +530,36 @@ void SimulationExpression::createSymbolTable() {
 	numSymbols = variableIndex;
 	symbolTable = new SimpleSymbolTable(variableNames, variableIndex, oldValueProxies);
 	delete[] variableNames;	
-}   
+}
+
+void SimulationExpression::initSimulation(SimTool* sim_tool)
+{
+	if (_scheduler == 0) {
+		int odeCount = 0, pdeCount = 0;
+		for (int i = 0; i < (int)varList.size(); i ++) {
+			Variable* var = varList[i];
+			if (var->isDiffusing()){
+				pdeCount ++;
+			} else {
+				odeCount ++;
+			}
+		}
+
+		printf("pdeCount=%d, odeCount=%d\n", pdeCount, odeCount);
+
+		if (sim_tool->isSundialsPdeSolver()) {
+			_scheduler = new SundialsPdeScheduler(this, sim_tool->getSundialsSolverOptions(),
+				sim_tool->getNumDiscontinuityTimes(), sim_tool->getDiscontinuityTimes(), sim_tool->isSundialsOneStepOutput());
+		} else {
+			_scheduler = new SerialScheduler(this);
+		}
+	}
+
+	_scheduler->initValues(sim_tool->getModel());
+	currIteration = 0;
+}
+
+
 
 string* SimulationExpression::getFieldSymbols() {
 	string* symbols = new string[fieldDataList.size()];
@@ -574,14 +606,14 @@ void SimulationExpression::populateParameterValues(double* darray) {
 	}
 }
 
-void SimulationExpression::resolveReferences() {
+void SimulationExpression::resolveReferences(SimTool* sim_tool) {
 	if (symbolTable == 0) {
-		createSymbolTable();
+		createSymbolTable(sim_tool);
 	}
-	Simulation::resolveReferences();
+	Simulation::resolveReferences(sim_tool);
 }
 
-void SimulationExpression::setParameterValues(double* paramValues) {
+void SimulationExpression::setParameterValues(SimTool* sim_tool, double* paramValues) {
 	if (paramValues == 0) {
 		if (paramList.size() != 0) {
 			throw "SimulationExpression::setParameterValues(), empty values for parameters";
@@ -591,7 +623,7 @@ void SimulationExpression::setParameterValues(double* paramValues) {
 	for (int i = 0; i < (int)paramList.size(); i ++) {
 		paramValueProxies[i]->setValue(paramValues[i]);
 	}
-	reinitConstantValues();
+	reinitConstantValues(sim_tool);
 }
 
 RandomVariable* SimulationExpression::getRandomVariableFromName(char* varName)
@@ -621,16 +653,14 @@ bool SimulationExpression::isParameter(string& symbol) {
 	return false;
 }
 
-void SimulationExpression::reinitConstantValues() {
-	VCellModel* model = SimTool::getInstance()->getModel();
-
-	for (int i = 0; i < model->getNumFeatures(); i ++) {
-		Feature* feature = model->getFeatureFromIndex(i);
-		feature->reinitConstantValues();
+void SimulationExpression::reinitConstantValues(SimTool* sim_tool) {
+	for (int i = 0; i < sim_tool->getModel()->getNumFeatures(); i ++) {
+		Feature* feature = sim_tool->getModel()->getFeatureFromIndex(i);
+		feature->reinitConstantValues(sim_tool->getSimulation());
 	}
-	for (int i = 0; i < model->getNumMembranes(); i ++) {
-		Membrane* membrane = model->getMembraneFromIndex(i);
-		membrane->reinitConstantValues();
+	for (int i = 0; i < sim_tool->getModel()->getNumMembranes(); i ++) {
+		Membrane* membrane = sim_tool->getModel()->getMembraneFromIndex(i);
+		membrane->reinitConstantValues(sim_tool->getSimulation());
 	}
 
 }

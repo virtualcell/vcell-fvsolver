@@ -4,22 +4,17 @@
  */
 
 #include <iostream>
-#include <sstream>
-using std::stringstream;
+
 using std::cout;
 using std::endl;
 
 #include <VCELL/ZipUtils.h>
 #include <sys/timeb.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <errno.h>
+#include <cerrno>
 #include <fcntl.h>
-#include <cstring>
 #include <fstream>
-#include <memory>
-#include <stdint.h>
-#include <stdlib.h>
+#include <filesystem>
 
 #include <zip.h>
 #include <ziptool_lib.h>
@@ -45,7 +40,7 @@ ziptool -c test.zip add_file file4.txt ../VCellZipUtils/test/file2.txt 0 0 set_f
 */
 
 static zip_t *
-read_from_file(const char *archive, int flags, zip_error_t *error)
+read_from_file(const filesystem::path& archive, int flags, zip_error_t *error)
 {
 
 	zip_uint64_t offset = 0;
@@ -56,9 +51,9 @@ read_from_file(const char *archive, int flags, zip_error_t *error)
     int err;
 
     if (offset == 0 && length == 0) {
-		if ((zaa = zip_open(archive, flags, &err)) == NULL) {
+		if ((zaa = zip_open(archive.string().c_str(), flags, &err)) == nullptr) {
 		    zip_error_set(error, err, errno);
-		    return NULL;
+		    return nullptr;
 		}
     }
     else {
@@ -66,10 +61,10 @@ read_from_file(const char *archive, int flags, zip_error_t *error)
 //            zip_error_set(error, ZIP_ER_INVAL, 0);
 //            return NULL;
 //        }
-		if ((source = zip_source_file_create(archive, offset, (zip_int64_t)length, error)) == NULL
-		    || (zaa = zip_open_from_source(source, flags, error)) == NULL) {
+		if ((source = zip_source_file_create(archive.string().c_str(), offset, (zip_int64_t)length, error)) == nullptr
+		    || (zaa = zip_open_from_source(source, flags, error)) == nullptr) {
 		    zip_source_free(source);
-		    return NULL;
+		    return nullptr;
 		}
     }
 
@@ -80,7 +75,7 @@ read_from_file(const char *archive, int flags, zip_error_t *error)
   adds one or two files as uncompressed entries into a zip archive (creating the archive if necessary).
   entry names are the stripped filenames without full path.
 */
-void addFilesToZip(const char *ziparchive, const char *filepath1, const char *filepath2)
+void addFilesToZip(const filesystem::path& ziparchive, const filesystem::path& filepath1, const filesystem::path& filepath2)
 {
 #if ( !defined(WIN32) && !defined(WIN64) && defined(USE_MESSAGING)) // UNIX
 #define USE_SHELL_ZIP 1
@@ -89,18 +84,13 @@ void addFilesToZip(const char *ziparchive, const char *filepath1, const char *fi
 #ifdef USE_SHELL_ZIP
 
 	//printf("---------- using shell zip --------\n");
-	char zipcommand [1024];
-	if (filepath2 != NULL){
-
-        sprintf(zipcommand, "zip -j -Z store -g %s %s %s", ziparchive, filepath1, filepath2);
-	}else{
-		sprintf(zipcommand, "zip -j -Z store -g %s %s", ziparchive, filepath1);
+	string zipcommand = string("zip -j -Z store -g ") + ziparchive.string() + " " + filepath1.string();
+	if (!filepath2.string().empty()){
+		zipcommand = zipcommand + " " + filepath2.string();
 	}
-	int retcode = system(zipcommand);
+	int retcode = system(zipcommand.c_str());
 	if (retcode != 0){
-		char errmsg [2048];
-		sprintf(errmsg, "zip command failed: %s", zipcommand);
-		throw errmsg;
+		throw runtime_error("zip command failed: " + zipcommand);
 	}
 
 #else
@@ -111,56 +101,53 @@ void addFilesToZip(const char *ziparchive, const char *filepath1, const char *fi
 
 	int existingEntries = 0;
 	zip_t *za = read_from_file(ziparchive, 0, &error);
-	if (za != NULL){
+	if (za != nullptr){
 		existingEntries = zip_get_num_entries(za, 0);
 		zip_close(za);
 	}
-	char indexFirstAddedEntry [128];
-	sprintf(indexFirstAddedEntry, "%d", existingEntries);
 
 	//
 	// strip filename from filepath1
 	//
-	std::string entryName1 = filepath1;
+	std::string entryName1 = filepath1.string();
 	std::size_t dirPos1 = entryName1.find_last_of("/\\");
 	if (dirPos1 > 0){
 		entryName1 = entryName1.substr(dirPos1+1, entryName1.length());
 	}
-	
+	string indexFirstAddedEntry = to_string(existingEntries);
+
 	const char* argv[50];	
 	int argc = 0;
 	argv[argc++] = "ziptool_main";
 	argv[argc++] = "-cn";
-	argv[argc++] = ziparchive;
+	argv[argc++] = ziparchive.string().c_str();
 	argv[argc++] = "add_file";
 	argv[argc++] = entryName1.c_str();
-	argv[argc++] = filepath1;
+	argv[argc++] = filepath1.string().c_str();
 	argv[argc++] = "0";
 	argv[argc++] = "0";
 	argv[argc++] = "set_file_compression";
-	argv[argc++] = indexFirstAddedEntry;
+	argv[argc++] = indexFirstAddedEntry.c_str();
 	argv[argc++] = "store";
 	argv[argc++] = "none";
 	
-	if (filepath2 != NULL){
+	if (!filepath2.string().empty()){
 		//
 		// strip filename from filepath2
 		//
-		std::string entryName2 = filepath2;
+		std::string entryName2 = filepath2.string();
 		std::size_t dirPos2 = entryName2.find_last_of("/\\");
 		if (dirPos2 > 0){
 			entryName2 = entryName1.substr(dirPos2+1, entryName2.length());
 		}
-		
-		char indexSecondAddedEntry [128];
-		sprintf(indexSecondAddedEntry, "%d", existingEntries + 1);
+		string indexSecondAddedEntry = to_string(existingEntries + 1);
 		argv[argc++] = "add_file";
 		argv[argc++] = entryName2.c_str();
-		argv[argc++] = filepath2;
+		argv[argc++] = filepath2.string().c_str();
 		argv[argc++] = "0";
 		argv[argc++] = "0";
 		argv[argc++] = "set_file_compression";
-		argv[argc++] = indexSecondAddedEntry;
+		argv[argc++] = indexSecondAddedEntry.c_str();
 		argv[argc++] = "store";
 		argv[argc++] = "none";
 	}
@@ -174,7 +161,7 @@ name_locate(zip_t *za, const char* entryName) {
     zip_int64_t idx;
 
     if ((idx=zip_name_locate(za, entryName, flags)) < 0) {
-		throw "can't find named entry";
+		throw runtime_error(string("can't find named entry: ") + string(entryName));
     }
 
     return idx;
@@ -229,22 +216,21 @@ void extractFileFromZip(const char *zipFilename, const char *zipEntryName){
 }
 */
 
-void extractFileFromZip(const char *zipFilename, const char *zipEntryName)
+void extractFileFromZip(const std::filesystem::path& zipFilename, const std::filesystem::path& zipEntryName)
 {
-    char buf[100];
+    char buf[1000];
     int err;
-    int fd;
-    long long sum;
 
-	zip_t* za = NULL;
+	zip_t* za = nullptr;
 	
-    if ((za = zip_open(zipFilename, 0, &err)) == NULL) {
+    if ((za = zip_open(zipFilename.string().c_str(), 0, &err)) == nullptr) {
         zip_error_to_str(buf, sizeof(buf), err, errno);
-        fprintf(stderr, "can't open zip archive `%s': %s\n", zipFilename, buf);
-        throw "cannot open zip archive";
+    	string errmsg = string("can't open zip archive ") + zipFilename.string() + " : " + buf;
+    	cerr << errmsg << endl;
+    	throw runtime_error(errmsg);
     }
 
-	zip_int64_t i = name_locate(za, zipEntryName);
+	zip_int64_t i = name_locate(za, zipEntryName.string().c_str());
 	
     zip_stat_t sb;
     if (zip_stat_index(za, i, 0, &sb) == 0) {
@@ -253,22 +239,25 @@ void extractFileFromZip(const char *zipFilename, const char *zipEntryName)
         printf("mtime: [%u]\n", (unsigned int)sb.mtime);
 	    zip_file_t *zf = zip_fopen_index(za, i, 0);
         if (!zf) {
-            fprintf(stderr, "failed to open zip archive %s\n", zipFilename);
-            throw "failed to open archive";
+        	string errmsg = string("failed to open zip archive ") + zipFilename.string();
+            std::cerr << errmsg << std::endl;
+        	throw runtime_error(errmsg);
         }
 
-        fd = open(sb.name, O_RDWR | O_TRUNC | O_CREAT, 0644);
+        int fd = open(sb.name, O_RDWR | O_TRUNC | O_CREAT, 0644);
         if (fd < 0) {
-            fprintf(stderr, "failed to open zip entry %s : %s\n",zipFilename,zipEntryName);
-            throw "failed to open zip entry";
+        	string errmsg = string("failed to open zip entry ") + zipFilename.string() + " : " + zipEntryName.string();
+            cerr << errmsg << endl;
+        	throw runtime_error(errmsg);
         }
 
-        sum = 0;
+        long long sum = 0;
         while (sum != sb.size) {
             int len = zip_fread(zf, buf, 100);
             if (len < 0) {
-                fprintf(stderr, "failed to read zip entry %s : %s\n", zipFilename, zipEntryName);
-                throw "failed to read zip entry";
+            	string errmsg = string("failed to read zip entry ") + zipFilename.string() + " : " + zipEntryName.string();
+                cerr << errmsg << endl;
+            	throw runtime_error(errmsg);
             }
             write(fd, buf, len);
             sum += len;
@@ -281,8 +270,9 @@ void extractFileFromZip(const char *zipFilename, const char *zipEntryName)
 
 
     if (zip_close(za) == -1) {
-        fprintf(stderr, "%can't close zip archive `%s'\n", zipFilename);
-        throw "failed to close zip archive";
+    	string errMsg = string("can't close zip archive ") + zipFilename.string();
+        cerr << errMsg << endl;
+    	throw runtime_error(errMsg);
     }
 }
 

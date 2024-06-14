@@ -10,9 +10,9 @@ class SparseLinearSolver : public PDESolver
 {
 public:
     SparseLinearSolver(Variable *Var,  SparseMatrixEqnBuilder* eqnbuilder, double rtol, bool AbTimeDependent);
-    ~SparseLinearSolver(); 
+    ~SparseLinearSolver() override;
 
-	virtual void solveEqn(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime);
+    void solveEqn(SimTool* sim_tool, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize, bool bFirstTime) override;
 
 private:
 	bool enableRetry;
@@ -20,7 +20,7 @@ private:
 	double pcgRelErr;
 
 protected:
-	int* PCGSolve(bool bRecomputeIncompleteFactorization);
+	int* PCGSolve(SimTool* sim_tool, bool bRecomputeIncompleteFactorization);
 	SparseMatrixEqnBuilder* smEqnBuilder;    
 	double* pcg_workspace;	
 	long nWork;

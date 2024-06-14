@@ -15,15 +15,15 @@ struct MembraneElement;
 class MembraneRegionVarContextExpression : public VarContext
 {
 public:
-	double  getInitialValue(long index);
+	double  getInitialValue(long index) override;
     double  getMembraneReactionRate(MembraneElement *element);
     double  getUniformRate(MembraneRegion *region);
 
     MembraneRegionVarContextExpression(Membrane *membrane, MembraneRegionVariable* var);
-	void resolveReferences(Simulation *sim);
+	void resolveReferences(SimulationExpression *sim) override;
 
 protected:
-	bool isNullExpressionOK(int expIndex);
+	bool isNullExpressionOK(int expIndex) const override;
 };
 
 #endif

@@ -23,7 +23,7 @@ public:
 	PostProcessingHdf5Writer(std::string fileName, PostProcessingBlock* postProcessingBlock);
 	virtual ~PostProcessingHdf5Writer();
 
-	void writeOutput();
+	void writeOutput(SimTool* sim_tool);
 
 	static const char* PPGroupName;
 	static const char* TimesDataSetName;

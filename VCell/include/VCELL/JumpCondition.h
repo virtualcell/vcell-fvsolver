@@ -13,19 +13,15 @@ class JumpCondition
 {
 public:
 	JumpCondition(Membrane*, VCell::Expression*);
-	~JumpCondition(void);
+	~JumpCondition();
 
-	VCell::Expression *getExpression() {
-		return expression;
-	}
-	Membrane* getMembrane() {
-		return membrane;
-	}
+	VCell::Expression *getExpression() const { return expression; }
+	Membrane* getMembrane() const { return membrane; }
 
 	void bindExpression(SymbolTable*);
 	double evaluateExpression(double* values);
 	double evaluateExpression(SimulationExpression*, MembraneElement*);
-	void reinitConstantValues();
+	void reinitConstantValues(SimulationExpression* sim);
 
 private:
 	Membrane* membrane;
@@ -33,7 +29,7 @@ private:
 	double* constantValue;
 	bool bNeedsXYZ;
 
-	bool isConstantExpression();
+	bool isConstantExpression(SimulationExpression *sim);
 };
 
 #endif

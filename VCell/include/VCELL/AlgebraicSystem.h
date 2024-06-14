@@ -5,14 +5,17 @@
 #ifndef ALGEBRAICSYSTEM_H
 #define ALGEBRAICSYSTEM_H
 
+class SimTool;
+
 class AlgebraicSystem
 {
 public:
+	virtual ~AlgebraicSystem() = default;
 	void solveSystem();
-	virtual void initVars()=0;
-	inline double getX(int index) {return x[index];} 
-	inline int getDimension() {return dimension;} 
-	inline void setTolerance(double tol){tolerance = tol;}   
+	virtual void initVars(SimTool* sim_tool)=0;
+	double getX(int index) const {return x[index];}
+	int getDimension() const {return dimension;}
+	void setTolerance(double tol) {tolerance = tol;}
 
 protected:
     AlgebraicSystem(int dimension);

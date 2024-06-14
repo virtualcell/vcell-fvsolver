@@ -14,17 +14,17 @@ struct MembraneElement;
 class VolumeRegionVarContextExpression : public VarContext
 {
 public:
-	void resolveReferences(Simulation *sim);
+	void resolveReferences(SimulationExpression *sim) override;
 
-	double getInitialValue(long index);
-    double getReactionRate(long volumeIndex);
-    double getUniformRate(VolumeRegion *region);
-    double getFlux(MembraneElement *element);
+	double getInitialValue(long index) override;
+    double getReactionRate(long volumeIndex) const;
+    double getUniformRate(VolumeRegion *region) const;
+    double getFlux(MembraneElement *element) const;
 
     VolumeRegionVarContextExpression(Feature *feature, VolumeRegionVariable* var);
 
 protected:
-	bool isNullExpressionOK(int expIndex);
+	bool isNullExpressionOK(int expIndex) const override;
 };
 
 #endif

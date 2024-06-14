@@ -1,4 +1,4 @@
-name: Wheels
+name: "Wheels"
 
 on:
   workflow_dispatch:
@@ -107,7 +107,7 @@ jobs:
           mingw-w64-clang-x86_64-libzip
           mingw-w64-clang-x86_64-zlib
           mingw-w64-clang-x86_64-libaec
-
+          mingw-w64-clang-x86_64-python-pip-tools
 
     - name: Install Linux Dependencies
       if: matrix.os == 'ubuntu-latest'
@@ -123,9 +123,40 @@ jobs:
         dpkg -s libboost-all-dev
         dpkg -s libhdf5-dev
 
+    # Used to host cibuildwheel
+    - uses: actions/setup-python@v5
+
+    - name: Install cibuildwheel
+      run: python -m pip install cibuildwheel==2.18.1
+
+    - name: build wheel on macos-13
+      if: matrix.os == 'macos-13'
+      run: |
+        export PATH="/usr/local/opt/llvm/bin:$PATH"
+        python -m cibuildwheel --output-dir wheelhouse
+      env:
+        CIBW_ARCHS: native
+
+    - name: build wheel on macos-14
+      if: matrix.os == 'macos-14'
+      run: |
+        export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+        python -m cibuildwheel --output-dir wheelhouse
+      env:
+        CIBW_ARCHS: native
+
+    - name: build wheel on windows-latest
+      if: matrix.os == 'windows-latest'
+      shell: msys2 {0}
+      run: |
+        python -m cibuildwheel --output-dir wheelhouse
+      env:
+        CIBW_ARCHS: native
 
     - name: build wheel
-      uses: pypa/cibuildwheel@v2.17
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        python -m cibuildwheel --output-dir wheelhouse
       env:
         CIBW_ARCHS: native
 

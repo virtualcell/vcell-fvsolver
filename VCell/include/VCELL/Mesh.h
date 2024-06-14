@@ -29,10 +29,6 @@ public:
     virtual WorldCoord getVolumeWorldCoord(long volumeIndex) = 0;
     virtual WorldCoord getMembraneWorldCoord(long membraneIndex) = 0;
     virtual WorldCoord getMembraneWorldCoord(MembraneElement *element) = 0;
-    //virtual long getVolumeIndex(WorldCoord coord)=0;
-
-    //virtual double getInsideOld(VolumeVariable *var, MembraneElement *element)=0;
-    //virtual double getOutsideOld(VolumeVariable *var, MembraneElement *element)=0;
 
     virtual void showSummary(FILE *fp) {
         fprintf(fp, "Mesh::showSummary()...\n");
@@ -45,19 +41,7 @@ public:
     MembraneElement *getMembraneElements();
     long getNumMembraneElements();
 
-    int getDimension() {
-        return dimension;
-    }
-
-    //long getNumContourElements(){return (int)contourElements.size();}
-    //ContourElement *getContourElement(long index);
-
-    //void addElementToVolumeList(long volumeIndex, ContourElement *element);
-    //vector<ContourElement*> getContourElementList(long index){return volumeLists[index];}
-    //virtual void setVolumeLists()=0;
-
-    //int getNumContourSubdomains(){return (int)pContourSubdomains.size();}
-    //ContourSubdomain *getContourSubdomain(int i); //returns the ith
+    int getDimension() const { return dimension; }
 
     SparseMatrixPCG* getMembraneCoupling() {
         if (membraneElementCoupling) {
@@ -70,7 +54,6 @@ public:
         return membraneElementCoupling;
     }
 
-
     virtual int getMembraneNeighborMask(long meindex) = 0;
     virtual int getMembraneNeighborMask(MembraneElement* element) = 0;
     virtual double* getMembraneFluxArea(long index) = 0;
@@ -80,17 +63,11 @@ protected:
 
     virtual ~Mesh();
 
-    //virtual bool sampleContours(); // this should go away just like sampleGeometry()
-    //void addContourSubdomain(ContourSubdomain *cs);
-
     VolumeElement *pVolumeElement;
     MembraneElement *pMembraneElement;
-    //vector<ContourElement>  contourElements;
     long numMembrane;
     long numVolume;
     int dimension;
-    //vector<ContourSubdomain*> pContourSubdomains;
-    //vector<ContourElement*>     *volumeLists;
     double captureNeighborhood;
     SparseMatrixPCG* membraneElementCoupling;
     virtual void computeMembraneCoupling(void) = 0;

@@ -19,21 +19,20 @@ class MembraneEqnBuilderDiffusion : public SparseMatrixEqnBuilder
 {
 public:
 	MembraneEqnBuilderDiffusion(MembraneVariable *species, Mesh *mesh);
-	~MembraneEqnBuilderDiffusion();
+	~MembraneEqnBuilderDiffusion() override;
 
-	void initEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);	
-	void buildEquation(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);
-
-	void postProcess();
+	void initEquation(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize) override;
+	void buildEquation(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize) override;
+	void postProcess() override;
 
 private:
 	vector<pair<int, int> > periodicPairs; // map of minus and plus pairs of periodic boundary points.
 
-	void initEquation_Periodic(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);
-	void buildEquation_Periodic(double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);
+	void initEquation_Periodic(VCellModel* model, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);
+	void buildEquation_Periodic(Simulation* sim, double deltaTime, int volumeIndexStart, int volumeIndexSize, int membraneIndexStart, int membraneIndexSize);
 
 	bool bPreProcessed;
-	void preProcess();
+	void preProcess(VCellModel* model);
 
 private:
 	double computeDiffusionConstant(int meIndex, int neighborIndex);

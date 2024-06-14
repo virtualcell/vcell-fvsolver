@@ -19,7 +19,7 @@ double VCellValueProvider::getConstantValue() {
 }
 
 double VCellValueProvider::getValue(double t, double x, double y, double z, rxnptr rxn) {
-	SimulationExpression* vcellSim = (SimulationExpression*)simTool->getSimulation();
+	SimulationExpression* vcellSim = simTool->getSimulation();
 	WorldCoord wc(x, y, z);
 	vcellSim->setCurrentCoordinate(wc);
 
@@ -35,7 +35,7 @@ double VCellValueProvider::getValue(double t, double x, double y, double z, rxnp
 
 double VCellValueProvider::getValue(double t, double x, double y, double z, rxnptr rxn, char* panelName) {
 	
-	SimulationExpression* vcellSim = (SimulationExpression*)simTool->getSimulation();
+	SimulationExpression* vcellSim = simTool->getSimulation();
 	int* indices = vcellSim->getIndices();
 	WorldCoord wc(x, y, z);
 	vcellSim->setCurrentCoordinate(wc);
@@ -60,7 +60,7 @@ double VCellValueProvider::getValue(double t, double x, double y, double z, rxnp
 
 double VCellValueProvider::getValue(double t, double x, double y, double z, surfactionptr actiondetails, char* panelName){
 	
-	SimulationExpression* vcellSim = (SimulationExpression*)simTool->getSimulation();
+	SimulationExpression* vcellSim = simTool->getSimulation();
 	int* indices = vcellSim->getIndices();
 	WorldCoord wc(x, y, z);
 	vcellSim->setCurrentCoordinate(wc);

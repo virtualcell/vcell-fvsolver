@@ -5,20 +5,18 @@
 #ifndef SIMULATION_H
 #define SIMULATION_H
 
-#include <string>
 #include <vector>
+#include <string>
 using std::vector;
 using std::string;
 
-//#define PARTICLE_ALL -1
+class Simulation;
+class VCellModel;
 
-//class VolumeParticleContext;
-//class MembraneParticleContext;
-//class ContourParticleContext;
-//class Particle;
 class VolumeVariable;
 class Variable;
-class Mesh;
+class CartesianMesh;
+class SimTool;
 class Solver;
 class Scheduler;
 class PostProcessingBlock;
@@ -26,22 +24,24 @@ class PostProcessingBlock;
 class Simulation
 {
 public:
-	Simulation(Mesh *mesh);
-	~Simulation();
+	explicit Simulation(CartesianMesh *mesh);
+	virtual ~Simulation();
 
-	virtual void resolveReferences();
-	void initSimulation();   // initializes to t=0
-	void iterate();          // computes 1 time step
+	virtual void resolveReferences(SimTool* sim_tool);
+	virtual void initSimulation(SimTool* sim_tool) = 0;   // initializes to t=0
+	void iterate(SimTool* sim_tool);          // computes 1 time step
 	virtual void update();           // copies new to old values 
 
-	double getTime_sec();
+	double getTime_sec(SimTool* sim_tool);
 	void setCurrIteration(int curriter) { 
 		currIteration = curriter; 
 	}
-	int getCurrIteration() { 
+	int getCurrIteration() const
+	{
 		return currIteration; 
 	}
-	double getDT_sec() { 
+	double getDT_sec() const
+	{
 		return _dT_sec; 
 	}
 	void setDT_sec(double dT) { 
@@ -58,28 +58,28 @@ public:
 	Variable *getVariableFromName(string& name);
 	Variable *getVariableFromName(char* name);
 	Solver   *getSolverFromVariable(Variable *var);
-	Mesh *getMesh() { 
+	CartesianMesh *getMesh() const
+	{
 		return _mesh; 
 	}
 
 	Solver* getSolver(int index);
 
-	//void addParticle(Particle *particle); 
-	//long  getNumParticles() { 
-	//	return (int)globalParticleList.size(); 
-	//}
-	int getNumVariables() {
-		return (int)varList.size();
+	int getNumVariables() const
+	{
+		return static_cast<int>(varList.size());
 	}
-	int getNumSolvers() {
-		return (int)solverList.size();
+	int getNumSolvers() const
+	{
+		return static_cast<int>(solverList.size());
 	}
 	void addVariable(Variable *var);
 	void addSolver(Solver *solver);
-	void setSimStartTime(double st);
+	void setSimStartTime(SimTool* sim_tool, double st);
 
 	virtual void createPostProcessingBlock()=0;
-	PostProcessingBlock* getPostProcessingBlock() {
+	PostProcessingBlock* getPostProcessingBlock() const
+	{
 		return postProcessingBlock;
 	}
 
@@ -91,7 +91,7 @@ protected:
 	vector<Solver*> solverList;
 	vector<Variable*> varList;
 	//vector<Particle*> globalParticleList; 
-	Mesh *_mesh;
+	CartesianMesh *_mesh;
 	bool _advanced;
 	bool _initEquations;
 

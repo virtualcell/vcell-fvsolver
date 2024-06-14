@@ -6,6 +6,9 @@ on:
   push:
     branches:
       - master
+  release:
+    types:
+      - published
 
 jobs:
   build:
@@ -14,9 +17,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest, macos-13, macos-14, ubuntu-latest]
-#        python-version: ["3.7", "3.12", "pypy-3.9"]
-        python-version: ["3.12"]
+        #platform: [ windows-latest, macos-13, macos-14, ubuntu-latest ]
+        platform: [ macos-13, macos-14, ubuntu-latest ]
+        python-version: ["3.9","3.10","3.11","3.12"]
+#        exclude:
+#          - platform: windows-latest
+#            python-version: "3.9"
+#          - platform: windows-latest
+#            python-version: "3.12"
 
     steps:
     - uses: actions/checkout@v4
@@ -79,49 +87,94 @@ jobs:
           mingw-w64-clang-x86_64-libaec
           mingw-w64-clang-x86_64-python-pip-tools
 
-
-    - name: Install Linux Dependencies
-      if: matrix.platform == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libboost-all-dev
-        sudo apt-get install -y libhdf5-dev
-        sudo apt-get install -y ninja-build
-        
-        gcc --version
-        gfortran --version
-        cmake --version
-        dpkg -s libboost-all-dev
-        dpkg -s libhdf5-dev
-
-
     - uses: actions/setup-python@v5
       with:
         python-version: "${{ matrix.python-version }}"
 
     - name: Build and install macos-13
       run: |
+        export MACOSX_DEPLOYMENT_TARGET=13.0
         PATH="/usr/local/opt/llvm/bin:$PATH"
-        pip install --verbose .
+        pip wheel . -w dist
+        ls -al dist
+        pip install delocate
+        delocate-listdeps dist/*.whl
+        delocate-wheel -v dist/*.whl
+        pip install dist/*.whl
       if: matrix.platform == 'macos-13'
 
     - name: Build and install macos-14
       run: |
         PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-        pip install --verbose .
+        pip wheel . -w dist
+        ls -al dist
+        pip install delocate
+        delocate-listdeps dist/*.whl
+        delocate-wheel -v dist/*.whl
+        pip install dist/*.whl
       if: matrix.platform == 'macos-14'
 
     - name: Build and install windows-latest
       shell: msys2 {0}
       run: |
-        pip install --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" .
+        pip wheel --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" . -w dist
+        pip install delvewheel
+        for wheel_file in dist/*.whl; do
+          echo "not inspecting $wheel_file"
+          echo "delvewheel needed -v $wheel_file"
+          echo "not repairing $wheel_file"
+          echo "delvewheel repair -v $wheel_file"
+        done
+        pip install dist/*.whl
       if: matrix.platform == 'windows-latest'
 
-    - name: Build and install ubuntu-latest
+    - name: Build and install manylinux for python 3.9
       run: |
-        platform=linux
-        pip install --verbose .
-      if: matrix.platform == 'ubuntu-latest'
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+           /bin/bash -c \
+           "yum install -y boost-devel hdf5-devel ninja-build && \
+           /opt/python/cp39-cp39/bin/pip wheel /io/ -w /io/dist && \
+           auditwheel repair /io/dist/*.whl -w /io/dist/"
+        echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
+        sudo rm -rf dist/*-linux_x86_64.whl
+        pip install dist/*.whl
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.9'
+
+    - name: Build and install manylinux for python 3.10
+      run: |
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+           /bin/bash -c \
+           "yum install -y boost-devel hdf5-devel ninja-build && \
+           /opt/python/cp310-cp310/bin/pip wheel /io/ -w /io/dist && \
+           auditwheel repair /io/dist/*.whl -w /io/dist/"
+        echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
+        sudo rm -rf dist/*-linux_x86_64.whl
+        pip install dist/*.whl
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.10'
+
+    - name: Build and install manylinux for python 3.11
+      run: |
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+           /bin/bash -c \
+           "yum install -y boost-devel hdf5-devel ninja-build && \
+           /opt/python/cp311-cp311/bin/pip wheel /io/ -w /io/dist && \
+           auditwheel repair /io/dist/*.whl -w /io/dist/"
+        echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
+        sudo rm -rf dist/*-linux_x86_64.whl
+        pip install dist/*.whl
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.11'
+
+    - name: Build and install manylinux for python 3.12
+      run: |
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+           /bin/bash -c \
+           "yum install -y boost-devel hdf5-devel ninja-build && \
+           /opt/python/cp312-cp312/bin/pip wheel /io/ -w /io/dist && \
+           auditwheel repair /io/dist/*.whl -w /io/dist/"
+        echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
+        sudo rm -rf dist/*-linux_x86_64.whl
+        pip install dist/*.whl
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.12'
 
     - name: Test not windows
       run: |
@@ -136,8 +189,75 @@ jobs:
         pytest
       if: matrix.platform == 'windows-latest'
 
+    - name: set wheel_file and artifact_name environment vars (non-windows)
+      if: matrix.platform != 'windows-latest'
+      run: |
+        for wheel_file in dist/*.whl; do
+          echo "Uploading $wheel_file"
+          echo "wheel_file=$wheel_file" >> $GITHUB_ENV
+          echo "artifact_name=$(basename $wheel_file)" >> $GITHUB_ENV
+        done
+
+    - name: set wheel_file and artifact_name environment vars (windows)
+      if: matrix.platform == 'windows-latest'
+      shell: pwsh
+      run: |
+        foreach ($wheel_file in Get-ChildItem -Path dist -Filter *.whl) {
+          Write-Output "Uploading $wheel_file"
+          echo "wheel_file=$wheel_file" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+          echo "artifact_name=$(Split-Path $wheel_file -Leaf)" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+        }
+
+    - name: Upload wheel file
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.artifact_name }}
+        path: ${{ env.wheel_file }}
+
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
       if: ${{ failure() }}
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    environment: pypi
+    permissions:
+      id-token: write
+
+    steps:
+    - name: download all artifacts (wheels and executables)
+      uses: actions/download-artifact@v4
+      with:
+        path: dist_temp/
+
+    - name: Install Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.12'
+
+    - name: Publish wheels to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+      run: |
+        pip install twine
+        mkdir dist
+        echo "current directory is $(pwd)"
+        ls -al dist*
+        echo "absolute paths of wheels:"
+        find dist_temp -type f -name '*.whl' -exec sh -c 'echo "$(realpath {})"/' \;
+        echo "moving wheels to dist directory"
+        find dist_temp -type f -name '*.whl' -exec sh -c 'mv "$(realpath {})" dist/' \;
+        twine upload --repository pypi dist/*.whl
+
+    - name: Setup tmate session for PyPI upload failure
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ failure() }}
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+

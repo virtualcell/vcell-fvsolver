@@ -149,14 +149,14 @@ void FastSystemExpression::setCoordinates(double time_sec, WorldCoord& wc) {
 }
 
 
-void FastSystemExpression::initVars()
+void FastSystemExpression::initVars(SimTool* sim_tool)
 {
 	// independent variables
 	int numSymbols = 4 + dimension + numDependents;
 	double* values = new double[numSymbols];
 
 	WorldCoord wc = simulation->getMesh()->getVolumeWorldCoord(currIndex);
-	values[0] = simulation->getTime_sec();
+	values[0] = simulation->getTime_sec(sim_tool);
 	values[1] = wc.x;
 	values[2] = wc.y;
 	values[3] = wc.z;
@@ -188,7 +188,8 @@ void FastSystemExpression::updateDependentVars() {
 	}	
 }
 
-void FastSystemExpression::setDependentVariables(string* vars) {
+void FastSystemExpression::setDependentVariables(string* vars) const
+{
 	for (int i = 0; i < numDependents; i ++) {		
 		pDependentVars[i] = simulation->getVariableFromName(vars[i]);
 		if (pDependentVars[i] == NULL){
@@ -199,7 +200,8 @@ void FastSystemExpression::setDependentVariables(string* vars) {
 	}
 }
 
-void FastSystemExpression::setIndependentVariables(string* vars) {	
+void FastSystemExpression::setIndependentVariables(string* vars) const
+{
 	for (int i = 0; i < dimension; i ++) {		
 		pVars[i] = simulation->getVariableFromName(vars[i]);
 		if (pVars[i] == NULL){
@@ -211,10 +213,10 @@ void FastSystemExpression::setIndependentVariables(string* vars) {
 }
 
 SimpleSymbolTable* FastSystemExpression::getFastSymbolTable() {
-	if (fastSymbolTable == NULL) {
+	if (fastSymbolTable == nullptr) {
 		for (int i = 0; i < dimension; i ++) {
-			if (pVars[i] == NULL) {
-				throw "No independent variables defined";
+			if (pVars[i] == nullptr) {
+				throw std::runtime_error("No independent variables defined");
 			}
 		}
 
@@ -260,14 +262,15 @@ SimpleSymbolTable* FastSystemExpression::getFastSymbolTable() {
 	return fastSymbolTable;
 }
 
-void FastSystemExpression::updateIndepValues() {
+void FastSystemExpression::updateIndepValues() const
+{
 	int indepOffset = 4 + simulation->getNumFields() + simulation->getNumRandomVariables();
 	for (int i = 0; i < dimension; i ++) {		
 		fastValues[indepOffset + i] = getX(i);
 	}	
 }
 
-void FastSystemExpression::resolveReferences(Simulation *sim) {
+void FastSystemExpression::resolveReferences(SimulationExpression *sim) {
 	bindAllExpressions();
 }
 

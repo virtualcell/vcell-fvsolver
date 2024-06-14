@@ -62,6 +62,7 @@ set(HEADER_FILES
 	include/VCELL/SimulationExpression.h
 #	include/VCELL/SimulationMessaging.h
 	include/VCELL/Solver.h
+	include/VCELL/SolverMain.h
 	include/VCELL/SparseLinearSolver.h
 #	include/VCELL/SparseMatrix.h
 	include/VCELL/SparseMatrixEqnBuilder.h
@@ -141,6 +142,7 @@ set(SRC_FILES
 	src/SimulationExpression.cpp
 #	src/SimulationMessaging.cpp
 	src/Solver.cpp
+	src/SolverMain.cpp
 	src/SparseLinearSolver.cpp
 #	src/SparseMatrix.cpp
 	src/SparseMatrixEqnBuilder.cpp
@@ -237,4 +239,9 @@ if (OPTION_TARGET_FV_SOLVER)
 	install(TARGETS ${EXE_FILE} 
             RUNTIME DESTINATION ${OPTION_EXE_DIRECTORY})
 	
+endif()
+
+# add google tests
+if (OPTION_TARGET_TESTS)
+	add_subdirectory(tests)
 endif()

@@ -6,7 +6,6 @@
 #include <VCELL/Solver.h>
 #include <VCELL/Simulation.h>
 #include <VCELL/SerialScheduler.h>
-#include <VCELL/FastSystem.h>
 #include <VCELL/SimTool.h>
 #include <VCELL/CartesianMesh.h>
 
@@ -15,10 +14,9 @@ SerialScheduler::SerialScheduler(Simulation *Asim)
 {
 }
    
-void SerialScheduler::iterate()
+void SerialScheduler::iterate(SimTool* sim_tool)
 {
-
-	VCellModel *model = SimTool::getInstance()->getModel();
+	
 	/*
 	Contour *contour = NULL;
 	int numContours = model->getNumContours();
@@ -71,25 +69,25 @@ void SerialScheduler::iterate()
 	for (int i = 0; i < sim->getNumSolvers(); i ++) {
 		solver = sim->getSolver(i);
 		string timername = solver->getVar()->getName() + " Build";
-		TimerHandle tHndBuild = SimTool::getInstance()->getTimerHandle(timername);
+		TimerHandle tHndBuild = sim_tool->getTimerHandle(timername);
 		timername = solver->getVar()->getName() + " Solve";
-		TimerHandle tHndSolve = SimTool::getInstance()->getTimerHandle(timername);
+		TimerHandle tHndSolve = sim_tool->getTimerHandle(timername);
 		//
 		// initialize equations first time around
 		//
-		solver->initEqn(sim->getDT_sec(),0,volumeSize,0,membraneSize, bFirstTime);
+		solver->initEqn(sim_tool->getModel(), sim->getDT_sec(),0,volumeSize,0,membraneSize, bFirstTime);
 
-		SimTool::getInstance()->startTimer(tHndBuild);
-		solver->buildEqn(sim->getDT_sec(),0,volumeSize,0,membraneSize, bFirstTime);
-		SimTool::getInstance()->stopTimer(tHndBuild);
+		sim_tool->startTimer(tHndBuild);
+		solver->buildEqn(sim, sim->getDT_sec(),0,volumeSize,0,membraneSize, bFirstTime);
+		sim_tool->stopTimer(tHndBuild);
 
-		SimTool::getInstance()->startTimer(tHndSolve);
-		solver->solveEqn(sim->getDT_sec(),0,volumeSize,0,membraneSize, bFirstTime);
-		SimTool::getInstance()->stopTimer(tHndSolve);
+		sim_tool->startTimer(tHndSolve);
+		solver->solveEqn(sim_tool, sim->getDT_sec(),0,volumeSize,0,membraneSize, bFirstTime);
+		sim_tool->stopTimer(tHndSolve);
 	}
-	if(hasFastSystem()){
+	if(hasFastSystem(sim_tool->getModel())){
 		Mesh *mesh = sim->getMesh();
-		solveFastSystem(0, mesh->getNumVolumeElements(), 0, mesh->getNumMembraneElements());
+		solveFastSystem(sim_tool, 0, mesh->getNumVolumeElements(), 0, mesh->getNumMembraneElements());
 	}
 	bFirstTime=false;
 }
