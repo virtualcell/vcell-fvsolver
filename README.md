@@ -8,9 +8,11 @@
 ![CI](https://github.com/virtualcell/vcell-solvers/actions/workflows/cd.yml/badge.svg)
 
 # vcell-fvsolver
-Virtual Cell solvers [virtualcell/vcell-solvers](https://github.com/virtualcell/vcell-solvers) is a collection of numerical simulation codes used in the Virtual Cell framework [virtualcell/vcell](https://github.com/virtualcell/vcell)).
+Virtual Cell Finite Volume solver [virtualcell/vcell-solvers](https://github.com/virtualcell/vcell-fvsolver) 
+is a reaction-diffusion-advection PDE solver for computational cell biology. 
+This solver is used within the Virtual Cell modeling and simulation application [virtualcell/vcell](https://github.com/virtualcell/vcell) 
+and as a component in the Virtual Cell Python API [virtualcell/pyvcell](https://github.com/virtualcell/pyvcell) (coming soon).
 
- 
 ## The Virtual Cell Project
 The Virtual Cell is a modeling and simulation framework for computational biology.  For details see http://vcell.org and http://github.com/virtualcell.
 
@@ -27,4 +29,4 @@ and generates the output files (.log, .zip, .mesh, .meshmetrics, .hdf5).  The
 .functions file is not used by the solver, but is helpful for interpreting the 
 results in the context of the original model.
 
-This package is intented to be used by the Virtual Cell Python API, pyvcell (coming soon).
+This package is intended to be used by the Virtual Cell Python API [virtualcell/pyvcell](https://github.com/virtualcell/pyvcell) (coming soon).

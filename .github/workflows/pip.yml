@@ -149,46 +149,46 @@ jobs:
         pytest
       if: matrix.platform == 'windows-latest'
 
-    - name: Upload wheels as build artifacts (non-windows)
-      if: matrix.platform != 'windows-latest'
-      run: |
-        for wheel_file in dist/*.whl; do
-          echo "Uploading $wheel_file"
-          echo "::set-output name=wheel_file::$wheel_file"
-          echo "::set-output name=artifact_name::$(basename $wheel_file)"
-        done
-      id: get_wheel_files_nonwindows
-
-    - name: Upload wheels as build artifacts (windows)
-      if: matrix.platform == 'windows-latest'
-      shell: pwsh
-      run: |
-        foreach ($wheel_file in Get-ChildItem -Path dist -Filter *.whl) {
-          Write-Output "Uploading $wheel_file"
-          echo "::set-output name=wheel_file::$wheel_file"
-          echo "::set-output name=artifact_name::$(Split-Path $wheel_file -Leaf)"
-        }
-      id: get_wheel_files_windows
-
-    - name: Upload wheel file (non-windows)
-      if: matrix.platform != 'windows-latest'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ steps.get_wheel_files_nonwindows.outputs.artifact_name }}
-        path: ${{ steps.get_wheel_files_nonwindows.outputs.wheel_file }}
-
-    - name: Upload wheel file (windows)
-      if: matrix.platform == 'windows-latest'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ steps.get_wheel_files_windows.outputs.artifact_name }}
-        path: ${{ steps.get_wheel_files_windows.outputs.wheel_file }}
-
-#    - name: Upload wheels as build artifacts
+#    - name: Upload wheels as build artifacts (non-windows)
+#      if: matrix.platform != 'windows-latest'
+#      run: |
+#        for wheel_file in dist/*.whl; do
+#          echo "Uploading $wheel_file"
+#          echo "::set-output name=wheel_file::$wheel_file"
+#          echo "::set-output name=artifact_name::$(basename $wheel_file)"
+#        done
+#      id: get_wheel_files_nonwindows
+#
+#    - name: Upload wheels as build artifacts (windows)
+#      if: matrix.platform == 'windows-latest'
+#      shell: pwsh
+#      run: |
+#        foreach ($wheel_file in Get-ChildItem -Path dist -Filter *.whl) {
+#          Write-Output "Uploading $wheel_file"
+#          echo "::set-output name=wheel_file::$wheel_file"
+#          echo "::set-output name=artifact_name::$(Split-Path $wheel_file -Leaf)"
+#        }
+#      id: get_wheel_files_windows
+#
+#    - name: Upload wheel file (non-windows)
+#      if: matrix.platform != 'windows-latest'
 #      uses: actions/upload-artifact@v4
 #      with:
-#        name: wheels-${{ matrix.platform }}-${{ matrix.python-version }}
-#        path: dist/*.whl
+#        name: ${{ steps.get_wheel_files_nonwindows.outputs.artifact_name }}
+#        path: ${{ steps.get_wheel_files_nonwindows.outputs.wheel_file }}
+#
+#    - name: Upload wheel file (windows)
+#      if: matrix.platform == 'windows-latest'
+#      uses: actions/upload-artifact@v4
+#      with:
+#        name: ${{ steps.get_wheel_files_windows.outputs.artifact_name }}
+#        path: ${{ steps.get_wheel_files_windows.outputs.wheel_file }}
+
+    - name: Upload wheels as build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: wheels
+        path: dist/*.whl
 
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3

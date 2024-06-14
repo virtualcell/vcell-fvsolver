@@ -22,3 +22,7 @@
 
 .DS_Store
 /dist/
+
+tests/__pycache__/
+
+*.whl
