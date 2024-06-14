@@ -243,7 +243,7 @@ jobs:
     - name: Publish wheels to PyPI
       env:
         TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.TESTPYPI_TOKEN }}
+        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
       run: |
         pip install twine
         mkdir dist
@@ -253,7 +253,7 @@ jobs:
         find dist_temp -type f -name '*.whl' -exec sh -c 'echo "$(realpath {})"/' \;
         echo "moving wheels to dist directory"
         find dist_temp -type f -name '*.whl' -exec sh -c 'mv "$(realpath {})" dist/' \;
-        twine upload --repository testpypi dist/*.whl
+        twine upload --repository pypi dist/*.whl
 
     - name: Setup tmate session for PyPI upload failure
       uses: mxschmitt/action-tmate@v3

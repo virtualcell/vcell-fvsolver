@@ -8,7 +8,7 @@
 ![CI](https://github.com/virtualcell/vcell-solvers/actions/workflows/cd.yml/badge.svg)
 
 # vcell-fvsolver
-Virtual Cell Finite Volume solver [virtualcell/vcell-solvers](https://github.com/virtualcell/vcell-fvsolver) 
+Virtual Cell Finite Volume solver [virtualcell/vcell-fvsolver](https://github.com/virtualcell/vcell-fvsolver) 
 is a reaction-diffusion-advection PDE solver for computational cell biology. 
 This solver is used within the Virtual Cell modeling and simulation application [virtualcell/vcell](https://github.com/virtualcell/vcell) 
 and as a component in the Virtual Cell Python API [virtualcell/pyvcell](https://github.com/virtualcell/pyvcell) (coming soon).

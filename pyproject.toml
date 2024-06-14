@@ -5,13 +5,13 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyvcell_fvsolver"
-version = "0.0.3"
+version = "0.0.4"
 description="Virtual Cell Finite Volume PDE solver"
 readme = "README.md"
 authors = [
     { name = "Jim Schaff", email = "schaff@uchc.edu" },
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
