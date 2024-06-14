@@ -208,9 +208,9 @@ jobs:
         echo "current directory is $(pwd)"
         ls -al dist*
         echo "absolute paths of wheels:"
-        find dist_temp -name '*.whl' -exec sh -c 'echo "$(realpath {})"/' \;
+        find dist_temp -type f -name '*.whl' -exec sh -c 'echo "$(realpath {})"/' \;
         echo "moving wheels to dist directory"
-        find dist_temp -name '*.whl' -exec sh -c 'mv "$(realpath {})" dist/' \;
+        find dist_temp -type f -name '*.whl' -exec sh -c 'mv "$(realpath {})" dist/' \;
         twine upload --repository testpypi dist/*.whl
 
     - name: Setup tmate session for PyPI upload failure
