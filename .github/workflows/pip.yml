@@ -86,30 +86,18 @@ jobs:
           mingw-w64-clang-x86_64-libaec
           mingw-w64-clang-x86_64-python-pip-tools
 
-
-    - name: Install Linux Dependencies
-      if: matrix.platform == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libboost-all-dev
-        sudo apt-get install -y libhdf5-dev
-        sudo apt-get install -y ninja-build
-        
-        gcc --version
-        gfortran --version
-        cmake --version
-        dpkg -s libboost-all-dev
-        dpkg -s libhdf5-dev
-
-
     - uses: actions/setup-python@v5
       with:
         python-version: "${{ matrix.python-version }}"
 
     - name: Build and install macos-13
       run: |
+        export MACOSX_DEPLOYMENT_TARGET=14.0
         PATH="/usr/local/opt/llvm/bin:$PATH"
         pip wheel . -w dist
+        pip install delocate
+        delocate-listdeps dist/*.whl
+        delocate-wheel -v dist/*.whl
         pip install dist/*.whl
       if: matrix.platform == 'macos-13'
 
@@ -117,6 +105,9 @@ jobs:
       run: |
         PATH="/opt/homebrew/opt/llvm/bin:$PATH"
         pip wheel . -w dist
+        pip install delocate
+        delocate-listdeps dist/*.whl
+        delocate-wheel -v dist/*.whl
         pip install dist/*.whl
       if: matrix.platform == 'macos-14'
 
@@ -124,13 +115,21 @@ jobs:
       shell: msys2 {0}
       run: |
         pip wheel --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" . -w dist
+        pip install delvewheel
+        delvewheel needed -v dist/*.whl
+        delvewheel repair -v dist/*.whl
         pip install dist/*.whl
       if: matrix.platform == 'windows-latest'
 
-    - name: Build and install ubuntu-latest
+    - name: Build and install manylinux
       run: |
-        platform=linux
-        pip wheel . -w dist
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+           /bin/bash -c \
+           "yum install -y boost-devel hdf5-devel ninja-build && \
+           /opt/python/cp39-cp39/bin/pip wheel /io/ -w /io/dist && \
+           auditwheel repair /io/dist/*.whl -w /io/dist/"
+        echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
+        sudo rm -rf dist/*-linux_x86_64.whl
         pip install dist/*.whl
       if: matrix.platform == 'ubuntu-latest'
 
