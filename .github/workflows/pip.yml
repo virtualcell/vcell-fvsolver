@@ -92,7 +92,7 @@ jobs:
 
     - name: Build and install macos-13
       run: |
-        export MACOSX_DEPLOYMENT_TARGET___NOT_USED=14.0
+        export MACOSX_DEPLOYMENT_TARGET=13.0
         PATH="/usr/local/opt/llvm/bin:$PATH"
         pip wheel . -w dist
         ls -al dist
@@ -119,28 +119,49 @@ jobs:
         pip wheel --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" . -w dist
         pip install delvewheel
         for wheel_file in dist/*.whl; do
-          echo "Inspecting $wheel_file"
-          delvewheel needed -v $wheel_file
-          echo "Repairing $wheel_file"
-          delvewheel repair -v $wheel_file
+          echo "not inspecting $wheel_file"
+          echo "delvewheel needed -v $wheel_file"
+          echo "not repairing $wheel_file"
+          echo "delvewheel repair -v $wheel_file"
         done
         pip install dist/*.whl
       if: matrix.platform == 'windows-latest'
 
-    - name: Build and install manylinux
+    - name: Build and install manylinux for python 3.9
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
            /bin/bash -c \
            "yum install -y boost-devel hdf5-devel ninja-build && \
            /opt/python/cp39-cp39/bin/pip wheel /io/ -w /io/dist && \
-           /opt/python/cp310-cp310/bin/pip wheel /io/ -w /io/dist && \
+           auditwheel repair /io/dist/*.whl -w /io/dist/"
+        echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
+        sudo rm -rf dist/*-linux_x86_64.whl
+        pip install dist/*.whl
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.9'
+
+    - name: Build and install manylinux for python 3.11
+      run: |
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+           /bin/bash -c \
+           "yum install -y boost-devel hdf5-devel ninja-build && \
            /opt/python/cp311-cp311/bin/pip wheel /io/ -w /io/dist && \
+           auditwheel repair /io/dist/*.whl -w /io/dist/"
+        echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
+        sudo rm -rf dist/*-linux_x86_64.whl
+        pip install dist/*.whl
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.11'
+
+    - name: Build and install manylinux for python 3.12
+      run: |
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+           /bin/bash -c \
+           "yum install -y boost-devel hdf5-devel ninja-build && \
            /opt/python/cp312-cp312/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
         sudo rm -rf dist/*-linux_x86_64.whl
         pip install dist/*.whl
-      if: matrix.platform == 'ubuntu-latest'
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.12'
 
     - name: Test not windows
       run: |
