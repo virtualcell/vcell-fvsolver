@@ -18,12 +18,10 @@ jobs:
       fail-fast: false
       matrix:
         platform: [windows-latest, macos-13, macos-14, ubuntu-latest]
-        python-version: ["3.9","3.10","3.11","3.12"]
+        python-version: ["3.9","3.11","3.12"]
         exclude:
           - platform: windows-latest
             python-version: "3.9"
-          - platform: windows-latest
-            python-version: "3.10"
           - platform: windows-latest
             python-version: "3.12"
 
@@ -149,40 +147,30 @@ jobs:
         pytest
       if: matrix.platform == 'windows-latest'
 
-    - name: Upload wheels as build artifacts (non-windows)
+    - name: set wheel_file and artifact_name environment vars (non-windows)
       if: matrix.platform != 'windows-latest'
       run: |
         for wheel_file in dist/*.whl; do
           echo "Uploading $wheel_file"
-          echo "::set-output name=wheel_file::$wheel_file"
-          echo "::set-output name=artifact_name::$(basename $wheel_file)"
+          echo "wheel_file=$wheel_file" >> $GITHUB_ENV
+          echo "artifact_name=$(basename $wheel_file)" >> $GITHUB_ENV
         done
-      id: get_wheel_files_nonwindows
 
-    - name: Upload wheels as build artifacts (windows)
+    - name: set wheel_file and artifact_name environment vars (windows)
       if: matrix.platform == 'windows-latest'
       shell: pwsh
       run: |
         foreach ($wheel_file in Get-ChildItem -Path dist -Filter *.whl) {
           Write-Output "Uploading $wheel_file"
-          echo "::set-output name=wheel_file::$wheel_file"
-          echo "::set-output name=artifact_name::$(Split-Path $wheel_file -Leaf)"
+          echo "wheel_file=$wheel_file" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+          echo "artifact_name=$(Split-Path $wheel_file -Leaf)" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
         }
-      id: get_wheel_files_windows
 
-    - name: Upload wheel file (non-windows)
-      if: matrix.platform != 'windows-latest'
+    - name: Upload wheel file
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.get_wheel_files_nonwindows.outputs.artifact_name }}
-        path: ${{ steps.get_wheel_files_nonwindows.outputs.wheel_file }}
-
-    - name: Upload wheel file (windows)
-      if: matrix.platform == 'windows-latest'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ steps.get_wheel_files_windows.outputs.artifact_name }}
-        path: ${{ steps.get_wheel_files_windows.outputs.wheel_file }}
+        name: ${{ env.artifact_name }}
+        path: ${{ env.wheel_file }}
 
     - name: Setup tmate session
       uses: mxschmitt/action-tmate@v3
@@ -216,7 +204,18 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.TESTPYPI_TOKEN }}
       run: |
         pip install twine
-        find dist_temp -name '*.whl' -exec mv {} dist \;
+        mkdir dist
+        echo "current directory is $(pwd)"
+        ls -al dist*
+        echo "absolute paths of wheels:"
+        find dist_temp -name '*.whl' -exec sh -c 'echo "$(realpath {})"/' \;
+        echo "moving wheels to dist directory"
+        find dist_temp -name '*.whl' -exec sh -c 'mv "$(realpath {})" dist/' \;
         twine upload --repository testpypi dist/*.whl
 
+    - name: Setup tmate session for PyPI upload failure
+      uses: mxschmitt/action-tmate@v3
+      if: ${{ failure() }}
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
 
