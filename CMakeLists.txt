@@ -11,6 +11,9 @@ option(OPTION_USE_ZLIB "Build with Zlib support" ON)
 option(OPTION_USE_LIBTIFF "Build with LibTiff support" OFF)
 option(OPTION_USE_ICONV "Build with Libiconv support" OFF)
 
+# need to statically link everything for the python bindings and standalone solvers
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+set(BUILD_SHARED_LIBS OFF)
 
 if (OPTION_TARGET_PYTHON_BINDING)
 	project(
