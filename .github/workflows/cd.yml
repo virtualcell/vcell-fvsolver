@@ -72,7 +72,8 @@ jobs:
           brew install llvm
           echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
           source /Users/runner/.bash_profile
-          
+          ln -s $(which gfortran-14) /usr/local/bin/gfortran
+
           gcc --version
           gfortran --version
           cmake --version
@@ -209,7 +210,7 @@ jobs:
           mkdir build
           cd build
 
-          PATH="/c/Program\ Files/LLVM/bin:$PATH"
+          export PATH="/c/Program\ Files/LLVM/bin:$PATH"
 
           cmake \
           -G Ninja \
@@ -232,6 +233,9 @@ jobs:
           echo "working dir is $PWD"
 
           cd build
+          
+          export PATH="/d/a/_temp/msys64/clang64/bin:$PATH"
+          pacman -Sy --noconfirm diffutils
 
           ctest -VV
 
