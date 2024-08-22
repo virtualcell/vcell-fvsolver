@@ -189,6 +189,10 @@ find_package(HDF5 COMPONENTS HL CXX C)
 set(HDF_VERSION ${HDF5_VERSION})
 ######    ${HDF5_HL_LIBRARIES} ${HDF5_CXX_LIBRARIES}
 
+if (OPTION_TARGET_TESTS)
+	enable_testing()
+endif ()
+
 add_subdirectory(VCellMessaging)
 
 add_subdirectory(VCellZipUtils)

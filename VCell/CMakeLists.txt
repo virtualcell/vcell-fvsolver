@@ -243,5 +243,18 @@ endif()
 
 # add google tests
 if (OPTION_TARGET_TESTS)
+	enable_testing()
+	if (MINGW)
+		set(test_fvsolver_exe ${CMAKE_BINARY_DIR}/bin/${EXE_FILE}.exe)
+		set(python_cmd py)
+	else (MINGW)
+		set(test_fvsolver_exe ${CMAKE_BINARY_DIR}/bin/${EXE_FILE})
+		set(python_cmd python3)
+	endif (MINGW)
+	set(test_dir ${CMAKE_CURRENT_SOURCE_DIR}/tests/smoke)
+
+	# smoke test as a python script, for bash test example, see NFsim/tests/smoke
+	add_test(NAME ${EXE_FILE}_smoke COMMAND ${python_cmd} ${test_dir}/smoke.py ${test_fvsolver_exe} WORKING_DIRECTORY ${test_dir})
+
 	add_subdirectory(tests)
 endif()
