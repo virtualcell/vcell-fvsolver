@@ -229,25 +229,40 @@ static FILE* openFileWithRetry(const char* fileName, const char* mode) {
 	return fp;
 }
 
-static bool zipUnzipWithRetry(bool bZip, const filesystem::path& zipFileName, const filesystem::path& simFileName, std::string* errmsg) {
+static bool unzipWithRetry(const filesystem::path& zipFileName, const filesystem::path& simFileName, std::string* errmsg) {
 	bool bSuccess = false;
 	for (int attemptNum = 0; attemptNum <= numRetries; attemptNum++) {
 		try {
-			if (bZip) {
-			//	retcode = zip32(1, zipFileName, simFileName);
-				addFilesToZip(zipFileName, simFileName);
-			} else {
-			//	retcode = unzip32(zipFileName, simFileName, NULL);
-				extractFileFromZip(zipFileName, simFileName);
-			}
+			extractFileFromZip(zipFileName, simFileName);
 			bSuccess = true;
 			break;
-		} catch (const char* ziperr) {
+		} catch (runtime_error &e) {
 			errmsg->clear();
-			errmsg->append(ziperr);
-		} catch (...) {
+			errmsg->append(e.what());
+		}
+		if (attemptNum == numRetries) continue;
+		retryWait(retryWaitSeconds);
+		cout << "SimTool::updateLog(), adding .sim to .zip failed (attempt "
+			<< (attemptNum + 1) << "), trying again" << endl;
+
+	}
+	if (!bSuccess) {
+		errmsg->clear();
+		errmsg->append("Writing zip file <").append(zipFileName.string()).append("> failed.");
+	}
+	return bSuccess;
+}
+
+static bool zipWithRetry(const filesystem::path& zipFileName, const filesystem::path& simFileName, std::string* errmsg) {
+	bool bSuccess = false;
+	for (int attemptNum = 0; attemptNum <= numRetries; attemptNum++) {
+		try {
+			addFilesToZip(zipFileName, simFileName);
+			bSuccess = true;
+			break;
+		} catch (runtime_error& e) {
 			errmsg->clear();
-			errmsg->append("SimTool::updateLog(), adding .sim to .zip failed.");
+			errmsg->append(e.what());
 		}
 		if (attemptNum == numRetries) continue;
 		retryWait(retryWaitSeconds);
@@ -358,7 +373,7 @@ void SimTool::loadFinal()
 					// unzip the file (without directory) into exdir, currently we
 					// unzip the file to the current working directory
 					std::string errmsg;
-					zipUnzipWithRetry(false, zipFileAbsoluteName.string().c_str(), dataFileName.string().c_str(), &errmsg);
+					unzipWithRetry(zipFileAbsoluteName.string().c_str(), dataFileName.string().c_str(), &errmsg);
 				}
 			}
 
@@ -553,7 +568,7 @@ void SimTool::updateLog(double progress, double time, int iteration)
 					addFilesToZip(zipFileName.c_str(), simFileName.c_str(), particleFileName.c_str());
 					remove(particleFileName.c_str());
 				} else {
-					bSuccess = zipUnzipWithRetry(true, zipFileName.c_str(), simFileName.c_str(), &errorMsg);
+					bSuccess = zipWithRetry(zipFileName.c_str(), simFileName.c_str(), &errorMsg);
 				}
 				remove(simFileName.c_str());
 

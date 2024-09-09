@@ -26,7 +26,7 @@ include_directories(include)
 
 add_library(vcellziputils STATIC ${SRC_FILES} ${HEADER_FILES})
 target_include_directories(vcellziputils INTERFACE include)
-target_link_libraries(vcellziputils ziptool_lib)
+target_link_libraries(vcellziputils libzippp::libzippp)
 
 #add_executable(testzip ${TEST_SRC_FILES})
 #target_link_libraries(testzip vcellziputils)

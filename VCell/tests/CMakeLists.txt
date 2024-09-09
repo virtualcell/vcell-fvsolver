@@ -31,3 +31,5 @@ target_link_libraries(vcell_test vcell GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(vcell_test)
+# copy tests files to build directory
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/testFiles DESTINATION ${CMAKE_CURRENT_BINARY_DIR})

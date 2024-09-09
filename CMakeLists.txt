@@ -123,11 +123,14 @@ elseif (MINGW)
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/libzippp/cmake/")
 
 include(GetGitRevisionDescription)
 git_describe(GIT_DESCRIBE ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR)
 
 include (FindZLIB)
+include (FindLIBZIP)
+
 
 if (NOT OPTION_TARGET_PYTHON_BINDING)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -191,11 +194,14 @@ set(HDF_VERSION ${HDF5_VERSION})
 
 if (OPTION_TARGET_TESTS)
 	enable_testing()
+	set(LIBZIPPP_BUILD_TESTS ON)
 endif ()
 
 add_subdirectory(VCellMessaging)
 
 add_subdirectory(VCellZipUtils)
+
+add_subdirectory(libzippp)
 
 add_subdirectory(libzip-1.2.0)
 

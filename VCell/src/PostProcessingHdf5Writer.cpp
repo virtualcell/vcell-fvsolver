@@ -208,7 +208,7 @@ void PostProcessingHdf5Writer::writeOutput(SimTool* sim_tool) {
 		
 		h5PPFile->flush(H5F_SCOPE_GLOBAL);
 	} catch(H5::Exception error ) {
-		throw error.getDetailMsg();
+		throw std::runtime_error(error.getDetailMsg());
 	}
 }
 

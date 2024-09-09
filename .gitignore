@@ -27,4 +27,4 @@ tests/__pycache__/
 
 *.whl
 
-testFiles/output/
+VCell/tests/testFiles/output/
