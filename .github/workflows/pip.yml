@@ -28,6 +28,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
 
     - name: Install Intel MacOS dependencies
       if: matrix.platform == 'macos-13'
