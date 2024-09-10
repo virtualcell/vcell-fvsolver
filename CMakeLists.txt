@@ -203,8 +203,6 @@ add_subdirectory(VCellZipUtils)
 
 add_subdirectory(libzippp)
 
-add_subdirectory(libzip-1.2.0)
-
 add_subdirectory(ExpressionParser)
 
 add_subdirectory(sundials)
