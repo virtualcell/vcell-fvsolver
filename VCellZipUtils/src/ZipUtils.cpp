@@ -34,7 +34,7 @@ bool exists(const char* name){
 */
 void addFilesToZip(const filesystem::path& ziparchive, const filesystem::path& filepath1, const filesystem::path& filepath2)
 {
-	libzippp::ZipArchive z1(ziparchive);
+	libzippp::ZipArchive z1(ziparchive.string());
 	if (!filesystem::exists(ziparchive)) {
 		if (!z1.open(libzippp::ZipArchive::New))
 		{
