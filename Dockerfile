@@ -22,10 +22,13 @@ RUN cmake \
     -G Ninja \
     -DOPTION_TARGET_PYTHON_BINDING=OFF \
     -DOPTION_TARGET_MESSAGING=ON \
-    -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
+    -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
     -DOPTION_TARGET_FV_SOLVER=ON \
     -DOPTION_TARGET_DOCS=OFF \
     .. && \
     ninja
 
 RUN ctest -VV
+
+WORKDIR /vcellroot/build/bin
+ENV PATH="/vcellroot/build/bin:${PATH}"
