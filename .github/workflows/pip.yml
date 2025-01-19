@@ -139,7 +139,7 @@ jobs:
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel ninja-build && \
            /opt/python/cp39-cp39/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
@@ -151,7 +151,7 @@ jobs:
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel ninja-build && \
            /opt/python/cp310-cp310/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
@@ -163,7 +163,7 @@ jobs:
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel ninja-build && \
            /opt/python/cp311-cp311/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
@@ -175,7 +175,7 @@ jobs:
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel ninja-build && \
            /opt/python/cp312-cp312/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"

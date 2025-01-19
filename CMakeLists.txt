@@ -134,6 +134,13 @@ git_describe(GIT_DESCRIBE ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR)
 include (FindZLIB)
 include (FindLIBZIP)
 
+# help CMake find libzip
+if (APPLE)
+	execute_process(COMMAND brew --prefix libzip OUTPUT_VARIABLE LIBZIP_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
+	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${LIBZIP_PREFIX})
+endif()
+find_package(LIBZIP REQUIRED)
+
 
 if (NOT OPTION_TARGET_PYTHON_BINDING)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -192,6 +199,8 @@ endif()
 
 #CMakeList.txt that comes with hdf5 switches library name if compiled with debug
 if (APPLE)
+	execute_process(COMMAND brew --prefix libaec OUTPUT_VARIABLE LIBAEC_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
+	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${LIBAEC_PREFIX})
 	find_package(libaec REQUIRED)
 endif()
 find_package(HDF5 COMPONENTS HL CXX C)
