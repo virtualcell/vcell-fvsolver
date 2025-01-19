@@ -1,0 +1,14 @@
+diff --git a/src/libzippp.cpp b/src/libzippp.cpp
+index 37d9cd1..19e8fc2 100644
+--- a/src/libzippp.cpp
++++ b/src/libzippp.cpp
+@@ -38,9 +38,7 @@
+ #endif
+ 
+ #include <zip.h>
+-#include <errno.h>
+ #include <fstream>
+-#include <memory>
+ 
+ #include "libzippp.h"
+ 
