@@ -188,6 +188,9 @@ if (LINUX AND OPTION_TARGET_PYTHON_BINDING)
 endif()
 
 #CMakeList.txt that comes with hdf5 switches library name if compiled with debug
+if (APPLE)
+	find_package(libaec REQUIRED)
+endif()
 find_package(HDF5 COMPONENTS HL CXX C)
 set(HDF_VERSION ${HDF5_VERSION})
 ######    ${HDF5_HL_LIBRARIES} ${HDF5_CXX_LIBRARIES}
