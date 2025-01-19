@@ -225,15 +225,27 @@ set(PATCH_FILE "${CMAKE_SOURCE_DIR}/patches/libzippp_patch.diff")
 # Path to the file to be patched
 set(FILE_TO_PATCH "${CMAKE_SOURCE_DIR}/libzippp/src/libzippp.cpp")
 # Apply the patch
-add_custom_command(
-		OUTPUT ${FILE_TO_PATCH}
-		COMMAND ${CMAKE_COMMAND} -E echo "Applying patch to libzippp"
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different ${FILE_TO_PATCH} ${FILE_TO_PATCH}.bak
-		COMMAND ${CMAKE_COMMAND} -E touch ${FILE_TO_PATCH}
-		COMMAND patch ${FILE_TO_PATCH} < ${PATCH_FILE}
-		DEPENDS ${PATCH_FILE}
-		COMMENT "Patching libzippp"
-)
+if (WIN32)
+	add_custom_command(
+			OUTPUT ${FILE_TO_PATCH}
+			COMMAND ${CMAKE_COMMAND} -E echo "Applying patch to libzippp"
+			COMMAND ${CMAKE_COMMAND} -E copy_if_different ${FILE_TO_PATCH} ${FILE_TO_PATCH}.bak
+			COMMAND ${CMAKE_COMMAND} -E touch ${FILE_TO_PATCH}
+			COMMAND git apply ${PATCH_FILE}
+			DEPENDS ${PATCH_FILE}
+			COMMENT "Patching libzippp"
+	)
+else()
+	add_custom_command(
+			OUTPUT ${FILE_TO_PATCH}
+			COMMAND ${CMAKE_COMMAND} -E echo "Applying patch to libzippp"
+			COMMAND ${CMAKE_COMMAND} -E copy_if_different ${FILE_TO_PATCH} ${FILE_TO_PATCH}.bak
+			COMMAND ${CMAKE_COMMAND} -E touch ${FILE_TO_PATCH}
+			COMMAND patch ${FILE_TO_PATCH} < ${PATCH_FILE}
+			DEPENDS ${PATCH_FILE}
+			COMMENT "Patching libzippp"
+	)
+endif()
 # Ensure the patch is applied before building the submodule
 add_custom_target(apply_patch ALL DEPENDS ${FILE_TO_PATCH})
 add_dependencies(libzippp apply_patch)
