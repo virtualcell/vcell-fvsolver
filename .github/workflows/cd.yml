@@ -74,6 +74,7 @@ jobs:
           brew install hdf5
           brew install libzip
           brew install ninja
+          brew install libaec
 
           brew install llvm
           echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
@@ -94,6 +95,7 @@ jobs:
           brew install hdf5
           brew install libzip
           brew install ninja
+          brew install libaec
 
           brew install llvm
           echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
