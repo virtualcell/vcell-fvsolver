@@ -40,8 +40,11 @@ std::string version()
 int solve(const std::string& inputFilename, const std::string& vcgFilename, const std::string& outputDir) {
 	// Check if output directory exists, if not create it
 	std::filesystem::path dirPath(outputDir);
-	if (!exists(dirPath)) {
-		create_directories(dirPath);
+	// converty dirPath to an absolute path and check to see if dirPath exists
+	dirPath = std::filesystem::absolute(dirPath);
+	if (!std::filesystem::exists(dirPath)) {
+		// create the directory
+		std::filesystem::create_directories(dirPath);
 	}
 
 	// Open the input file

@@ -11,6 +11,9 @@ option(OPTION_USE_ZLIB "Build with Zlib support" ON)
 option(OPTION_USE_LIBTIFF "Build with LibTiff support" OFF)
 option(OPTION_USE_ICONV "Build with Libiconv support" OFF)
 
+# need to statically link everything for the python bindings and standalone solvers
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+set(BUILD_SHARED_LIBS OFF)
 
 if (OPTION_TARGET_PYTHON_BINDING)
 	project(
@@ -123,11 +126,21 @@ elseif (MINGW)
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/libzippp/cmake/")
 
 include(GetGitRevisionDescription)
 git_describe(GIT_DESCRIBE ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR)
 
 include (FindZLIB)
+include (FindLIBZIP)
+
+# help CMake find libzip
+if (APPLE)
+	execute_process(COMMAND brew --prefix libzip OUTPUT_VARIABLE LIBZIP_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
+	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${LIBZIP_PREFIX})
+endif()
+find_package(LIBZIP 1.10 REQUIRED)
+
 
 if (NOT OPTION_TARGET_PYTHON_BINDING)
 	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -185,15 +198,59 @@ if (LINUX AND OPTION_TARGET_PYTHON_BINDING)
 endif()
 
 #CMakeList.txt that comes with hdf5 switches library name if compiled with debug
+if (APPLE)
+	execute_process(COMMAND brew --prefix libaec OUTPUT_VARIABLE LIBAEC_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
+	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${LIBAEC_PREFIX})
+	find_package(libaec REQUIRED)
+endif()
 find_package(HDF5 COMPONENTS HL CXX C)
 set(HDF_VERSION ${HDF5_VERSION})
 ######    ${HDF5_HL_LIBRARIES} ${HDF5_CXX_LIBRARIES}
+
+if (OPTION_TARGET_TESTS)
+	enable_testing()
+	set(LIBZIPPP_BUILD_TESTS ON)
+endif ()
 
 add_subdirectory(VCellMessaging)
 
 add_subdirectory(VCellZipUtils)
 
-add_subdirectory(libzip-1.2.0)
+
+
+
+add_subdirectory(libzippp)
+# Path to the patch file
+set(PATCH_FILE "${CMAKE_SOURCE_DIR}/patches/libzippp_patch.diff")
+# Path to the file to be patched
+set(FILE_TO_PATCH "${CMAKE_SOURCE_DIR}/libzippp/src/libzippp.cpp")
+# Apply the patch
+if (WIN32)
+	add_custom_command(
+			OUTPUT ${FILE_TO_PATCH}
+			COMMAND ${CMAKE_COMMAND} -E echo "Applying patch to libzippp"
+			COMMAND ${CMAKE_COMMAND} -E copy_if_different ${FILE_TO_PATCH} ${FILE_TO_PATCH}.bak
+			COMMAND ${CMAKE_COMMAND} -E touch ${FILE_TO_PATCH}
+			COMMAND git apply ${PATCH_FILE}
+			DEPENDS ${PATCH_FILE}
+			COMMENT "Patching libzippp"
+	)
+else()
+	add_custom_command(
+			OUTPUT ${FILE_TO_PATCH}
+			COMMAND ${CMAKE_COMMAND} -E echo "Applying patch to libzippp"
+			COMMAND ${CMAKE_COMMAND} -E copy_if_different ${FILE_TO_PATCH} ${FILE_TO_PATCH}.bak
+			COMMAND ${CMAKE_COMMAND} -E touch ${FILE_TO_PATCH}
+			COMMAND patch --forward ${FILE_TO_PATCH} < ${PATCH_FILE} | true
+			DEPENDS ${PATCH_FILE}
+			COMMENT "Patching libzippp"
+	)
+endif()
+# Ensure the patch is applied before building the submodule
+add_custom_target(apply_patch ALL DEPENDS ${FILE_TO_PATCH})
+add_dependencies(libzippp apply_patch)
+
+
 
 add_subdirectory(ExpressionParser)
 

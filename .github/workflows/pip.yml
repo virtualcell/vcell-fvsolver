@@ -28,6 +28,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+      with:
+        submodules: true
 
     - name: Install Intel MacOS dependencies
       if: matrix.platform == 'macos-13'
@@ -35,11 +37,14 @@ jobs:
       run: |
         brew install boost
         brew install hdf5
+        brew install libzip
         brew install ninja
+        brew install libaec
         
         brew install llvm
         echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
         source /Users/runner/.bash_profile
+        ln -s $(which gfortran-14) /usr/local/bin/gfortran
         
         gcc --version
         gfortran --version
@@ -54,7 +59,9 @@ jobs:
       run: |
         brew install boost
         brew install hdf5
+        brew install libzip
         brew install ninja
+        brew install libaec
         
         brew install llvm
         echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
@@ -130,9 +137,9 @@ jobs:
 
     - name: Build and install manylinux for python 3.9
       run: |
-        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
            /opt/python/cp39-cp39/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
@@ -142,9 +149,9 @@ jobs:
 
     - name: Build and install manylinux for python 3.10
       run: |
-        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
            /opt/python/cp310-cp310/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
@@ -154,9 +161,9 @@ jobs:
 
     - name: Build and install manylinux for python 3.11
       run: |
-        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
            /opt/python/cp311-cp311/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
@@ -166,9 +173,9 @@ jobs:
 
     - name: Build and install manylinux for python 3.12
       run: |
-        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
            /opt/python/cp312-cp312/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
@@ -260,4 +267,5 @@ jobs:
       if: ${{ failure() }}
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
+        limit-access-to-actor: false
 
