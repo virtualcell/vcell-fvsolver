@@ -137,9 +137,9 @@ jobs:
 
     - name: Build and install manylinux for python 3.9
       run: |
-        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel libzip-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
            /opt/python/cp39-cp39/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
@@ -149,9 +149,9 @@ jobs:
 
     - name: Build and install manylinux for python 3.10
       run: |
-        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel libzip-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
            /opt/python/cp310-cp310/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
@@ -161,9 +161,9 @@ jobs:
 
     - name: Build and install manylinux for python 3.11
       run: |
-        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel libzip-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
            /opt/python/cp311-cp311/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
@@ -173,9 +173,9 @@ jobs:
 
     - name: Build and install manylinux for python 3.12
       run: |
-        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux2014_x86_64 \
+        docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
            /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel libzip-devel ninja-build && \
+           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
            /opt/python/cp312-cp312/bin/pip wheel /io/ -w /io/dist && \
            auditwheel repair /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
