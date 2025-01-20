@@ -241,7 +241,7 @@ else()
 			COMMAND ${CMAKE_COMMAND} -E echo "Applying patch to libzippp"
 			COMMAND ${CMAKE_COMMAND} -E copy_if_different ${FILE_TO_PATCH} ${FILE_TO_PATCH}.bak
 			COMMAND ${CMAKE_COMMAND} -E touch ${FILE_TO_PATCH}
-			COMMAND patch ${FILE_TO_PATCH} < ${PATCH_FILE}
+			COMMAND patch --forward ${FILE_TO_PATCH} < ${PATCH_FILE}
 			DEPENDS ${PATCH_FILE}
 			COMMENT "Patching libzippp"
 	)
