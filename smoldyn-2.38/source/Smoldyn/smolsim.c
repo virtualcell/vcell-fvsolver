@@ -1617,8 +1617,8 @@ int loadJMS(simptr sim,ParseFilePtr *pfpptr,char *line2,char *erstr);
 
 /* loadsim */
 int loadsim(simptr sim,const char *fileroot,const char *filename,const char *flags) {
-	int done,pfpcode,er;
-	char word[STRCHAR],*line2,errstring[STRCHARLONG];
+	int done, pfpcode, er;
+	char word[STRCHAR], *line2, errstring[STRCHARLONG];
 	ParseFilePtr pfp;
 
 	strncpy(sim->filepath,fileroot,STRCHAR);
@@ -1640,56 +1640,47 @@ int loadsim(simptr sim,const char *fileroot,const char *filename,const char *fla
 		CHECKS(pfpcode!=3,"%s",errstring);
 		er=0;
 
-		if(pfpcode==0);																// already taken care of
+		if(pfpcode==0) continue; // already taken care of
 
-		else if(pfpcode==2) {													// end reading
-			done=1; }
-
+		if(pfpcode==2) {											// end reading
+			done=1;
+		}
 #ifdef VCELL
-		else if(!strcmp(word,"start_jms")) {			// jms settings
+		else if(!strcmp(word,"start_jms")) {						// jms settings
 			er=loadJMS(sim,&pfp,line2, errstring); 
+		} else if(!strcmp(word,"start_highResVolumeSamples")) {		//highResVolumeSamplesFile
+			er=loadHighResVolumeSamples(sim,&pfp,line2);
+		}
+#endif
+		else if(!strcmp(word,"start_reaction")) {					// start_reaction
+			CHECKS(sim->mols,"need to enter species before reactions");
+			er=loadrxn(sim,&pfp,line2);
+		} else if(!strcmp(word,"start_surface")) {					// start_surface
+			CHECKS(sim->dim>0,"need to enter dim before start_surface");
+			er=loadsurface(sim,&pfp,line2);
+		} else if(!strcmp(word,"start_compartment")) {				// start_compartment
+			CHECKS(sim->dim>0,"need to enter dim before start_compartment");
+			er=loadcompart(sim,&pfp,line2);
+		} else if(!strcmp(word,"start_port")) {						// start_port
+			er=loadport(sim,&pfp,line2);
+		} else if(!strcmp(word,"start_lattice")) {					// start_lattice
+			er=loadlattice(sim,&pfp,line2);
+		} else if(!strcmp(word,"start_bng")) {						// start_bngnet
+			er=loadbng(sim,&pfp,line2);
+			CHECKS(!er,"error reading BioNetGen file");
+			er=bngupdate(sim);
+		} else if(!strcmp(word,"start_filament")) {					// start_filament
+			er=filload(sim,&pfp,line2);
+		} else if(!strcmp(word,"start_rules")) {					// start_rules
+			CHECKS(0,"Moleculizer support has been discontinued in Smoldyn");
+		} else if(!line2) {											// just word
+			CHECKS(0,"unknown word or missing parameter");
+		} else {
+			er=simreadstring(sim,pfp,word,line2);
 		}
 
-		else if(!strcmp(word,"start_highResVolumeSamples")) {			//highResVolumeSamplesFile
-			er=loadHighResVolumeSamples(sim,&pfp,line2); }
-#endif
-
-		else if(!strcmp(word,"start_reaction")) {			// start_reaction
-			CHECKS(sim->mols,"need to enter species before reactions");
-			er=loadrxn(sim,&pfp,line2); }
-
-		else if(!strcmp(word,"start_surface")) {			// start_surface
-			CHECKS(sim->dim>0,"need to enter dim before start_surface");
-			er=loadsurface(sim,&pfp,line2); }
-
-		else if(!strcmp(word,"start_compartment")) {	// start_compartment
-			CHECKS(sim->dim>0,"need to enter dim before start_compartment");
-			er=loadcompart(sim,&pfp,line2); }
-
-		else if(!strcmp(word,"start_port")) {					// start_port
-			er=loadport(sim,&pfp,line2); }
-		
-		else if(!strcmp(word,"start_lattice")) {			// start_lattice
-			er=loadlattice(sim,&pfp,line2); }
-
-		else if(!strcmp(word,"start_bng")) {					// start_bngnet
-			er=loadbng(sim,&pfp,line2);
-      CHECKS(!er,"error reading BioNetGen file");
-      er=bngupdate(sim); }
-
-		else if(!strcmp(word,"start_filament")) {			// start_filament
-			er=filload(sim,&pfp,line2); }
-		
-		else if(!strcmp(word,"start_rules")) {				// start_rules
-			CHECKS(0,"Moleculizer support has been discontinued in Smoldyn"); }
-
-		else if(!line2) {															// just word
-			CHECKS(0,"unknown word or missing parameter"); }
-
-		else {
-			er=simreadstring(sim,pfp,word,line2); }
-	
-		if(er) return 1; }
+		if(er) return 1;
+	}
 
 	return 0;
 
@@ -1803,7 +1794,7 @@ int simupdate(simptr sim) {
 
 /* simInitAndLoad */
 #ifdef OPTION_VCELL
-int simInitAndLoad(const char *fileroot,const char *filename,simptr *smptr,const char *flags, ValueProviderFactory* valueProviderFactory, AbstractMesh* mesh) {
+int simInitAndLoad(const char* fileroot, const char* filename, simptr* smptr, const char* flags, ValueProviderFactory* valueProviderFactory, AbstractMesh* mesh) {
 
 	simptr sim;
 	int er,qflag;
@@ -1817,11 +1808,11 @@ int simInitAndLoad(const char *fileroot,const char *filename,simptr *smptr,const
 			simLog(NULL,2,"\nCONFIGURATION FILE\n");
 			simLog(NULL,2," Path: '%s'\n",fileroot);
 			simLog(NULL,2," Name: '%s'\n",filename); }
-		sim=simalloc(fileroot);
+		sim = simalloc(fileroot);
 		CHECKMEM(sim);
 		sim->valueProviderFactory = valueProviderFactory; //create value provider factory
 		sim->mesh = mesh;
-		er=loadsim(sim,fileroot,filename,flags);		// load sim
+		er = loadsim(sim,fileroot,filename,flags);		// load sim
 		CHECK(!er);
 		if(sim && sim->valueProviderFactory) {
 			sim->valueProviderFactory->setSimptr(sim); }
