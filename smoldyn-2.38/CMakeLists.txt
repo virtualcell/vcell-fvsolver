@@ -66,6 +66,8 @@ set(HEADER_FILES
 	source/Smoldyn/smoldynfuncs.h
 	source/NextSubVolume/nsvc.h
 	source/vtk/vtkwrapper.h
+		source/lib/LinkedList.h
+		source/lib/LinkedListNode.h
 )
 
 set(SRC_FILES
@@ -95,9 +97,11 @@ set(SRC_FILES
 	source/Smoldyn/smolport.c
 	source/Smoldyn/smollattice.c
 	source/Smoldyn/smolreact.c
-	source/Smoldyn/smolsim.c
+		source/Smoldyn/smolsim.c
 	source/Smoldyn/smolsurface.c
 	source/Smoldyn/smolwall.c
+		source/lib/LinkedList.c
+		source/lib/LinkedListNode.c
 )
 
 set(MAIN_FILES source/Smoldyn/smoldyn.c)
