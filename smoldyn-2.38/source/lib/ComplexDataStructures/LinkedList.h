@@ -5,6 +5,7 @@
 #ifndef LINKEDLIST_H
 #define LINKEDLIST_H
 #include "LinkedListNode.h"
+#include <stdbool.h>
 
 struct Struct_LinkedList;
 typedef struct Struct_LinkedList LinkedList;
@@ -13,13 +14,13 @@ typedef struct Struct_LinkedList LinkedList;
 // Please maintain the paradigm that there is one owner to the data in a Node of a Linked List!
 typedef void (*appendDataToLL)(LinkedList*, void* data);
 
-typedef int (*insertDataIntoLL)(LinkedList*, int index, void* data);
+typedef bool (*insertDataIntoLL)(LinkedList*, int index, void* data);
 
 typedef void* (*getDataFromLL)(LinkedList*, int index);
 
 typedef void* (*replaceDataInLL)(LinkedList*, int index, void* data);
 
-typedef int (*removeDataFromLL)(LinkedList*, int index);
+typedef bool (*removeDataFromLL)(LinkedList*, int index);
 
 /*
  * This function is meant to serve as an analog to the modern "for each" loop.
@@ -28,7 +29,7 @@ typedef int (*removeDataFromLL)(LinkedList*, int index);
  */
 typedef void (*performOpOnAllDataInLL)(LinkedList*, void (*)(void*)); // Note the function pointer parameter!
 
-typedef int (*emptyDataFromLL)(LinkedList*);
+typedef bool (*clearDataFromLL)(LinkedList*);
 
 typedef void (*freeLL)(LinkedList*);
 
@@ -44,6 +45,7 @@ struct Struct_LinkedList {
     replaceDataInLL replace;
     removeDataFromLL remove;
     performOpOnAllDataInLL applyToAll;
+    clearDataFromLL clear;
 
     freeLL _freeThis;
 };
@@ -52,6 +54,6 @@ struct Struct_LinkedList {
 LinkedList* create_String_LinkedList();
 
 // Utility functions
-void display_String_LinkedList(LinkedList*);
+void display_String_Vector(LinkedList*);
 
 #endif //LINKEDLIST_H
