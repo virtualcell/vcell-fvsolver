@@ -26,23 +26,19 @@ static void performOperationsOnAllEntriesInLL(LinkedList* ll, void (*operation)(
 //=================================================================================================================//
 // String Implementation
 //=================================================================================================================//
-static int insertStringDataIntoLL(LinkedList* ll, int index, void* data) {
-    char* stringData = (char*) data;
-    printf("index: %d; size: %d; data: %s\n", index, ll->_size, stringData);
-    printf("head: %p\n", ll->_head);
-    printf("tail: %p\n", ll->_tail);
-    if (index < 0 || index > ll->_size) return 0;
+static bool insertStringDataIntoLL(LinkedList* ll, int index, void* data) {
+    if (index < 0 || index > ll->_size) return false;
     LinkedList_Node* newNode = createStringLinkedList_Node(0); // if this is NULL, we have BIG problems!
     newNode->data = data;
     ll->_size++; // remember: we increased size! all calculations below must account for that!
-    if (index == 0 && ll->_head == NULL) { ll->_head = newNode; ll->_tail = ll->_head; return 1; } // Only a value of NULL for `newNode` would cause a "false" value
-    if (index == ll->_size - 1) { ll->_tail->next = newNode; ll->_tail = newNode; return 1;} // Only a value of NULL for `newNode` would cause a "false" value
-    if (index == 0) { newNode->next = ll->_head; ll->_head = newNode; return 1; } // Only a value of NULL for `newNode` would cause a "false" value
+    if (index == 0 && ll->_head == NULL) { ll->_head = newNode; ll->_tail = ll->_head; return true; } // Only a value of NULL for `newNode` would cause a "false" value
+    if (index == ll->_size - 1) { ll->_tail->next = newNode; ll->_tail = newNode; return true;} // Only a value of NULL for `newNode` would cause a "false" value
+    if (index == 0) { newNode->next = ll->_head; ll->_head = newNode; return true; } // Only a value of NULL for `newNode` would cause a "false" value
 
     LinkedList_Node* targetNode = getNodeAtIndexFromLL(ll, index - 1);
     newNode->next = targetNode->next;
     targetNode->next = newNode; // Only a value of NULL for `newNode` would cause a "false" value
-    return 1;
+    return true;
 }
 
 static void appendStringDataToLL(LinkedList* ll, void* data) {
@@ -60,8 +56,8 @@ static void* replaceStringInLL(LinkedList* ll, int index, void* data) {
     return currentNode->replace(currentNode, data);
 }
 
-static int removeStringFromLL(LinkedList* ll, int index) {
-    if (index < 0 || index >= ll->_size) return 0;
+static bool removeStringFromLL(LinkedList* ll, int index) {
+    if (index < 0 || index >= ll->_size) return false;
     LinkedList_Node* nodeToBeRemoved;
     if (index == 0) {
         nodeToBeRemoved = ll->_head;
@@ -76,14 +72,14 @@ static int removeStringFromLL(LinkedList* ll, int index) {
     if (oldData != NULL) free(oldData);
     free(nodeToBeRemoved);
     ll->_size--;
-    if (ll->_size != 0) return 1;
+    if (ll->_size != 0) return true;
     ll->_head = NULL;
     ll->_tail = NULL;
-    return 1;
+    return true;
 }
 
-static int emptyStringLinkedList(LinkedList* ll) {
-    int thingsHaveBeenRemoved = 0;
+static bool clearStringLinkedList(LinkedList* ll) {
+    bool thingsHaveBeenRemoved = false;
     while (ll->_head != NULL) {
         int result = ll->remove(ll, 0);
         //int result = removeStringFromLL(ll, 0);
@@ -94,7 +90,7 @@ static int emptyStringLinkedList(LinkedList* ll) {
 }
 
 static void freeStringLinkedList(LinkedList* ll) {
-    emptyStringLinkedList(ll);
+    clearStringLinkedList(ll);
     free(ll);
 }
 
@@ -110,11 +106,12 @@ LinkedList* create_String_LinkedList() {
     stringLinkedList->replace = replaceStringInLL;
     stringLinkedList->remove = removeStringFromLL;
     stringLinkedList->applyToAll = performOperationsOnAllEntriesInLL;
+    stringLinkedList->clear = clearStringLinkedList;
     stringLinkedList->_freeThis = freeStringLinkedList;
     return stringLinkedList;
 }
 
-void display_String_LinkedList(LinkedList* ll) {
+void display_String_Vector(LinkedList* ll) {
     LinkedList_Node* currentNode = ll->_head;
     while (currentNode != NULL) {
         printf("(%p)\"%s\"->", currentNode, (char*)currentNode->data);
