@@ -1089,9 +1089,9 @@ int simreadstring(simptr sim,ParseFilePtr pfp,const char *word,char *line2) {
 		CHECKS(itct==2,"surface format: surface_name statement_name statement_text");
 		line2=strnword(line2,3);
 		CHECKS(line2,"surface format: surface_name statement_name statement_text");
-		s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
-		CHECKS(s>=0,"surface is unrecognized");
-		srf=sim->srfss->srflist[s];
+
+		CHECKS(sim->srfss->snametosrf->contains(sim->srfss->snametosrf,nm),"surface is unrecognized");
+		srf=(surfaceptr)sim->srfss->snametosrf->getFrom(sim->srfss->snametosrf,nm);
 		srf=surfreadstring(sim,pfp,srf,nm1,line2);
 		CHECK(srf!=NULL); }
 
@@ -1189,9 +1189,8 @@ int simreadstring(simptr sim,ParseFilePtr pfp,const char *word,char *line2) {
 			itct=sscanf(line2,"%s",nm);
 			CHECKS(itct==1,"failed to read reaction surface");
 			CHECKS(sim->srfss,"no surfaces defined");
-			s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
-			CHECKS(s>=0,"surface %s not recognized",nm);
-			srf=sim->srfss->srflist[s];
+			CHECKS(sim->srfss->snametosrf->contains(sim->srfss->snametosrf,nm),"surface %s not recognized",nm);
+			srf=(surfaceptr)sim->srfss->snametosrf->getFrom(sim->srfss->snametosrf,nm);
 			line2=strnword(line2,2);
 			CHECKS(line2,"missing reaction name"); }
 		itct=sscanf(line2,"%s",rname);

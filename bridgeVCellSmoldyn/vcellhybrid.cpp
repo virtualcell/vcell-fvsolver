@@ -74,25 +74,22 @@ simptr vcellhybrid::smoldynInit(SimTool* simTool, string& fileName) {
 		if(surfacess->nsrf > 0)
 		{
 			int numSrfs = surfacess->nsrf;
-			surfaceptr * surfacelist = surfacess->srflist;
 			surfactionptr actdetails;
 			enum MolecState ms,ms2;
 			enum PanelFace face;
 			int nspecies=sim->mols?sim->mols->nspecies:0;
-			for(int s=0; s<numSrfs; s++) {
-				surfaceptr srf=surfacelist[s];
+			HashtableIterator iter = surfacess->snametosrf->getIterator(surfacess->snametosrf);
+			while (iter.iter(&iter)) {
+				surfaceptr srf=(surfaceptr)iter.value;
 				for(int i=0; i<nspecies; i++){
 					for(ms=(MolecState)0; ms<MSMAX; ms=(MolecState)(ms+1)){
 						for(face=(PanelFace)0; face<3; face=(PanelFace)(face+1)){
-							if(srf->actdetails != NULL && srf->actdetails[i]!=NULL && srf->actdetails[i][ms]!=NULL && srf->actdetails[i][ms][face] !=NULL) {
-								actdetails=srf->actdetails[i][ms][face];
-								for(ms2=(MolecState)0;ms2<MSMAX1;ms2=(MolecState)(ms2+1)) {
-									if(actdetails != NULL && actdetails->srfRateValueProvider[ms2] != NULL)
-									{
-										valueproviderptr valueProvider = actdetails->srfRateValueProvider[ms2];
-										((VCellValueProvider*)valueProvider)->bindExpression(symbolTable);
-									}
-								}
+							if(srf->actdetails == NULL || srf->actdetails[i] == NULL || srf->actdetails[i][ms] == NULL || srf->actdetails[i][ms][face] == NULL) continue;
+							actdetails=srf->actdetails[i][ms][face];
+							for(ms2=(MolecState)0;ms2<MSMAX1;ms2=(MolecState)(ms2+1)) {
+								if(actdetails == NULL || actdetails->srfRateValueProvider[ms2] == NULL) continue;
+								valueproviderptr valueProvider = actdetails->srfRateValueProvider[ms2];
+								((VCellValueProvider*)valueProvider)->bindExpression(symbolTable);
 							}
 						}
 					}

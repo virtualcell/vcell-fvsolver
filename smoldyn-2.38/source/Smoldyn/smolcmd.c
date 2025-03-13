@@ -866,7 +866,7 @@ enum CMDcode cmdmolcountonsurf(simptr sim,cmdptr cmd,char *line2) {
 	char nm[STRCHAR];
 	surfaceptr srf;
 	surfacessptr srfss;
-	int ll,m,*ct,itct,s,i,nspecies;
+	int ll,m,*ct,itct,found,i,nspecies;
 	moleculeptr mptr;
 
 	if(line2 && !strcmp(line2,"cmdtype")) return CMDobserve;
@@ -877,9 +877,9 @@ enum CMDcode cmdmolcountonsurf(simptr sim,cmdptr cmd,char *line2) {
 	SCMDCHECK(line2,"missing argument");
 	itct=sscanf(line2,"%s",nm);
 	SCMDCHECK(itct==1,"cannot read argument");
-	s=stringfind(srfss->snames,srfss->nsrf,nm);
-	SCMDCHECK(s>=0,"surface name '%s' not recognized",nm);
-	srf=srfss->srflist[s];
+	found=srfss->snametosrf->contains(srfss->snametosrf, nm);
+	SCMDCHECK(found,"surface name '%s' not recognized",nm);
+	srf=(surfaceptr)srfss->snametosrf->getFrom(srfss->snametosrf, nm);
 	line2=strnword(line2,2);
 	fptr=scmdgetfptr(sim->cmds,line2);
 	SCMDCHECK(fptr,"file name not recognized");
@@ -2003,7 +2003,7 @@ enum CMDcode cmdvolumesource(simptr sim,cmdptr cmd,char *line2) {
 
 
 enum CMDcode cmdmovesurfacemol(simptr sim,cmdptr cmd,char *line2) {
-	int itct,i1,s1,s2,p1,p2,ll,lllo,llhi,m,d,nmol;
+	int itct,i1,p1,p2,ll,lllo,llhi,m,d,nmol;
 	static char nm[STRCHAR],nm2[STRCHAR];
 	double prob;
 	enum MolecState ms1,ms2;
@@ -2027,11 +2027,11 @@ enum CMDcode cmdmovesurfacemol(simptr sim,cmdptr cmd,char *line2) {
 	SCMDCHECK(line2,"missing originating surface:panel");
 	itct=sscanf(line2,"%s %s",nm,nm2);
 	SCMDCHECK(itct==2,"failed to read surfaces and panels");
-	s1=readsurfacename(sim,nm,&ps1,&p1);
-	SCMDCHECK(s1>=0,"failed to read surface1");
+	srf=identifypanelindexinsurfacebyname(sim,nm,&ps1,&p1);
+	SCMDCHECK(srf,"failed to read surface1");
 	SCMDCHECK(p1>=0 || p1==-5,"failed to read panel1");
-	s2=readsurfacename(sim,nm2,&ps2,&p2);
-	SCMDCHECK(s2>=0,"failed to read surface2");
+	srf2=identifypanelindexinsurfacebyname(sim,nm2,&ps2,&p2);
+	SCMDCHECK(srf2,"failed to read surface2");
 	SCMDCHECK(p2>=0 || p2==-5,"failed to read panel2");
 	line2=strnword(line2,3);
 	if(line2) {
@@ -2042,8 +2042,6 @@ enum CMDcode cmdmovesurfacemol(simptr sim,cmdptr cmd,char *line2) {
 		line2=strnword(line2,2); }
 	else ms2=MSnone;
 
-	srf=sim->srfss->srflist[s1];
-	srf2=sim->srfss->srflist[s2];
 	if(p2==-5) pnl2=NULL;
 	else pnl2=srf2->panels[ps2][p2];
 
