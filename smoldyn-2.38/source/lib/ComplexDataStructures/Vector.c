@@ -103,7 +103,7 @@ static void freeStringVector(Vector* vector) {
     free(vector);
 }
 
-Vector* create_String_Vector(int initialSize, int shouldFreeOnRemoval) {
+Vector* create_String_Vector(int initialSize, bool shouldFreeOnRemoval) {
     if (initialSize <= 0) return NULL;
     Vector* stringVector = (Vector*) malloc( sizeof(Vector));
     if (stringVector == NULL) return NULL;
@@ -119,7 +119,7 @@ Vector* create_String_Vector(int initialSize, int shouldFreeOnRemoval) {
     stringVector->remove = shouldFreeOnRemoval ? removeStringFromVector_withFree : removeStringFromVector_withoutFree;
     stringVector->applyToAll = performOperationsOnAllEntriesInVector;
     stringVector->clear = shouldFreeOnRemoval ? clearStringVector_withFree : clearStringVector_withoutFree;
-    stringVector->_freeThis = freeStringVector;
+    stringVector->freeThis = freeStringVector;
     return stringVector;
 }
 

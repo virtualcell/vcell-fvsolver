@@ -6,8 +6,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
-#include <assert.h>
 #include <stdio.h>
+#include <errno.h>
 
 #ifndef HASHTABLE_INITIAL_CAPACITY
 #define HASHTABLE_INITIAL_CAPACITY 16
@@ -88,7 +88,11 @@ static void* getFromHashtableImpl(Hashtable* table, const char* key){
     // Loop till we find an end condition; AND hash with capacity-1 to ensure it's within entries array.
     for (size_t i = (size_t)(hash & (uint64_t)(table->_capacity - 1)); true; i = (i + 1) % table->_capacity) {
         // If we get an empty cell, the entry was never in the table in the first place (load factor is super important here; without it, this could be infinite)!
-        assert(table->entries[i].key != NULL); // to allow for null-value hashing, we're causing an assert failure on misses
+        if (table->entries[i].key == NULL) { // to allow for null-value hashing, we're returning null AND setting errno on misses
+            errno = EINVAL;
+            free((void*)augKey);
+            return NULL;
+        }
         // Check if we got a cache hit.
         if (strcmp(augKey, table->entries[i].key) != 0) continue;
         free((void*)augKey);

@@ -56,7 +56,7 @@ static void* replaceStringInLL(LinkedList* ll, int index, void* data) {
     return currentNode->replace(currentNode, data);
 }
 
-static bool removeStringFromLL(LinkedList* ll, int index) {
+static bool removeStringFromLL_withFree(LinkedList* ll, int index) {
     if (index < 0 || index >= ll->_size) return false;
     LinkedList_Node* nodeToBeRemoved;
     if (index == 0) {
@@ -70,6 +70,26 @@ static bool removeStringFromLL(LinkedList* ll, int index) {
     }
     char* oldData = (char*)nodeToBeRemoved->replace(nodeToBeRemoved, NULL);
     if (oldData != NULL) free(oldData);
+    free(nodeToBeRemoved);
+    ll->_size--;
+    if (ll->_size != 0) return true;
+    ll->_head = NULL;
+    ll->_tail = NULL;
+    return true;
+}
+
+static bool removeStringFromLL_withoutFree(LinkedList* ll, int index) {
+    if (index < 0 || index >= ll->_size) return false;
+    LinkedList_Node* nodeToBeRemoved;
+    if (index == 0) {
+        nodeToBeRemoved = ll->_head;
+        ll->_head = ll->_head->next;
+    } else {
+        LinkedList_Node* oneNodeBefore = getNodeAtIndexFromLL(ll, index - 1);
+        if (index == ll->_size - 1) ll->_tail = oneNodeBefore;
+        nodeToBeRemoved = oneNodeBefore->next;
+        oneNodeBefore->next = nodeToBeRemoved->next;
+    }
     free(nodeToBeRemoved);
     ll->_size--;
     if (ll->_size != 0) return true;
@@ -94,7 +114,7 @@ static void freeStringLinkedList(LinkedList* ll) {
     free(ll);
 }
 
-LinkedList* create_String_LinkedList() {
+LinkedList* create_String_LinkedList(bool shouldFreeOnRemoval) {
     LinkedList* stringLinkedList = (LinkedList*) malloc(sizeof(LinkedList));
     if (stringLinkedList == NULL) return NULL;
     stringLinkedList->_head = NULL;
@@ -104,10 +124,10 @@ LinkedList* create_String_LinkedList() {
     stringLinkedList->insert = insertStringDataIntoLL;
     stringLinkedList->get = getStringDataFromLL;
     stringLinkedList->replace = replaceStringInLL;
-    stringLinkedList->remove = removeStringFromLL;
+    stringLinkedList->remove = shouldFreeOnRemoval ? removeStringFromLL_withFree : removeStringFromLL_withoutFree;
     stringLinkedList->applyToAll = performOperationsOnAllEntriesInLL;
     stringLinkedList->clear = clearStringLinkedList;
-    stringLinkedList->_freeThis = freeStringLinkedList;
+    stringLinkedList->freeThis = freeStringLinkedList;
     return stringLinkedList;
 }
 
