@@ -47,11 +47,11 @@ struct Struct_LinkedList {
     performOpOnAllDataInLL applyToAll;
     clearDataFromLL clear;
 
-    freeLL _freeThis;
+    freeLL freeThis;
 };
 
 // Creation functions
-LinkedList* create_String_LinkedList();
+LinkedList* create_String_LinkedList(bool);
 
 // Utility functions
 void display_String_Vector(LinkedList*);

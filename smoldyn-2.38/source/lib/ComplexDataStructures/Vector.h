@@ -49,11 +49,11 @@ struct Struct_Vector {
     performOpOnAllDataInVector applyToAll;
     clearDataFromVector clear;
 
-    freeVector _freeThis;
+    freeVector freeThis;
 };
 
 // Creation functions
-Vector* create_String_Vector(int initialSize, int shouldFreeOnRemoval);
+Vector* create_String_Vector(int initialSize, bool shouldFreeOnRemoval);
 
 // Utility functions
 void display_String_Vector(Vector*);
