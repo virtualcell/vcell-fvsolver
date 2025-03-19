@@ -19,11 +19,31 @@ endif()
 
 set(SRC_FILES
         TestVCell.cpp
+        testFiles/SmoldynComplexDataStructures/TestSmoldynCHashtable.cpp
+        testFiles/SmoldynComplexDataStructures/TestSmoldynCLinkedList.cpp
+        testFiles/SmoldynComplexDataStructures/TestSmoldynCVector.cpp
 )
+
+#####
+# Build Testing File Locations Dynamically
+## Basic Assertions File Locations
+get_filename_component(EXAMPLE_FUNCTIONS testFiles/input/BasicAssertions/SimID_11538992_0_.functions ABSOLUTE)
+get_filename_component(EXAMPLE_FV_INPUT testFiles/input/BasicAssertions/SimID_11538992_0_.fvinput ABSOLUTE)
+get_filename_component(EXAMPLE_VCG testFiles/input/BasicAssertions/SimID_11538992_0_.vcg ABSOLUTE)
+get_filename_component(EXAMPLE_SIM_TASK_XML testFiles/input/BasicAssertions/SimID_11538992_0__0.simtask.xml ABSOLUTE)
+get_filename_component(EXAMPLE_OUTPUT_DIR_1 testFiles/output/BasicAssertions/test_output_1 ABSOLUTE)
+get_filename_component(EXAMPLE_OUTPUT_DIR_2 testFiles/output/BasicAssertions/test_output_2 ABSOLUTE)
+## Custom C Hashtable File Locations
+get_filename_component(EXAMPLE_SAMPLE_INPUT testFiles/input/CustomCHashtableTest/sampleInput.txt ABSOLUTE)
+## Dynamically build header for tests to use
+configure_file(testFiles/input/testResourceLocations.h.in testFiles/input/testResourceLocations.h @ONLY)
+#####
 
 enable_testing()
 
 add_executable(vcell_test ${SRC_FILES} )
+target_include_directories(vcell_test PUBLIC "${CMAKE_CURRENT_BINARY_DIR}")
+message("Included Directory: ${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(vcell_test vcell GTest::gtest_main)
 #target_link_libraries(TestVCell vcell GTest::gtest_main)
 #install(TARGETS TestVCell
