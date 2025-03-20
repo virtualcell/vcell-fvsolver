@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
+
+set (CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 option(OPTION_TARGET_PYTHON_BINDING "build Python bindings" ON)
 option(OPTION_TARGET_MESSAGING "Messaging (requires libcurl)" off)
 option(OPTION_TARGET_DOCS "Generate Doxygen documentation" off)
