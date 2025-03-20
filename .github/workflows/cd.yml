@@ -80,6 +80,8 @@ jobs:
           echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
           source /Users/runner/.bash_profile
           ln -s $(which gfortran-14) /usr/local/bin/gfortran
+          
+          python3 -m pip install h5py numpy
 
           gcc --version
           gfortran --version
@@ -100,6 +102,8 @@ jobs:
           brew install llvm
           echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
           ln -s /opt/homebrew/bin/gfortran-14 /usr/local/bin/gfortran
+          
+          brew install h5py numpy
           
           gcc --version
           gfortran --version
@@ -190,13 +194,14 @@ jobs:
 #          limit-access-to-actor: false
 
 
-      - name: Install Windows Dependencies
+      - name: Install Windows Dependencies Part 1
         if: matrix.platform == 'windows-latest'
         uses: msys2/setup-msys2@v2
         with:
           msystem: CLANG64
           update: true
           install: >
+            python3
             zip
             git
             mingw-w64-clang-x86_64-curl
@@ -208,6 +213,11 @@ jobs:
             mingw-w64-clang-x86_64-libzip
             mingw-w64-clang-x86_64-zlib
             mingw-w64-clang-x86_64-libaec
+
+      - name: Install Windows Dependencies Part 2
+        if: matrix.platform == 'windows-latest'
+        run:
+          python3 -m pip install h5py numpy
 
 #      - name: Setup tmate session
 #        uses: mxschmitt/action-tmate@v3
@@ -263,7 +273,8 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libboost-all-dev libhdf5-dev libzip-dev libbz2-dev ninja-build
+          sudo apt-get install -y python3-pip libboost-all-dev libhdf5-dev libzip-dev libbz2-dev ninja-build
+          python3 -m pip install h5py numpy
 
           gcc --version
           gfortran --version
