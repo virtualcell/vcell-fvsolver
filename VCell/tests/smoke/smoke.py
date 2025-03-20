@@ -5,7 +5,6 @@ import posixpath
 import subprocess
 import sys
 from pathlib import Path
-
 import h5py
 
 def compare_hdf5_structure(file1: Path, file2: Path) -> bool:
