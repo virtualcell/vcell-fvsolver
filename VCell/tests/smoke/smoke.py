@@ -37,7 +37,7 @@ def compare_hdf5_structure(file1: Path, file2: Path) -> bool:
 
     with h5py.File(file1, 'r') as f1, h5py.File(file2, 'r') as f2:
         return compare_groups(f1, f2)
-
+#end Def
 
 # get the directory of this script
 test_dir = os.path.dirname(os.path.realpath(__file__))
@@ -50,10 +50,21 @@ exe = sys.argv[1]
 print(f"test_dir: {test_dir}")
 print(f"exe: {exe}")
 
-fv_input_file = posixpath.join(test_dir, "SimID_1585623750_0_.fvinput")
-vcg_input_file = posixpath.join(test_dir, "SimID_1585623750_0_.vcg")
-output_file = posixpath.join(test_dir, "SimID_1585623750_0_.hdf5")
-expected_output_file = posixpath.join(test_dir, "SimID_1585623750_0_.hdf5.expected")
+filename_prefix = "SimID_1585623750_0_"
+fv_prefix_filepath = posixpath.join(test_dir, filename_prefix)
+fv_template_file = posixpath.join(test_dir, filename_prefix + ".fvinput.in")
+fv_input_file = posixpath.join(test_dir, filename_prefix + ".fvinput")
+vcg_input_file = posixpath.join(test_dir, filename_prefix + ".vcg")
+output_file = posixpath.join(test_dir, filename_prefix + ".hdf5")
+expected_output_file = posixpath.join(test_dir, filename_prefix + ".hdf5.expected")
+
+# perform substitution on *fvinput.in file, if it exists
+if posixpath.exists(fv_template_file):
+    with open(fv_template_file) as f:
+        template_text = f.read()
+    filled_text = template_text.replace("@BASE_FILE_NAME@", fv_prefix_filepath)
+    with open(fv_input_file, "w") as f:
+        f.write(filled_text)
 
 if not posixpath.exists(exe):
     print(f"FiniteVolume_x64 executable {exe} not found. Exiting...")
