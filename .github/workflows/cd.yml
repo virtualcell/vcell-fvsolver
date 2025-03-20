@@ -246,7 +246,7 @@ jobs:
           -DOPTION_TARGET_FV_SOLVER=ON \
           -DOPTION_TARGET_DOCS=OFF \
           -DOPTION_TARGET_TESTS=ON \
-          -DOPTION_BUILD_FOR_CI_CD=ON ]
+          -DOPTION_BUILD_FOR_CI_CD=ON \
           -B . -S ..
 
           ninja -j 1
