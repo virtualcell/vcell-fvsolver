@@ -112,12 +112,8 @@ jobs:
 
       - name: Install ARM MacOS dependencies Part 2
         if: matrix.platform == 'macos-14'
-        uses: actions/setup-python@v5
-
-      - name: Install ARM MacOS dependencies Part 3
-        if: matrix.platform == 'macos-14'
-        run: pip install h5py numpy
-
+        run: |
+          /opt/homebrew/bin/python3 -m pip install h5py --break-system-packages
 
       - name: Build Macos ARM
         if: matrix.platform == 'macos-14'
