@@ -202,7 +202,7 @@ jobs:
 #          limit-access-to-actor: false
 
 
-      - name: Install Windows Dependencies Part 1
+      - name: Install Windows Dependencies #Part 1
         if: matrix.platform == 'windows-latest'
         uses: msys2/setup-msys2@v2
         with:
@@ -210,8 +210,10 @@ jobs:
           update: true
           install: >
             python3
+            python-pip
             zip
             git
+            mingw-w64-clang-x86_64-python-h5py
             mingw-w64-clang-x86_64-curl
             mingw-w64-clang-x86_64-toolchain
             mingw-w64-clang-x86_64-flang
@@ -222,10 +224,11 @@ jobs:
             mingw-w64-clang-x86_64-zlib
             mingw-w64-clang-x86_64-libaec
 
-      - name: Install Windows Dependencies Part 2
-        if: matrix.platform == 'windows-latest'
-        run:
-          python3 -m pip install h5py numpy
+#      - name: Install Windows Dependencies Part 2
+#        if: matrix.platform == 'windows-latest'
+#        shell: msys2 {0}
+#        run: |
+#          pip install h5py --break-system-packages
 
 #      - name: Setup tmate session
 #        uses: mxschmitt/action-tmate@v3
