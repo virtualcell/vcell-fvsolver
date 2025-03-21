@@ -138,7 +138,6 @@ jobs:
           -DOPTION_TARGET_FV_SOLVER=ON \
           -DOPTION_TARGET_DOCS=ON \
           -DOPTION_TARGET_TESTS=ON \
-          -DOPTION_BUILD_FOR_CI_CD=ON \
           -B . -S ..
 
           ninja
@@ -161,11 +160,10 @@ jobs:
           -DOPTION_TARGET_PYTHON_BINDING=OFF \
           -DOPTION_MINGW=ON \
           -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
+          -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
           -DOPTION_TARGET_FV_SOLVER=ON \
           -DOPTION_TARGET_DOCS=ON \
           -DOPTION_TARGET_TESTS=ON \
-          -DOPTION_BUILD_FOR_CI_CD=ON \
           -B . -S ..
 
           ninja
@@ -249,11 +247,10 @@ jobs:
           -DCMAKE_CXX_COMPILER="clang++.exe" \
           -DOPTION_TARGET_PYTHON_BINDING=OFF \
           -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
+          -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
           -DOPTION_TARGET_FV_SOLVER=ON \
           -DOPTION_TARGET_DOCS=OFF \
           -DOPTION_TARGET_TESTS=ON \
-          -DOPTION_BUILD_FOR_CI_CD=ON \
           -B . -S ..
 
           ninja -j 1
@@ -302,11 +299,10 @@ jobs:
           -G Ninja \
           -DOPTION_TARGET_PYTHON_BINDING=OFF \
           -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
+          -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
           -DOPTION_TARGET_FV_SOLVER=ON \
           -DOPTION_TARGET_DOCS=ON \
           -DOPTION_TARGET_TESTS=ON \
-          -DOPTION_BUILD_FOR_CI_CD=ON \
           -B . -S ..
 
           ninja
