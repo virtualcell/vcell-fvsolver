@@ -28,3 +28,13 @@ tests/__pycache__/
 *.whl
 
 VCell/tests/testFiles/output/
+
+VCell/tests/smoke/SimID_1585623750_0_.fvinput
+
+VCell/tests/smoke/SimID_1585623750_0_.hdf5
+
+VCell/tests/smoke/SimID_1585623750_0_.log
+
+VCell/tests/smoke/SimID_1585623750_0_.meshmetrics
+
+VCell/tests/smoke/SimID_1585623750_0_00.zip
