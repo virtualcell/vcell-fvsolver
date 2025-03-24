@@ -2,7 +2,7 @@
  This is the entry point for the Smoldyn program.  See documentation
  called Smoldyn_doc1.pdf and Smoldyn_doc2.pdf.
  Copyright 2003-2011 by Steven Andrews.  This work is distributed under the terms
- of the Gnu General Public License (GPL). */
+ of the Gnu Lesser General Public License (LGPL). */
 
 #include "opengl2.h"
 #include "smoldyn.h"
