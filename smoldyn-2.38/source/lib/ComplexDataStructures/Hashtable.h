@@ -1,5 +1,6 @@
 //
 // Created by Logan Drescher on 3/6/25.
+// Licensed under the MIT LICENSE, copyright (https://opensource.org/license/mit).
 // Adapted From Ben Hoyt et. all's work on GitHub (LICENSE = MIT) (https://github.com/benhoyt/ht/)
 //
 

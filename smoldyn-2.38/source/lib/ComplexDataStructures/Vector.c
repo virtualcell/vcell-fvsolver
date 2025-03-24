@@ -1,5 +1,6 @@
 //
 // Created by Logan Drescher on 3/7/25.
+// Licensed under the MIT LICENSE, copyright (https://opensource.org/license/mit).
 //
 
 #include "Vector.h"

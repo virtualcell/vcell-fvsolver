@@ -6,10 +6,14 @@
 #include "../build/VCell/tests/testFiles/input/testResourceLocations.h" // provides testResourceLocations
 
 
-TEST(VCellTest, BasicAssertions) {
+TEST(VCellTest, ExcerciseFV) {
     auto retcode_1 = solve(testResourceLocations::EXAMPLE_FV_INPUT, testResourceLocations::EXAMPLE_VCG, testResourceLocations::EXAMPLE_OUTPUT_DIR_1);
     EXPECT_EQ(retcode_1, 0);
 
     auto retcode_2 = solve(testResourceLocations::EXAMPLE_FV_INPUT, testResourceLocations::EXAMPLE_VCG, testResourceLocations::EXAMPLE_OUTPUT_DIR_2);
     EXPECT_EQ(retcode_2, 0);
+}
+
+TEST(VCellTest, ExerciseSmoldyn) {
+    int retcode_1 =
 }
