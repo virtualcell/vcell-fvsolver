@@ -106,6 +106,7 @@ set(SRC_FILES
 	source/Smoldyn/smolsim.c
 	source/Smoldyn/smolsurface.c
 	source/Smoldyn/smolwall.c
+		source/Smoldyn/vcell_smoldyn.cpp
 )
 
 set(MAIN_FILES source/Smoldyn/smoldyn.c)

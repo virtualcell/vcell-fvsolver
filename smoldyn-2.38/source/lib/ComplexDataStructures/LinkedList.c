@@ -1,5 +1,6 @@
 //
 // Created by Logan Drescher on 2/12/25.
+// Licensed under the MIT LICENSE, copyright (https://opensource.org/license/mit).
 //
 
 #include "LinkedList.h"

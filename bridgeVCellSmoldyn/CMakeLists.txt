@@ -1,6 +1,6 @@
 project(BridgeVCellSmoldyn CXX)
 
-set(VCELL_SMOL_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/vcell_smoldyn.cpp)
+set(VCELL_SMOL_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/vcell_smoldyn_entrypoint.cpp)
 file (GLOB HEADER_FILES *.h)    
 file (GLOB SOURCE_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 list(REMOVE_ITEM SOURCE_FILES ${VCELL_SMOL_MAIN}) 
