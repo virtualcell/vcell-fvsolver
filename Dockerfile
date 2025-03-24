@@ -1,11 +1,14 @@
 FROM ubuntu:22.04
 
 RUN apt-get -y update && apt-get install -y apt-utils && \
-    apt-get install -y -qq -o=Dpkg::Use-Pty=0 build-essential gfortran \
+    apt-get install -y -qq -o=Dpkg::Use-Pty=0 build-essential gfortran git \
     libhdf5-dev libzip-dev ninja-build libcurl4-openssl-dev libboost-all-dev libbz2-dev cmake python3
 
 # Install an alternative Fortran compiler
-RUN apt-get install -y gfortran-10
+RUN apt-get install -y gfortran-10 python3 python3-pip
+
+# Get H5PY for tests
+RUN pip install h5py
 
 # Set the alternative Fortran compiler as the default
 RUN update-alternatives --install /usr/bin/gfortran gfortran /usr/bin/gfortran-10 10
