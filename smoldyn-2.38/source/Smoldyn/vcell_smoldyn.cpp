@@ -23,6 +23,7 @@ This is the VCell entry point for the Smoldyn program.
 #include "SimpleMesh.h"
 #include "vcellhybrid.h"
 #include <iostream>
+#include <vector>
 
 namespace {
     void slogger(simptr, int code, const char *, ...);

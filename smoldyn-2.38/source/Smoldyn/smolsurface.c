@@ -908,7 +908,7 @@ int panelsalloc(surfaceptr srf,int dim,int maxpanel,int maxspecies,enum PanelSha
 	for(p=0;p<oldmaxpanel;p++)
 		newpnls[p]=srf->panels[ps][p];
 	for(;p<maxpanel;p++) {
-		CHECKMEM(newpnls[p]=(panelptr) malloc(sizeof(struct panelstruct)));
+		CHECKMEM(newpnls[p]=(panelptr) calloc(1, sizeof(struct panelstruct)));
 		pnl=newpnls[p];
 		pnl->pname=newpname[p];
 		pnl->ps=ps;
