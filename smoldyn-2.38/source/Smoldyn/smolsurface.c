@@ -522,7 +522,7 @@ double surfacearea2(simptr sim,int surface,enum PanelShape ps,char *pname,int *t
 	double area;
 	surfaceptr srf;
 	int slo,shi,pslo,pshi,plo,phi,s,p;
-
+	
 	if(ps==PSnone) {area=0;totpanel=0;}											// ps is none
 
 	else if(surface>=0 && ps!=PSall && pname && strcmp(pname,"all")) {		// specific panel
@@ -1070,6 +1070,7 @@ surfaceptr surfacealloc(surfaceptr srf,int oldmaxspecies,int maxspecies,int dim)
 		for(ps=(PanelShape)0;ps<PSMAX;ps=(PanelShape)(ps+1)) srf->npanel[ps]=0;
 		for(ps=(PanelShape)0;ps<PSMAX;ps=(PanelShape)(ps+1)) srf->pname[ps]=NULL;
 		for(ps=(PanelShape)0;ps<PSMAX;ps=(PanelShape)(ps+1)) srf->panels[ps]=NULL;
+		for(ps=(PanelShape)0;ps<PSMAX;ps=(PanelShape)(ps+1)) srf->pnametopanel[ps]=NULL;
 		srf->port[PFfront]=NULL;
 		srf->port[PFback]=NULL;
 		srf->totarea=0;
