@@ -206,7 +206,7 @@ static HashtableIterator generateHashtableIteratorImpl(Hashtable* table){
 // Create hash table and return pointer to it, or NULL if out of memory.
 Hashtable* createNewHashtable(void){
     // Allocate space for hash table struct.
-    Hashtable* table = (Hashtable*)malloc(sizeof(Hashtable));
+    Hashtable* table = (Hashtable*)calloc(1, sizeof(Hashtable));
     if (table == NULL) return NULL;
 
     table->_length = 0;

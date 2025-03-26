@@ -15,5 +15,5 @@ TEST(VCellTest, ExcerciseFV) {
 }
 
 TEST(VCellTest, ExerciseSmoldyn) {
-    int retcode_1 =
+    int retcode_1;
 }
