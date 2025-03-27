@@ -58,12 +58,19 @@ output_file = posixpath.join(test_dir, filename_prefix + ".hdf5")
 expected_output_file = posixpath.join(test_dir, filename_prefix + ".hdf5.expected")
 
 # perform substitution on *fvinput.in file, if it exists
-if posixpath.exists(fv_template_file):
-    with open(fv_template_file) as f:
-        template_text = f.read()
-    filled_text = template_text.replace("@BASE_FILE_NAME@", fv_prefix_filepath)
-    with open(fv_input_file, "w") as f:
-        f.write(filled_text)
+if not posixpath.exists(fv_template_file):
+    print(f"template file not found. Exiting...")
+    sys.exit(1)
+
+with open(fv_template_file) as f:
+    template_text = f.read()
+if "@BASE_FILE_NAME@" not in template_text:
+    print("No `@BASE_FILE_NAME@` substitution variable detected\n")
+else:
+    print(f"Replacing `@BASE_FILE_NAME@` with `{fv_prefix_filepath}`\n")
+filled_text = template_text.replace("@BASE_FILE_NAME@", fv_prefix_filepath)
+with open(fv_input_file, "w") as f:
+    f.write(filled_text)
 
 if not posixpath.exists(exe):
     print(f"FiniteVolume_x64 executable {exe} not found. Exiting...")

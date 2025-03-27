@@ -522,7 +522,7 @@ double surfacearea2(simptr sim,int surface,enum PanelShape ps,char *pname,int *t
 	double area;
 	surfaceptr srf;
 	int slo,shi,pslo,pshi,plo,phi,s,p;
-	
+
 	if(ps==PSnone) {area=0;totpanel=0;}											// ps is none
 
 	else if(surface>=0 && ps!=PSall && pname && strcmp(pname,"all")) {		// specific panel

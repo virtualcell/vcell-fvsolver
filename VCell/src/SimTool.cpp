@@ -108,8 +108,7 @@ SimTool::SimTool()
 	numSerialParameterScans(0),
 
 	postProcessingHdf5Writer(nullptr),
-	smoldynSim(nullptr)
-{ }
+	smoldynSim(nullptr) {}
 
 SimTool::~SimTool()
 {
@@ -200,6 +199,7 @@ void SimTool::setBaseFilename(const std::filesystem::path& fname) {
 	if (fname.string().empty()) {
 		throw runtime_error("invalid base file name for data set");
 	}
+	std::cout <<  "Setting Base file name to: `" << fname << "`" << std::endl;
 	baseFileName = fname;
 	baseDirName = baseFileName.parent_path();
 	baseSimName = baseFileName.filename();
