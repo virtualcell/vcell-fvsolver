@@ -632,15 +632,11 @@ void SimTool::updateLog(double progress, double time, int iteration)
 }
 
 int SimTool::getZipCount(const filesystem::path& zipFileName) {
-	const char* p = strstr(zipFileName.string().c_str(), ZIP_FILE_EXT);
-	if (p == nullptr) {
-		return -1;
-	}
+	size_t firstIndex = zipFileName.string().find_first_of(ZIP_FILE_EXT);
+	if (firstIndex == std::string::npos || firstIndex < 2) return -1;
 
-	char str[3];
-	strncpy(str, p - 2, 2 * sizeof(char));
-	str[2] = 0;
-	return atoi(str);
+	std::string strCount{zipFileName.string().substr(firstIndex - 2, 2)};
+	return std::stoi(strCount);
 }
 
 void SimTool::clearLog(){
