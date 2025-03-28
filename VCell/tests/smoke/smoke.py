@@ -88,7 +88,8 @@ if not posixpath.exists(expected_output_file):
     print(f"Expected output file {expected_output_file} not found. Exiting...")
     sys.exit(1)
 
-command = [exe, fv_input_file, vcg_input_file]
+#command = [exe, fv_input_file, vcg_input_file]
+command = [exe, fv_input_file]
 print(" ".join(command))
 
 try:
