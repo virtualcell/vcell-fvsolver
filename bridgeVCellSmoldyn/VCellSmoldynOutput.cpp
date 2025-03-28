@@ -90,6 +90,12 @@ VCellSmoldynOutput::~VCellSmoldynOutput() {
     delete[] variables;
 }
 
+VCellSmoldynOutput* VCellSmoldynOutput::updateVCellSmoldynOutput(VCellSmoldynOutput* output, simptr sim) {
+	if (output == NULL) return new VCellSmoldynOutput(sim);
+	if (output->smoldynSim != sim) output->smoldynSim = sim;
+	return output;
+}
+
 void VCellSmoldynOutput::parseDataProcessingInput(string& name, string& input) {
 	//always add variable statistics data generator
 	SmoldynDataGenerator* dataGenerator = new SmoldynVarStatDataGenerator();
