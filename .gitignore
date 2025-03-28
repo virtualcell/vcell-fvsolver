@@ -29,12 +29,13 @@ tests/__pycache__/
 
 VCell/tests/testFiles/output/
 
-VCell/tests/smoke/SimID_1585623750_0_.fvinput
+VCell/tests/smoke/*.fvinput
+VCell/tests/smoke/*.hdf5
+VCell/tests/smoke/*.log
+VCell/tests/smoke/*.meshmetrics
+VCell/tests/smoke/*.zip
 
-VCell/tests/smoke/SimID_1585623750_0_.hdf5
-
-VCell/tests/smoke/SimID_1585623750_0_.log
-
-VCell/tests/smoke/SimID_1585623750_0_.meshmetrics
-
-VCell/tests/smoke/SimID_1585623750_0_00.zip
+VCell/tests/testFiles/input/Smoldyn/*.zip
+VCell/tests/testFiles/input/Smoldyn/*.log
+VCell/tests/testFiles/input/Smoldyn/*.hdf5
+VCell/tests/testFiles/input/Smoldyn/*.smoldynOutput
