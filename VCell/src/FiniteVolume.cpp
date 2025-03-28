@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 	bool bSimZip = true;
 	try {
 		int taskID = -1;
-		if (argc < 3) {
+		if (argc < 2) {
 			std::cout << "Missing arguments!" << std::endl;
 			printUsage();
 			exit(1);
@@ -116,9 +116,13 @@ int main(int argc, char *argv[])
 		}
 		ifsInput.open(fvInputFileStr);
 		if (!ifsInput.is_open()) {
-			std::cout << "File doesn't exist: " << fvInputFileStr << std::endl;
+			std::cout << "FV Input File doesn't exist: " << fvInputFileStr << std::endl;
 			exit(102);
 		}
+
+		// If we're not provided the location of the vcg, let's try and deduce it.
+		if (vcgInputFileStr.empty())
+			vcgInputFileStr = fvInputFileStr.substr(0, fvInputFileStr.find_last_of('.')) + ".vcg";
 
 		// strip " in case that file name has " around
 		fl = vcgInputFileStr.length();
@@ -127,7 +131,7 @@ int main(int argc, char *argv[])
 		}
 		vcgInput.open(vcgInputFileStr);
 		if (!vcgInput.is_open()) {
-			cout << "File doesn't exist: " << vcgInputFileStr << endl;
+			std::cout << "VCG Input File doesn't exist: " << vcgInputFileStr << std::endl;
 			exit(102);
 		}
 
