@@ -225,7 +225,7 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       if: ${{ failure() }}
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        limit-access-to-actor: true
 
   publish-to-pypi:
     name: Publish to PyPI
@@ -266,6 +266,5 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       if: ${{ failure() }}
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        limit-access-to-actor: false
+        limit-access-to-actor: true
 
