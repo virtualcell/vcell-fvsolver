@@ -20,9 +20,9 @@ jobs:
         platform: [ windows-latest, macos-13, macos-14, ubuntu-latest ]
         #platform: [ macos-13, macos-14, ubuntu-latest ]
         python-version: ["3.9","3.10","3.11","3.12"]
-#        exclude:
-#          - platform: windows-latest
-#            python-version: "3.9"
+        exclude:
+          - platform: windows-latest
+            python-version: "3.9"
 #          - platform: windows-latest
 #            python-version: "3.12"
 
@@ -94,7 +94,59 @@ jobs:
           mingw-w64-clang-x86_64-libaec
           mingw-w64-clang-x86_64-python-pip-tools
 
+    - name: Fix windows python version for python3.10
+      if: matrix.platform == 'windows-latest' && matrix.python-version == '3.10'
+      shell: msys2 {0}
+      run: |
+        echo "Preparing files for installation"
+        pacman -Sy --noconfirm mingw-w64-clang-x86_64-python-pip
+        echo "Downloading old archives"
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.10-3.10.5-1-any.pkg.tar.zst
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-23.1.2-1-any.pkg.tar.zst
+        echo "Installing Python 3.10"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python3.10-3.10.5-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.10 | grep bin/python
+        echo "Installing Corresponding Pip"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-23.1.2-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip
+        echo "Attempting to create python symlink"
+        ln -sf /clang64/bin/python3.10.exe /clang64/bin/python3
+        /clang64/bin/python3 --version
+
+    - name: Fix windows python version for python3.11
+      if: matrix.platform == 'windows-latest' && matrix.python-version == '3.11'
+      shell: msys2 {0}
+      run: |
+        echo "Preparing files for installation"
+        pacman -Sy --noconfirm mingw-w64-x86_64-python-pip
+        echo "Downloading old archives"
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.11-3.11.4-1-any.pkg.tar.zst
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-23.3.2-1-any.pkg.tar.zst
+        echo "Installing Python 3.11"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python3.11-3.11.4-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.11 | grep bin/python
+        echo "Installing Corresponding Pip"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-23.3.2-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip
+        echo "Attempting to create python symlink..."
+        ln -sf /clang64/bin/python3.11.exe /clang64/bin/python3
+        /clang64/bin/python3 --version
+
+    - name: Fix windows python version for python3.12
+      if: matrix.platform == 'windows-latest' && matrix.python-version == '3.12'
+      shell: msys2 {0}
+      run: |
+        echo "Preparing files for installation"
+        pacman -Sy --noconfirm mingw-w64-x86_64-python-pip
+        echo "Downloading old archives"
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.12-3.12.7-1-any.pkg.tar.zst
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-25.0.1-1-any.pkg.tar.zst
+        echo "Installing Python 3.12"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python3.12-3.12.7-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.12 | grep bin/python
+        echo "Installing Corresponding Pip"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-25.0.1-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip
+        echo "Attempting to create python symlink"
+        ln -sf /clang64/bin/python3.12.exe /clang64/bin/python3
+        /clang64/bin/python3 --version
+
     - uses: actions/setup-python@v5
+      if: matrix.platform != 'windows-latest'
       with:
         python-version: "${{ matrix.python-version }}"
 
@@ -124,15 +176,17 @@ jobs:
     - name: Build and install windows-latest
       shell: msys2 {0}
       run: |
-        pip wheel --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" . -w dist
-        pip install delvewheel
+        which python3
+        python3 --version
+        python3 -m pip wheel --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" . -w dist
+        python3 -m pip install delvewheel
         for wheel_file in dist/*.whl; do
           echo "not inspecting $wheel_file"
           echo "delvewheel needed -v $wheel_file"
           echo "not repairing $wheel_file"
           echo "delvewheel repair -v $wheel_file"
         done
-        pip install dist/*.whl
+        python3 -m pip install dist/*.whl
       if: matrix.platform == 'windows-latest'
 
     - name: Build and install manylinux for python 3.9
@@ -192,8 +246,10 @@ jobs:
     - name: Test on windows
       shell: msys2 {0}
       run: |
-        pip install pytest
-        pytest
+        which python3
+        python3 --version
+        python3 -m pip install pytest
+        python3 -m pytest
       if: matrix.platform == 'windows-latest'
 
     - name: set wheel_file and artifact_name environment vars (non-windows)
