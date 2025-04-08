@@ -17,8 +17,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #platform: [ windows-latest, macos-13, macos-14, ubuntu-latest ]
-        platform: [ macos-13, macos-14, ubuntu-latest ]
+        platform: [ windows-latest, macos-13, macos-14, ubuntu-latest ]
+        #platform: [ macos-13, macos-14, ubuntu-latest ]
         python-version: ["3.9","3.10","3.11","3.12"]
 #        exclude:
 #          - platform: windows-latest
