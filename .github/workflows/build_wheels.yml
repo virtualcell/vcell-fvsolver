@@ -28,8 +28,9 @@ jobs:
       - name: Install Ubuntu Dependencies
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gfortran cmake ninja-build libboost-all-dev libhdf5-dev libbz2-dev libssl-dev liblzma-dev
+          sudo apt update
+          sudo apt install -y nala
+          sudo nala install -y gfortran cmake ninja-build libboost-all-dev libzip-dev libhdf5-dev libbz2-dev libssl-dev liblzma-dev
 
       - name: Install Intel MacOS Dependencies
         if: matrix.os == 'macos-13'
@@ -63,19 +64,22 @@ jobs:
       - name: Install Windows Dependencies
         if: matrix.os == 'windows-latest'
         run: |
-          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
-          choco install ninja
-          choco install msys2
-          C:\tools\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm \
-            mingw-w64-clang-x86_64-cmake \
-            mingw-w64-clang-x86_64-ninja \
-            mingw-w64-clang-x86_64-toolchain \
-            mingw-w64-clang-x86_64-boost \
-            mingw-w64-clang-x86_64-hdf5 \
-            mingw-w64-clang-x86_64-zlib \
-            mingw-w64-clang-x86_64-libaec"
+               choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+               choco install ninja
+               choco install msys2
+               C:\tools\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm \
+               mingw-w64-clang-x86_64-cmake \
+               mingw-w64-clang-x86_64-ninja \
+               mingw-w64-clang-x86_64-toolchain \
+               mingw-w64-clang-x86_64-boost \
+               mingw-w64-clang-x86_64-hdf5 \
+               mingw-w64-clang-x86_64-zlib \
+               mingw-w64-clang-x86_64-libaec"
           
           echo "C:\tools\msys64\mingw64\bin" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
+          echo "C:\tools\msys64\clang64\bin" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
+          echo "C:\tools\msys64\clang64\lib" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
+          echo "C:\tools\msys64\clang64\include" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
 
       - name: Build Wheels (Windows)
         uses: pypa/cibuildwheel@v2.23.2
@@ -92,10 +96,23 @@ jobs:
         #   output-dir: wheelhouse
         #   config-file: "{package}/pyproject.toml"
 
-      - name: Build Wheels (MacOS)
+      - name: Build Wheels (MacOS<x86_64>)
         uses: pypa/cibuildwheel@v2.23.2
-        if: matrix.os == 'macos-13' || matrix.os == 'macos-14'
+        if: matrix.os == 'macos-13'
         env:
+          CIBW_BUILD: ${{ matrix.python_version }}
+          CIBW_ENVIRONMENT: >
+            FC=/usr/local/bin/gfortran
+        # with:
+        #   package-dir: .
+        #   output-dir: wheelhouse
+        #   config-file: "{package}/pyproject.toml"
+
+      - name: Build Wheels (MacOS<ARM>)
+        uses: pypa/cibuildwheel@v2.23.2
+        if: matrix.os == 'macos-14'
+        env:
+          MACOSX_DEPLOYMENT_TARGET: 14.0
           CIBW_BUILD: ${{ matrix.python_version }}
           CIBW_ENVIRONMENT: >
             FC=/opt/homebrew/bin/gfortran-14
@@ -108,6 +125,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.2
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         env:
+          LIBZIP_INCLUDE_DIR: '/usr/include/zip.h'
           CIBW_BUILD: ${{ matrix.python_version }}
         # with:
         #   package-dir: .
@@ -116,7 +134,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          name: pyvcell-fv-${{ matrix.os }}-${{ matrix.python_version }}-cibw-wheels
           path: ./wheelhouse/*.whl
 
       - name: Setup tmate session for PyPI upload failure
