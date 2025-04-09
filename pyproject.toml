@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core>=0.3.3", "pybind11"]
+requires = ["scikit-build-core>=0.3.3", "pybind11", "setuptools", "wheel"]
 build-backend = "scikit_build_core.build"
 
 
@@ -45,8 +45,8 @@ testpaths = ["tests"]
 test-command = "pytest {project}/tests"
 test-extras = ["test"]
 test-skip = ["*universal2:arm64"]
+before-build = "pip install cmake ninja"
 build-verbosity = 1
-archs = ["native"]
 
 
 [tool.ruff]
