@@ -29,7 +29,16 @@ jobs:
         if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         run: |
           sudo apt update
-          sudo apt install -y gfortran cmake ninja-build libboost-all-dev libzip-dev libhdf5-dev libbz2-dev libssl-dev liblzma-dev
+          sudo apt install -y wget gfortran cmake ninja-build libboost-all-dev libzip-dev libhdf5-dev libbz2-dev libssl-dev liblzma-dev
+          
+          # for some reason, there aren't headers included in libzip-dev???? so we're building from source!
+          mkdir ../libzip-source
+          wget https://libzip.org/download/libzip-1.11.3.tar.gz
+          tar -xzvf libzip-1.11.3.tar.gz -C ../libzip-source
+          cmake -S ../libzip-source/libzip-1.11.3 -B ../libzip-source/libzip-1.11.3/build -G Ninja
+          cmake --build ../libzip-source/libzip-1.11.3/build
+          sudo cmake --install ../libzip-source/libzip-1.11.3/build
+          echo "Confirming header presence..."
 
       - name: Install Intel MacOS Dependencies
         if: matrix.os == 'macos-13'
@@ -119,12 +128,23 @@ jobs:
         #   output-dir: wheelhouse
         #   config-file: "{package}/pyproject.toml"
 
-      - name: Build Wheels (Linux)
+      - name: Build Wheels (Linux<ARM>)
         uses: pypa/cibuildwheel@v2.23.2
-        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+        if: matrix.os == 'ubuntu-24.04-arm'
         env:
-          LIBZIP_INCLUDE_DIR: '/usr/include/zip.h'
           CIBW_BUILD: ${{ matrix.python_version }}
+          CIBW_BEFORE_BUILD: "pip install h5py && export LIBZIP_INCLUDE_DIR=/usr/local/include && export LIBZIP_LIBRARY=/usr/local/lib/libzip.so"
+        # with:
+        #   package-dir: .
+        #   output-dir: wheelhouse
+        #   config-file: "{package}/pyproject.toml"
+
+      - name: Build Wheels (Linux<x86_64>)
+        uses: pypa/cibuildwheel@v2.23.2
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          CIBW_BUILD: ${{ matrix.python_version }}
+          CIBW_BEFORE_BUILD:  "pip install h5py && export LIBZIP_INCLUDE_DIR=/usr/local/include && export LIBZIP_LIBRARY=/usr/local/lib/libzip.so"
         # with:
         #   package-dir: .
         #   output-dir: wheelhouse
