@@ -1,0 +1,49 @@
+name: "Build Wheels"
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - master
+  release:
+    types:
+      - published
+
+jobs:
+  build_wheels:
+    name: Build Python Wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-13, macos-14]
+        python_version: [cp39-*, cp310-*, cp311-*, cp312-*, cp313-*]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system build tools
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build
+
+      - name: Install system build tools (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+          choco install ninja
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.23.2
+        env:
+          CIBW_BUILD: "{{ matrix.python_version }}"
+        # with:
+        #   package-dir: .
+        #   output-dir: wheelhouse
+        #   config-file: "{package}/pyproject.toml"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          path: ./wheelhouse/*.whl
