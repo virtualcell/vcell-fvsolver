@@ -74,7 +74,7 @@ jobs:
           
           echo "C:\tools\msys64\mingw64\bin" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
 
-      - name: Build Wheels (Unix)
+      - name: Build Wheels (Windows)
         uses: pypa/cibuildwheel@v2.23.2
         if: matrix.os == 'windows-latest'
         env:
@@ -89,7 +89,19 @@ jobs:
         #   output-dir: wheelhouse
         #   config-file: "{package}/pyproject.toml"
 
-      - name: Build Wheels (Windows)
+      - name: Build Wheels (MacOS)
+        uses: pypa/cibuildwheel@v2.23.2
+        if: matrix.os != 'windows-latest'
+        env:
+          CIBW_BUILD: ${{ matrix.python_version }}
+          CIBW_ENVIRONMENT: >
+            FC=/usr/local/bin/gfortran
+        # with:
+        #   package-dir: .
+        #   output-dir: wheelhouse
+        #   config-file: "{package}/pyproject.toml"
+
+      - name: Build Wheels (Linux)
         uses: pypa/cibuildwheel@v2.23.2
         if: matrix.os != 'windows-latest'
         env:
