@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-set (CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(OPTION_TARGET_PYTHON_BINDING "build Python bindings" ON)
@@ -132,14 +132,15 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/libzippp/cmake/"
 include(GetGitRevisionDescription)
 git_describe(GIT_DESCRIBE ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR)
 
-include (FindZLIB)
-include (FindLIBZIP)
-
 # help CMake find libzip
 if (APPLE)
 	execute_process(COMMAND brew --prefix libzip OUTPUT_VARIABLE LIBZIP_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
 	set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} ${LIBZIP_PREFIX})
 endif()
+
+include (FindZLIB)
+include (FindLIBZIP)
+
 find_package(LIBZIP 1.10 REQUIRED)
 
 
@@ -244,7 +245,6 @@ if (OPTION_TARGET_PYTHON_BINDING)
 	# Add a library using FindPython's tooling (pybind11 also provides a helper like this)
 	python_add_library(_core MODULE src/main.cpp WITH_SOABI)
 	target_link_libraries(_core PRIVATE vcell pybind11::headers)
-
 	# This is passing in the version as a define just as an example
 	target_compile_definitions(_core PRIVATE VERSION_INFO=${PROJECT_VERSION})
 
