@@ -91,11 +91,11 @@ jobs:
 
       - name: Build Wheels (MacOS)
         uses: pypa/cibuildwheel@v2.23.2
-        if: matrix.os != 'windows-latest'
+        if: matrix.os == 'macos-13' || matrix.os == 'macos-14'
         env:
           CIBW_BUILD: ${{ matrix.python_version }}
           CIBW_ENVIRONMENT: >
-            FC=/usr/local/bin/gfortran
+            FC=/opt/homebrew/bin/gfortran-14
         # with:
         #   package-dir: .
         #   output-dir: wheelhouse
@@ -103,7 +103,7 @@ jobs:
 
       - name: Build Wheels (Linux)
         uses: pypa/cibuildwheel@v2.23.2
-        if: matrix.os != 'windows-latest'
+        if: matrix.os == 'ubuntu-latest' || matrix.os == 'ubuntu-24.04-arm'
         env:
           CIBW_BUILD: ${{ matrix.python_version }}
         # with:
