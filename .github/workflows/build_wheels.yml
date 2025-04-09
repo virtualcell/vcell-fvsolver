@@ -155,7 +155,7 @@ jobs:
           name: pyvcell-fv-${{ matrix.os }}-${{ matrix.python_version }}-cibw-wheels
           path: ./wheelhouse/*.whl
 
-      - name: Setup tmate session for PyPI upload failure
+      - name: Setup tmate session on failure
         uses: mxschmitt/action-tmate@v3
         if: ${{ failure() }}
         with:
