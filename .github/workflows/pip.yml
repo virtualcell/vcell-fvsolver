@@ -23,6 +23,10 @@ jobs:
         exclude:
           - platform: windows-latest
             python-version: "3.9"
+          - platform: windows-latest
+            python-version: "3.10"
+          - platform: windows-latest
+            python-version: "3.11"
 #          - platform: windows-latest
 #            python-version: "3.12"
 
