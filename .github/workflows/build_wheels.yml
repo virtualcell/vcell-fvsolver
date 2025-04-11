@@ -18,6 +18,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-13, macos-14]
         python_version: ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+        exclude:
+          - os: windows-latest
+            python_version: "cp39-*"
+          - os: windows-latest
+            python_version: "cp313-*"
 
     steps:
       - name: Checkout repository
@@ -88,37 +93,42 @@ jobs:
           echo "C:\tools\msys64\clang64\lib" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
           echo "C:\tools\msys64\clang64\include" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
 
-  #["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
-      - name: Install Windows Python (3.9)
-        if: matrix.os == 'windows-latest' && matrix.python_version == 'cp39-*'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-
-      - name: Install Windows Python (3.10)
+      - name: Fix windows python version for python3.10
         if: matrix.os == 'windows-latest' && matrix.python_version == 'cp310-*'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
+        run: |
+          C:\tools\msys64\usr\bin\bash -lc " \
+            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.10-3.10.5-1-any.pkg.tar.zst && \
+            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-23.1.2-1-any.pkg.tar.zst && \
+            pacman -U --noconfirm mingw-w64-clang-x86_64-python3.10-3.10.5-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.10 | grep bin/python && \
+            pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-23.1.2-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip && \
+            ln -sf /clang64/bin/python3.10.exe /clang64/bin/python3 && \
+            /clang64/bin/python3 --version"
+          echo '$(which python3)/../..'
 
-      - name: Install Windows Python (3.11)
+      - name: Fix windows python version for python3.11
         if: matrix.os == 'windows-latest' && matrix.python_version == 'cp311-*'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
+        run: |
+          C:\tools\msys64\usr\bin\bash -lc " \
+            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.11-3.11.4-1-any.pkg.tar.zst && \
+            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-23.3.2-1-any.pkg.tar.zst && \
+            pacman -U --noconfirm mingw-w64-clang-x86_64-python3.11-3.11.4-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.11 | grep bin/python && \
+            pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-23.3.2-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip && \
+            ln -sf /clang64/bin/python3.11.exe /clang64/bin/python3 && \
+            /clang64/bin/python3 --version"
+          echo '$(which python3)/../..'
 
-      - name: Install Windows Python (3.12)
+      - name: Fix windows python version for python3.12
         if: matrix.os == 'windows-latest' && matrix.python_version == 'cp312-*'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-
-      - name: Install Windows Python (3.13)
-        if: matrix.os == 'windows-latest' && matrix.python_version == 'cp313-*'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
+        run: |
+          C:\tools\msys64\usr\bin\bash -lc "pacman -Sy mingw-w64-clang-x86_64-python mingw-w64-clang-x86_64-python-pip"
+          echo '$(which python3)/../..'
+#          C:\tools\msys64\usr\bin\bash -lc " \
+#            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.12-3.12.7-1-any.pkg.tar.zst && \
+#            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-25.0.1-1-any.pkg.tar.zst && \
+#            pacman -U --noconfirm mingw-w64-clang-x86_64-python3.12-3.12.7-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.12 | grep bin/python && \
+#            pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-25.0.1-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip && \
+#            ln -sf /clang64/bin/python3.12.exe /clang64/bin/python3 && \
+#            /clang64/bin/python3 --version"
 
       - name: Build Wheels (Windows)
         uses: pypa/cibuildwheel@v2.23.2
@@ -126,7 +136,7 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.python_version }}
           CIBW_ARCHES: "native"
-          CIBW_BEFORE_BUILD: "pip install cmake ninja"
+          CIBW_BEFORE_BUILD: "pip install cmake ninja && ln "
           CIBW_ENVIRONMENT: >
             CC=clang
             CXX=clang++
