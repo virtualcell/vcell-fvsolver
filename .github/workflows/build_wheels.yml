@@ -129,13 +129,21 @@ jobs:
       - name: Install Windows Dependencies (Part 0b - Fetch LLVM Build Dependencies)
         if: matrix.os == 'windows-latest' # works on any OS, but we only need windows here(?)
         run: |
-          choco install ninja wget -y
+          choco install ninja wget 7zip llvm -y
 
-      - name: Install Windows Dependencies (Part 1 - Build LLVM)
+      - name: Install Windows Dependencies (Part 1 - Build Flang)
         if: matrix.os == 'windows-latest' # works on any OS, but we only need windows here(?)
         run: |
-          git clone --depth 1 https://github.com/flang-compiler/classic-flang-llvm-project.git /llvm_build
-          python3 /llvm_build/scripts/build_llvm_project.py -e "clang"
+          mkdir -p /flang_build/build
+          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.2/flang-20.1.2.src.tar.xz
+          echo 'Unpacking with 7-zip...' # for some reason, `tar` doesn't load properly...
+          7z x "flang-20.1.2.src.tar.xz" -so | 7z x -aoa -si -ttar -o"d:\\flang_build"
+          mv /flang_build/*.src/* /flang_build
+          rm -r /flang_build/*.src
+          echo "running cmake"
+          cmake /flang_build -B /flang_build/build
+          cmake --build /flang_build/build --config Release -j
+          cmake --install /flang_build/build
           
           clang --version
           clang++ --version
