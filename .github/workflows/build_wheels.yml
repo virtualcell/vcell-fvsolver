@@ -17,7 +17,7 @@ jobs:
     strategy:
       matrix:
         #os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-13, macos-14]
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest]
+        os: [windows-latest]
         python_version: ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
         exclude:
           - os: windows-latest
@@ -75,65 +75,86 @@ jobs:
           echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
           ln -s /opt/homebrew/bin/gfortran-14 /usr/local/bin/gfortran
 
-      - name: Install Windows Dependencies
+# We're no longer using msys2, as it appears to not be able to give us native windows wheels.
+#      - name: Install Windows Dependencies
+#        if: matrix.os == 'windows-latest'
+#        run: |
+#          choco install msys2
+#          C:\tools\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm \
+#            mingw-w64-clang-x86_64-cmake \
+#            mingw-w64-clang-x86_64-ninja \
+#            mingw-w64-clang-x86_64-toolchain \
+#            mingw-w64-clang-x86_64-boost \
+#            mingw-w64-clang-x86_64-hdf5 \
+#            mingw-w64-clang-x86_64-zlib \
+#            mingw-w64-clang-x86_64-libzip \
+#            mingw-w64-clang-x86_64-libaec"
+#            echo "C:\tools\msys64\clang64\bin" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
+#            echo "C:\tools\msys64\clang64\lib" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
+#            echo "C:\tools\msys64\clang64\include" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
+
+      - name: Install Python for Windows (Python 3.9)
+        if: matrix.os == 'windows-latest' && matrix.python_version == 'cp39-*'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install Python for Windows (Python 3.10)
+        if: matrix.os == 'windows-latest' && matrix.python_version == 'cp310-*'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python for Windows (Python 3.11)
+        if: matrix.os == 'windows-latest' && matrix.python_version == 'cp311-*'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python for Windows (Python 3.12)
+        if: matrix.os == 'windows-latest' && matrix.python_version == 'cp312-*'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python for Windows (Python 3.13)
+        if: matrix.os == 'windows-latest' && matrix.python_version == 'cp313-*'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install Windows Dependencies (Part 0a - Setup Build Env)
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install Windows Dependencies (Part 0b - Fetch LLVM Build Dependencies)
+        if: matrix.os == 'windows-latest' # works on any OS, but we only need windows here(?)
+        run: |
+          choco install ninja wget -y
+
+      - name: Install Windows Dependencies (Part 1 - Build LLVM)
+        if: matrix.os == 'windows-latest' # works on any OS, but we only need windows here(?)
+        run: |
+          git clone --depth 1 https://github.com/flang-compiler/classic-flang-llvm-project.git /llvm_build
+          python3 /llvm_build/scripts/build_llvm_project.py -e "clang"
+          
+          clang --version
+          clang++ --version
+          flang --version
+
+#      - name: Install Windows Dependencies (Part X - Clang set-up)
+#        uses: KyleMayes/install-llvm-action@v2
+#        if: matrix.os == 'windows-latest' # works on any OS, but we only need windows here(?)
+#        with:
+#          version: "19"
+#          env: true  # Sets CC and CXX to clang variants
+
+      - name: Install Windows Dependencies (Part 2 - Remainder)
         if: matrix.os == 'windows-latest'
         run: |
-          choco install msys2
-          C:\tools\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm \
-            mingw-w64-clang-x86_64-cmake \
-            mingw-w64-clang-x86_64-ninja \
-            mingw-w64-clang-x86_64-toolchain \
-            mingw-w64-clang-x86_64-boost \
-            mingw-w64-clang-x86_64-hdf5 \
-            mingw-w64-clang-x86_64-zlib \
-            mingw-w64-clang-x86_64-libzip \
-            mingw-w64-clang-x86_64-libaec"
-            echo "C:\tools\msys64\clang64\bin" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
-            echo "C:\tools\msys64\clang64\lib" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
-            echo "C:\tools\msys64\clang64\include" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
+          choco install conan -y
+          conan profile detect --force
+          conan install . --output-folder=build --build=missing
 
-      - name: Fix windows python version for python3.10
-        if: matrix.os == 'windows-latest' && matrix.python_version == 'cp310-*'
-        run: |
-          C:\tools\msys64\usr\bin\bash -lc " \
-            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.10-3.10.5-1-any.pkg.tar.zst && \
-            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-23.1.2-1-any.pkg.tar.zst && \
-            pacman -U --noconfirm mingw-w64-clang-x86_64-python3.10-3.10.5-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.10 | grep bin/python && \
-            pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-23.1.2-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip && \
-            ln -sf /clang64/bin/python3.10.exe /clang64/bin/python3 && \
-            /clang64/bin/python3 --version"
-          echo "$(which python3)"
-          echo "CUSTOM_PYTHON_BIN=$(which python3)" >> $GITHUB_ENV      
-          echo "CUSTOM_PYTHON_ROOT=$(dirname $(dirname $(which python3)))" >> $GITHUB_ENV  
-
-      - name: Fix windows python version for python3.11
-        if: matrix.os == 'windows-latest' && matrix.python_version == 'cp311-*'
-        run: |
-          C:\tools\msys64\usr\bin\bash -lc " \
-            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.11-3.11.4-1-any.pkg.tar.zst && \
-            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-23.3.2-1-any.pkg.tar.zst && \
-            pacman -U --noconfirm mingw-w64-clang-x86_64-python3.11-3.11.4-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.11 | grep bin/python && \
-            pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-23.3.2-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip && \
-            ln -sf /clang64/bin/python3.11.exe /clang64/bin/python3 && \
-            /clang64/bin/python3 --version"
-          echo "$(which python3)"
-          echo "CUSTOM_PYTHON_BIN=$(which python3)" >> $GITHUB_ENV      
-          echo "CUSTOM_PYTHON_ROOT=$(dirname $(dirname $(which python3)))" >> $GITHUB_ENV  
-
-      - name: Fix windows python version for python3.12
-        if: matrix.os == 'windows-latest' && matrix.python_version == 'cp312-*'
-        run: |
-          C:\tools\msys64\usr\bin\bash -lc "pacman -Sy mingw-w64-clang-x86_64-python mingw-w64-clang-x86_64-python-pip"
-          echo "$(which python3)"
-          echo "CUSTOM_PYTHON_BIN=$(which python3)" >> $GITHUB_ENV      
-          echo "CUSTOM_PYTHON_ROOT=$(dirname $(dirname $(which python3)))" >> $GITHUB_ENV
-      #          C:\tools\msys64\usr\bin\bash -lc " \
-#            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.12-3.12.7-1-any.pkg.tar.zst && \
-#            curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-25.0.1-1-any.pkg.tar.zst && \
-#            pacman -U --noconfirm mingw-w64-clang-x86_64-python3.12-3.12.7-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.12 | grep bin/python && \
-#            pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-25.0.1-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip && \
-#            ln -sf /clang64/bin/python3.12.exe /clang64/bin/python3 && \
-#            /clang64/bin/python3 --version"
 
       - name: Build Wheels (Windows)
         uses: pypa/cibuildwheel@v2.23.2
@@ -141,13 +162,12 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.python_version }}
           CIBW_ARCHS_WINDOWS: "native"
-          CIBW_BEFORE_BUILD: "pip install cmake ninja && rm -r /mingw64/* "
+          CIBW_BEFORE_BUILD: "pip install cmake ninja"
           CIBW_PYTHON_BIN: ${{ env.CUSTOM_PYTHON_BIN }}
           CIBW_ENVIRONMENT: >
             CC=clang
             CXX=clang++
             CMAKE_GENERATOR=Ninja
-            PYTHON_ROOT=${{ env.CUSTOM_PYTHON_ROOT }}
         # with:
         #   package-dir: .
         #   output-dir: wheelhouse
