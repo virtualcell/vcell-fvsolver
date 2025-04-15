@@ -132,6 +132,7 @@ jobs:
         if: ${{ matrix.os == 'windows-latest'}}
         run: |
           git clone --depth 1 https://github.com/flang-compiler/flang.git ${{ github.workspace }}
+          mv ${{ github.workspace }}/* ${{ github.workspace }}/..
 
       - name: Install Windows Dependencies (Part 0b - Setup LLVM Build Env)
         if: ${{ matrix.os == 'windows-latest'}}
@@ -153,12 +154,7 @@ jobs:
         if: ${{ matrix.os == 'windows-latest'}}
         run: pip install sphinx
 
-      - name: Install Windows Dependencies (Part 0f - Prepare Flang source)
-        if : ${{ matrix.os == 'windows-latest'}}
-        run: |
-          git clone --depth 1 https://github.com/flang-compiler/flang.git /flang_build
-
-      - name: Install Windows Dependencies (Part 0g - Download pre-built "cmade" LLVM)
+      - name: Install Windows Dependencies (Part 0f - Download pre-built "cmade" LLVM)
         run: |
           cd ../..
           # Search backwards in the workflow history for the specified branch
@@ -198,17 +194,9 @@ jobs:
         shell: powershell
         run: |
           $pcount = $($(Get-WmiObject -class Win32_ComputerSystem).numberoflogicalprocessors)
-          python .\scripts\build_flang.py -b "Release" -d build -t X86 -p "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\" -j $pcount -v
+          python ..\scripts\build_flang.py -b "Release" -d build -t X86 -p "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\" -j $pcount -v
           $resolved = Resolve-Path "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\"
           $resolved.Path | Set-Content -Path $env:GITHUB_PATH
-
-      - name: Install Windows Dependencies (Part 1b - Confirm Neccessary LLVM Tools are Installed)
-        if: matrix.os == 'windows-latest'
-        run: |
-          clang --version
-          clang++ --version
-          flang --version
-          which flang
 
       - name: Install Windows Dependencies (Part 2a - Reclean Windows Workspace)
         if: ${{ matrix.os == 'windows-latest'}}
