@@ -26,7 +26,8 @@ jobs:
             python_version: "cp313-*"
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (for non-windows)
+        if: matrix.os != 'windows-latest'
         uses: actions/checkout@v4
         with:
           submodules: true
@@ -123,46 +124,106 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Install Windows Dependencies (Part 0a - Setup Build Env)
-        uses: ilammy/msvc-dev-cmd@v1
+      - name: Clean Windows Workspace
+        if: ${{ matrix.os == 'windows-latest'}}
+        run: Remove-Item * -Recurse -Force
 
-      - name: Install Windows Dependencies (Part 0b - Fetch LLVM Build Dependencies)
-        if: matrix.os == 'windows-latest' # works on any OS, but we only need windows here(?)
+      - name: Install Windows Dependencies (Part 0a - Setup Flang Source Code)
+        if: ${{ matrix.os == 'windows-latest'}}
         run: |
-          choco install ninja wget 7zip llvm -y
+          git clone --depth 1 https://github.com/flang-compiler/flang.git ${{ github.workspace }}
 
-      - name: Install Windows Dependencies (Part 1 - Build Flang)
-        if: matrix.os == 'windows-latest' # works on any OS, but we only need windows here(?)
+      - name: Install Windows Dependencies (Part 0b - Setup LLVM Build Env)
+        if: ${{ matrix.os == 'windows-latest'}}
+        uses: llvm/actions/setup-windows@main
+        with:
+          arch: amd64
+
+      - name: Install Windows Dependencies (Part 0c - Setup LLVM-style Ninja Build Env)
+        if: ${{ matrix.os == 'windows-latest'}}
+        uses: llvm/actions/setup-windows@main
+        with:
+          arch: amd64
+
+      - name: Install Windows Dependencies (Part 0d - Setup Graphviz for Doxygen)
+        if: ${{ matrix.os == 'windows-latest'}}
+        run: choco install graphviz wget
+
+      - name: Install Windows Dependencies (Part 0e - Setup Sphinx for Python)
+        if: ${{ matrix.os == 'windows-latest'}}
+        run: pip install sphinx
+
+      - name: Install Windows Dependencies (Part 0f - Prepare Flang source)
+        if : ${{ matrix.os == 'windows-latest'}}
         run: |
-          mkdir -p /flang_build/build
-          wget https://github.com/llvm/llvm-project/releases/download/llvmorg-20.1.2/flang-20.1.2.src.tar.xz
-          echo 'Unpacking with 7-zip...' # for some reason, `tar` doesn't load properly...
-          7z x "flang-20.1.2.src.tar.xz" -so | 7z x -aoa -si -ttar -o"d:\\flang_build"
-          mv /flang_build/*.src/* /flang_build
-          rm -r /flang_build/*.src
-          echo "running cmake"
-          cmake /flang_build -B /flang_build/build
-          cmake --build /flang_build/build --config Release -j
-          cmake --install /flang_build/build
-          
+          git clone --depth 1 https://github.com/flang-compiler/flang.git /flang_build
+
+      - name: Install Windows Dependencies (Part 0g - Download pre-built "cmade" LLVM)
+        run: |
+          cd ../..
+          # Search backwards in the workflow history for the specified branch
+          # for the first successful run that produced the desired artifact.
+          $build_name="llvm_build_win_amd64_clangcl_release_19x"
+          Invoke-WebRequest -Uri https://api.github.com/repos/flang-compiler/classic-flang-llvm-project/actions/workflows/pre-compile_llvm.yml/runs -OutFile llvm_runs.json
+          $urls = @($(jq -r --arg b release_19x '.workflow_runs[] | select(.head_branch == $b) | select (.conclusion == "success") | .artifacts_url?' llvm_runs.json))
+          Invoke-WebRequest "$(jq -r '.workflow_runs[0].artifacts_url?' llvm_runs.json)" -OutFile llvm_artifacts.json
+          for ($i = 0; $i -lt $urls.Count; $i++) {
+            $artifacts_url = $urls[$i]
+            Invoke-WebRequest -Uri "$artifacts_url" -OutFile llvm_artifacts.json
+            $archive_url = "$(jq -r --arg b $build_name '.artifacts[] | select(.name == $b) | .archive_download_url' llvm_artifacts.json)"
+            if (! $archive_url) {
+              Write-Output "$artifacts_url did not contain a $build_name archive; too old?"
+              continue
+            }
+            Write-Output "Downloading $archive_url."
+            $artifact_path = "$pwd\${build_name}.zip"
+            try {
+              $response = Invoke-WebRequest -Method Get -Uri $archive_url -OutFile $artifact_path -Headers @{ "Authorization" = "Bearer ${{ secrets.GITHUB_TOKEN }}" }
+              if ($response.StatusCode -lt 300) {
+                break
+              }
+            } catch {}
+          }
+          if (!(Test-Path "$artifact_path")) {
+            Write-Output "Could not download the correct prebuilt compiler; aborting."
+            exit 1
+          }
+          Expand-Archive -Force -Path "${build_name}.zip" -DestinationPath .
+          & 7z x "$pwd\llvm_build.7z" -o"$pwd\classic-flang-llvm-project\" -y
+          Write-Output "$(Get-ChildItem)"
+
+
+      - name: Install Windows Dependencies (Part 1a - Build Flang)
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: |
+          $pcount = $($(Get-WmiObject -class Win32_ComputerSystem).numberoflogicalprocessors)
+          python .\scripts\build_flang.py -b "Release" -d build -t X86 -p "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\" -j $pcount -v
+          $resolved = Resolve-Path "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\"
+          $resolved.Path | Set-Content -Path $env:GITHUB_PATH
+
+      - name: Install Windows Dependencies (Part 1b - Confirm Neccessary LLVM Tools are Installed)
+        if: matrix.os == 'windows-latest'
+        run: |
           clang --version
           clang++ --version
           flang --version
+          which flang
 
-#      - name: Install Windows Dependencies (Part X - Clang set-up)
-#        uses: KyleMayes/install-llvm-action@v2
-#        if: matrix.os == 'windows-latest' # works on any OS, but we only need windows here(?)
-#        with:
-#          version: "19"
-#          env: true  # Sets CC and CXX to clang variants
+      - name: Install Windows Dependencies (Part 2a - Reclean Windows Workspace)
+        if: ${{ matrix.os == 'windows-latest'}}
+        run: Remove-Item * -Recurse -Force
 
-      - name: Install Windows Dependencies (Part 2 - Remainder)
+      - name: Install Windows Dependencies (Part 2b - Setup Flang Source Code)
+        if: ${{ matrix.os == 'windows-latest'}}
+        uses: actions/checkout@v4
+
+      - name: Install Windows Dependencies (Part 2c - Remainder)
         if: matrix.os == 'windows-latest'
         run: |
           choco install conan -y
           conan profile detect --force
           conan install . --output-folder=build --build=missing
-
 
       - name: Build Wheels (Windows)
         uses: pypa/cibuildwheel@v2.23.2
@@ -175,6 +236,7 @@ jobs:
           CIBW_ENVIRONMENT: >
             CC=clang
             CXX=clang++
+            FC=flang
             CMAKE_GENERATOR=Ninja
         # with:
         #   package-dir: .
