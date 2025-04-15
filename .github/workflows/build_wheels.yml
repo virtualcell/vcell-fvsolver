@@ -196,7 +196,11 @@ jobs:
           $pcount = $($(Get-WmiObject -class Win32_ComputerSystem).numberoflogicalprocessors)
           python ..\scripts\build_flang.py -b "Release" -d build -t X86 -p "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\" -j $pcount -v
           $resolved = Resolve-Path "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\"
-          $resolved.Path | Set-Content -Path $env:GITHUB_PATH
+          $resolved_path = $resolved.Path
+          $new_path = $resolved_path + ";" + [Environment]::GetEnvironmentVariable("GITHUB_PATH", "Machine")
+          Write-Output "New GITHUB_PATH: "
+          Write-Output "$new_path"
+          [Environment]::SetEnvironmentVariable("GITHUB_PATH", "$new_path", "Machine")
 
       - name: Install Windows Dependencies (Part 2a - Reclean Windows Workspace)
         if: ${{ matrix.os == 'windows-latest'}}
@@ -208,8 +212,13 @@ jobs:
 
       - name: Install Windows Dependencies (Part 2c - Remainder)
         if: matrix.os == 'windows-latest'
+        shell: powershell
         run: |
           choco install conan -y
+          $conanDir = "C:\Program Files\Conan\conan"
+          $env:PATH = "$conanDir;$env:PATH"
+          $conanDir | Set-Content -Path $env:GITHUB_PATH
+          conan --version
           conan profile detect --force
           conan install . --output-folder=build --build=missing
 
