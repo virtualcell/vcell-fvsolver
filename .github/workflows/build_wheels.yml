@@ -210,7 +210,7 @@ jobs:
         if: ${{ matrix.os == 'windows-latest'}}
         uses: actions/checkout@v4
 
-      - name: Install Windows Dependencies (Part 2c - Remainder)
+      - name: Install Windows Dependencies (Part 2c - Configure Conan)
         if: matrix.os == 'windows-latest'
         shell: powershell
         run: |
@@ -218,8 +218,16 @@ jobs:
           $conanDir = "C:\Program Files\Conan\conan"
           $env:PATH = "$conanDir;$env:PATH"
           $conanDir | Set-Content -Path $env:GITHUB_PATH
+          $env:CONAN_HOME = "C:\.conan"
+          "CONAN_HOME=C:\.conan" | Out-File -FilePath $env:GITHUB_ENV -Append
           conan --version
+          
+
+      - name: Install Windows Dependencies (Part 2d - Get Remaining Dependencies through Conan)
+        if: matrix.os == 'windows-latest'
+        run:
           conan profile detect --force
+          
           conan install . --output-folder=build --build=missing
 
       - name: Build Wheels (Windows)
