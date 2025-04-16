@@ -195,12 +195,15 @@ jobs:
         run: |
           $pcount = $($(Get-WmiObject -class Win32_ComputerSystem).numberoflogicalprocessors)
           python ..\scripts\build_flang.py -b "Release" -d build -t X86 -p "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\" -j $pcount -v
-          $resolved = Resolve-Path "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\"
+          $resolved = Resolve-Path "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\bin\"
           $resolved_path = $resolved.Path
           $new_path = $resolved_path + ";" + [Environment]::GetEnvironmentVariable("GITHUB_PATH", "Machine")
+          $env:PATH = "$resolved_path;$env:PATH"
+          $resolved_path | Set-Content -Path $env:GITHUB_PATH
           Write-Output "New GITHUB_PATH: "
           Write-Output "$new_path"
           [Environment]::SetEnvironmentVariable("GITHUB_PATH", "$new_path", "Machine")
+          flang --version
 
       - name: Install Windows Dependencies (Part 2a - Reclean Windows Workspace)
         if: ${{ matrix.os == 'windows-latest'}}
@@ -243,6 +246,8 @@ jobs:
             CXX=clang++
             FC=flang
             CMAKE_GENERATOR=Ninja
+            CMAKE_TOOLCHAIN_FILE=D:\a\vcell-fvsolver\vcell-fvsolver\build\conan_toolchain.cmake
+
         # with:
         #   package-dir: .
         #   output-dir: wheelhouse
