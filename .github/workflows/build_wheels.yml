@@ -246,7 +246,7 @@ jobs:
             CXX=clang++
             FC=flang
             CMAKE_GENERATOR=Ninja
-            CMAKE_TOOLCHAIN_FILE=D:\a\vcell-fvsolver\vcell-fvsolver\build\conan_toolchain.cmake
+            CMAKE_TOOLCHAIN_FILE=D:\\a\\vcell-fvsolver\\vcell-fvsolver\\build\\conan_toolchain.cmake
 
         # with:
         #   package-dir: .
