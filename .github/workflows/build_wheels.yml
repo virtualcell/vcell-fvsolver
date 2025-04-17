@@ -230,13 +230,16 @@ jobs:
         if: matrix.os == 'windows-latest'
         run:
           conan profile detect --force
-          
-          conan install . --output-folder=build --build=missing
+
+          conan install . --output-folder=build --build=missing -s compiler.cppstd=17 -s compiler=clang
 
       - name: Build Wheels (Windows)
         uses: pypa/cibuildwheel@v2.23.2
         if: matrix.os == 'windows-latest'
         env:
+          CC: "clang"
+          CXX: "clang++"
+          FC: "flang"
           CIBW_BUILD: ${{ matrix.python_version }}
           CIBW_ARCHS_WINDOWS: "native"
           CIBW_BEFORE_BUILD: "pip install cmake ninja"
