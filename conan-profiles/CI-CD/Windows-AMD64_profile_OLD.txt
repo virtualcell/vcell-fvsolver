@@ -5,6 +5,9 @@ compiler=clang
 compiler.version=21
 compiler.libcxx=libc++
 compiler.cppstd=17
+compiler.runtime=dynamic
+compiler.runtime_type=Debug
+compiler.runtime_version=v143
 build_type=Release
 
 [conf]
