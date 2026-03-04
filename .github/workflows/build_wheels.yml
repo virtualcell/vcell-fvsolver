@@ -18,16 +18,13 @@ jobs:
       matrix:
         #os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-13, macos-14]
         os: [windows-latest]
-        python_version: ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+        python_version: ["cp310-*", "cp311-*", "cp312-*", "cp313-*"]
         exclude:
-          - os: windows-latest
-            python_version: "cp39-*"
           - os: windows-latest
             python_version: "cp313-*"
 
     steps:
       - name: Checkout repository (for non-windows)
-        if: matrix.os != 'windows-latest'
         uses: actions/checkout@v4
         with:
           submodules: true
@@ -76,30 +73,6 @@ jobs:
           echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
           ln -s /opt/homebrew/bin/gfortran-14 /usr/local/bin/gfortran
 
-# We're no longer using msys2, as it appears to not be able to give us native windows wheels.
-#      - name: Install Windows Dependencies
-#        if: matrix.os == 'windows-latest'
-#        run: |
-#          choco install msys2
-#          C:\tools\msys64\usr\bin\bash -lc "pacman -Sy --noconfirm \
-#            mingw-w64-clang-x86_64-cmake \
-#            mingw-w64-clang-x86_64-ninja \
-#            mingw-w64-clang-x86_64-toolchain \
-#            mingw-w64-clang-x86_64-boost \
-#            mingw-w64-clang-x86_64-hdf5 \
-#            mingw-w64-clang-x86_64-zlib \
-#            mingw-w64-clang-x86_64-libzip \
-#            mingw-w64-clang-x86_64-libaec"
-#            echo "C:\tools\msys64\clang64\bin" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
-#            echo "C:\tools\msys64\clang64\lib" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
-#            echo "C:\tools\msys64\clang64\include" | Out-File -Append -Encoding ascii $env:GITHUB_PATH
-
-      - name: Install Python for Windows (Python 3.9)
-        if: matrix.os == 'windows-latest' && matrix.python_version == 'cp39-*'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.9'
-
       - name: Install Python for Windows (Python 3.10)
         if: matrix.os == 'windows-latest' && matrix.python_version == 'cp310-*'
         uses: actions/setup-python@v5
@@ -124,99 +97,11 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Clean Windows Workspace
-        if: ${{ matrix.os == 'windows-latest'}}
-        run: Remove-Item * -Recurse -Force
-
-      - name: Install Windows Dependencies (Part 0a - Setup Flang Source Code)
-        if: ${{ matrix.os == 'windows-latest'}}
-        run: |
-          git clone --depth 1 https://github.com/flang-compiler/flang.git ${{ github.workspace }}
-          mv ${{ github.workspace }}/* ${{ github.workspace }}/..
-
-      - name: Install Windows Dependencies (Part 0b - Setup LLVM Build Env)
-        if: ${{ matrix.os == 'windows-latest'}}
-        uses: llvm/actions/setup-windows@main
-        with:
-          arch: amd64
-
-      - name: Install Windows Dependencies (Part 0c - Setup LLVM-style Ninja Build Env)
-        if: ${{ matrix.os == 'windows-latest'}}
-        uses: llvm/actions/setup-windows@main
-        with:
-          arch: amd64
-
-      - name: Install Windows Dependencies (Part 0d - Setup Graphviz for Doxygen)
-        if: ${{ matrix.os == 'windows-latest'}}
-        run: choco install graphviz wget
-
-      - name: Install Windows Dependencies (Part 0e - Setup Sphinx for Python)
-        if: ${{ matrix.os == 'windows-latest'}}
-        run: pip install sphinx
-
-      - name: Install Windows Dependencies (Part 0f - Download pre-built "cmade" LLVM)
-        run: |
-          cd ../..
-          # Search backwards in the workflow history for the specified branch
-          # for the first successful run that produced the desired artifact.
-          $build_name="llvm_build_win_amd64_clangcl_release_19x"
-          Invoke-WebRequest -Uri https://api.github.com/repos/flang-compiler/classic-flang-llvm-project/actions/workflows/pre-compile_llvm.yml/runs -OutFile llvm_runs.json
-          $urls = @($(jq -r --arg b release_19x '.workflow_runs[] | select(.head_branch == $b) | select (.conclusion == "success") | .artifacts_url?' llvm_runs.json))
-          Invoke-WebRequest "$(jq -r '.workflow_runs[0].artifacts_url?' llvm_runs.json)" -OutFile llvm_artifacts.json
-          for ($i = 0; $i -lt $urls.Count; $i++) {
-            $artifacts_url = $urls[$i]
-            Invoke-WebRequest -Uri "$artifacts_url" -OutFile llvm_artifacts.json
-            $archive_url = "$(jq -r --arg b $build_name '.artifacts[] | select(.name == $b) | .archive_download_url' llvm_artifacts.json)"
-            if (! $archive_url) {
-              Write-Output "$artifacts_url did not contain a $build_name archive; too old?"
-              continue
-            }
-            Write-Output "Downloading $archive_url."
-            $artifact_path = "$pwd\${build_name}.zip"
-            try {
-              $response = Invoke-WebRequest -Method Get -Uri $archive_url -OutFile $artifact_path -Headers @{ "Authorization" = "Bearer ${{ secrets.GITHUB_TOKEN }}" }
-              if ($response.StatusCode -lt 300) {
-                break
-              }
-            } catch {}
-          }
-          if (!(Test-Path "$artifact_path")) {
-            Write-Output "Could not download the correct prebuilt compiler; aborting."
-            exit 1
-          }
-          Expand-Archive -Force -Path "${build_name}.zip" -DestinationPath .
-          & 7z x "$pwd\llvm_build.7z" -o"$pwd\classic-flang-llvm-project\" -y
-          Write-Output "$(Get-ChildItem)"
-
-
-      - name: Install Windows Dependencies (Part 1a - Build Flang)
+      - name: Install Windows Dependencies (Part 1 - Configure Conan ...and all other dependencies)
         if: matrix.os == 'windows-latest'
         shell: powershell
         run: |
-          $pcount = $($(Get-WmiObject -class Win32_ComputerSystem).numberoflogicalprocessors)
-          python ..\scripts\build_flang.py -b "Release" -d build -t X86 -p "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\" -j $pcount -v
-          $resolved = Resolve-Path "$(pwd)\..\..\classic-flang-llvm-project\classic-flang-llvm-project\build\bin\"
-          $resolved_path = $resolved.Path
-          $new_path = $resolved_path + ";" + [Environment]::GetEnvironmentVariable("GITHUB_PATH", "Machine")
-          $env:PATH = "$resolved_path;$env:PATH"
-          $resolved_path | Set-Content -Path $env:GITHUB_PATH
-          Write-Output "New GITHUB_PATH: "
-          Write-Output "$new_path"
-          [Environment]::SetEnvironmentVariable("GITHUB_PATH", "$new_path", "Machine")
-          flang --version
-
-      - name: Install Windows Dependencies (Part 2a - Reclean Windows Workspace)
-        if: ${{ matrix.os == 'windows-latest'}}
-        run: Remove-Item * -Recurse -Force
-
-      - name: Install Windows Dependencies (Part 2b - Setup Flang Source Code)
-        if: ${{ matrix.os == 'windows-latest'}}
-        uses: actions/checkout@v4
-
-      - name: Install Windows Dependencies (Part 2c - Configure Conan)
-        if: matrix.os == 'windows-latest'
-        shell: powershell
-        run: |
+          choco install graphviz wget llvm zip gtk-runtime -y
           choco install conan -y
           $conanDir = "C:\Program Files\Conan\conan"
           $env:PATH = "$conanDir;$env:PATH"
@@ -224,14 +109,22 @@ jobs:
           $env:CONAN_HOME = "C:\.conan"
           "CONAN_HOME=C:\.conan" | Out-File -FilePath $env:GITHUB_ENV -Append
           conan --version
-          
+          conan profile detect --force  
 
-      - name: Install Windows Dependencies (Part 2d - Get Remaining Dependencies through Conan)
+      - name: Install Windows Dependencies (Part 2 - Setup Sphinx for Python)
+        if: matrix.os == 'windows-latest'
+        run: pip install sphinx cmake ninja
+
+      - name: Install Windows Dependencies (Part 2 - Reconfigure Conan)
+        if: matrix.os == 'windows-latest'
+        shell: bash
+        run: |
+          cp conan-profiles/CI-CD/Windows-AMD64_profile.txt $CONAN_HOME/profiles/default
+
+      - name: Install Windows Dependencies (Part 3b - Get Remaining Dependencies through Conan)
         if: matrix.os == 'windows-latest'
         run:
-          conan profile detect --force
-
-          conan install . --output-folder=build --build=missing -s compiler.cppstd=17 -s compiler=clang
+          conan install . --output-folder=build --build=missing
 
       - name: Build Wheels (Windows)
         uses: pypa/cibuildwheel@v2.23.2
@@ -242,7 +135,7 @@ jobs:
           FC: "flang"
           CIBW_BUILD: ${{ matrix.python_version }}
           CIBW_ARCHS_WINDOWS: "native"
-          CIBW_BEFORE_BUILD: "pip install cmake ninja"
+          CIBW_BEFORE_BUILD: "./conanbuild.ps1"
           CIBW_PYTHON_BIN: ${{ env.CUSTOM_PYTHON_BIN }}
           CIBW_ENVIRONMENT: >
             CC=clang
@@ -250,6 +143,7 @@ jobs:
             FC=flang
             CMAKE_GENERATOR=Ninja
             CMAKE_TOOLCHAIN_FILE=D:\\a\\vcell-fvsolver\\vcell-fvsolver\\build\\conan_toolchain.cmake
+            OPTION_EXTRA_CONFIG_INFO=ON
 
         # with:
         #   package-dir: .
@@ -330,13 +224,6 @@ jobs:
 #  && cmake --install ../libzip-source/libzip-1.11.3/build \
 #  && export LIBZIP_INCLUDE_DIR=/usr/local/include \
 #  && export LIBZIP_LIBRARY=/usr/local/lib/libzip.so
-
-      - name: Upload Artifact (Python 3.9)
-        uses: actions/upload-artifact@v4
-        if: matrix.python_version == 'cp39-*'
-        with:
-          name: pyvcell-fv-${{ matrix.os }}-cp39-cibw-wheels
-          path: ./wheelhouse/*.whl
 
       - name: Upload Artifact (Python 3.10)
         uses: actions/upload-artifact@v4
