@@ -16,8 +16,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        #os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-13, macos-14]
-        os: [windows-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15-intel, macos-15]
+        #os: [windows-latest]
         python_version: ["cp310-*", "cp311-*", "cp312-*", "cp313-*"]
         exclude:
           - os: windows-latest
@@ -45,7 +45,7 @@ jobs:
 #          echo "Confirming header presence..."
 
       - name: Install Intel MacOS Dependencies
-        if: matrix.os == 'macos-13'
+        if: matrix.os == 'macos-15-intel'
         shell: bash
         run: |
           brew install boost
@@ -60,7 +60,7 @@ jobs:
           ln -s $(which gfortran-14) /usr/local/bin/gfortran
 
       - name: Install ARM MacOS dependencies
-        if: matrix.os == 'macos-14'
+        if: matrix.os == 'macos-15'
         shell: bash
         run: |
           brew install boost
@@ -152,7 +152,7 @@ jobs:
 
       - name: Build Wheels (MacOS<x86_64>)
         uses: pypa/cibuildwheel@v2.23.2
-        if: matrix.os == 'macos-13'
+        if: matrix.os == 'macos-15-intel'
         env:
           CIBW_BUILD: ${{ matrix.python_version }}
           CIBW_ARCHES: "native"
@@ -166,7 +166,7 @@ jobs:
 
       - name: Build Wheels (MacOS<ARM>)
         uses: pypa/cibuildwheel@v2.23.2
-        if: matrix.os == 'macos-14'
+        if: matrix.os == 'macos-15'
         env:
           MACOSX_DEPLOYMENT_TARGET: 14.0
           CIBW_BUILD: ${{ matrix.python_version }}

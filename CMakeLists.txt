@@ -1,3 +1,8 @@
+#############################################
+#
+#  Top Level CMake File
+#
+##############################################
 cmake_minimum_required(VERSION 3.22)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -23,7 +28,8 @@ if (OPTION_TARGET_PYTHON_BINDING)
 	project(
 			${SKBUILD_PROJECT_NAME}
 			VERSION ${SKBUILD_PROJECT_VERSION}
-			LANGUAGES CXX C Fortran)
+			LANGUAGES CXX C Fortran
+	)
 	set(OPTION_TARGET_MESSAGING OFF)
 	set(OPTION_TARGET_FV_SOLVER ON)
 	set(OPTION_TARGET_DOCS OFF)
@@ -36,7 +42,8 @@ if (OPTION_TARGET_PYTHON_BINDING)
 else()
 	project(
 			fvsolver
-			LANGUAGES CXX C Fortran)
+			LANGUAGES CXX C Fortran
+	)
 	set(OPTION_TARGET_LIBSMOLDYN ON)
 	set(OPTION_VCELL ON)
 endif ()
@@ -58,7 +65,6 @@ set(WINDOWS FALSE)
 if (${CMAKE_SYSTEM_NAME} MATCHES Windows)
 	set(WINDOWS TRUE)
 	set(WIN32 TRUE)
-	set(MINGW TRUE)
 endif()
 
 set (ARCH_64bit FALSE)
@@ -66,8 +72,28 @@ if (CMAKE_SIZEOF_VOID_P EQUAL 8)
 	set (ARCH_64bit TRUE)
 endif()
 
-if (NOT APPLE AND NOT LINUX AND NOT MINGW)
+if (NOT APPLE AND NOT LINUX AND NOT WINDOWS)
 	message(FATAL_ERROR "Unsupported Operating System or C/C++ Compiler.")
+else()
+	if (APPLE)
+		message("Performing MacOS installation...")
+	endif ()
+	if (LINUX)
+		message("Performing Linux installation...")
+	endif ()
+	if (WINDOWS)
+		message("Performing Windows installation...")
+	endif ()
+endif()
+
+if(NOT DEFINED CMAKE_C_COMPILER)
+	set(CMAKE_C_COMPILER "clang")
+endif()
+if(NOT DEFINED CMAKE_CXX_COMPILER)
+	set(CMAKE_CXX_COMPILER "clang++")
+endif()
+if(NOT DEFINED CMAKE_Fortran_COMPILER)
+	set(CMAKE_CXX_COMPILER "flang")
 endif()
 
 if (APPLE)
@@ -82,13 +108,6 @@ if (APPLE)
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__x86_64__")
 		set(CMAKE_OSX_ARCHITECTURES "x86_64")
 	endif()
-	if(NOT DEFINED CMAKE_C_COMPILER)
-		set(CMAKE_C_COMPILER "clang")
-	endif()
-	if(NOT DEFINED CMAKE_CXX_COMPILER)
-		set(CMAKE_CXX_COMPILER "clang++")
-	endif()
-
 elseif (LINUX)
 	option(LINUX_32bit_BINARIES "Build 32bit Linux BINARIES" OFF)
 	option(LINUX_64bit_BINARIES "Build 64bit Linux BINARIES" ON)
@@ -108,20 +127,6 @@ elseif (LINUX)
 		set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64")
 		set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64")
 		set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -m64")
-	endif()
-	if(NOT DEFINED CMAKE_C_COMPILER)
-		set(CMAKE_C_COMPILER "clang")
-	endif()
-	if(NOT DEFINED CMAKE_CXX_COMPILER)
-		set(CMAKE_CXX_COMPILER "clang++")
-	endif()
-
-elseif (MINGW)
-	if(NOT DEFINED CMAKE_C_COMPILER)
-		set(CMAKE_C_COMPILER "clang.exe")
-	endif()
-	if(NOT DEFINED CMAKE_CXX_COMPILER)
-		set(CMAKE_CXX_COMPILER "clang++.exe")
 	endif()
 elseif (WINDOWS)
 	if(NOT DEFINED CMAKE_C_COMPILER)
@@ -172,7 +177,7 @@ endif(NOT OPTION_TARGET_PYTHON_BINDING)
 
 if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.7" CACHE STRING "Choose minimum deploy target for Macos machines")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.15" CACHE STRING "Choose minimum deploy target for Macos machines")
 endif()
 
 add_definitions(-DFORTRAN_UNDERSCORE)
@@ -249,7 +254,11 @@ if (OPTION_TARGET_PYTHON_BINDING)
 	# Find the module development requirements (requires FindPython from 3.17 or
 	# scikit-build-core's built-in backport)
 	find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
-	find_package(pybind11 CONFIG REQUIRED)
+	find_package(pybind11 CONFIG QUIET)
+	if(NOT pybind11_FOUND)
+		message(STATUS "System pybind11 not found, using bundled version")
+		add_subdirectory(extern/pybind11)
+	endif()
 
 	# Add a library using FindPython's tooling (pybind11 also provides a helper like this)
 	python_add_library(_core MODULE src/main.cpp WITH_SOABI)

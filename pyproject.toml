@@ -11,7 +11,7 @@ readme = "README.md"
 authors = [
     { name = "Jim Schaff", email = "schaff@uchc.edu" },
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
@@ -28,6 +28,12 @@ test = ["pytest"]
 
 [tool.scikit-build]
 wheel.expand-macos-universal-tags = true
+
+[tool.scikit-build.cmake.define]
+CMAKE_C_COMPILER = "clang"
+CMAKE_CXX_COMPILER = "clang++"
+CMAKE_Fortran_COMPILER = "flang"
+CMAKE_CXX_FLAGS = "-stdlib=libc++"
 
 
 [tool.pytest.ini_options]

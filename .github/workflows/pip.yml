@@ -17,8 +17,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ windows-latest, macos-13, macos-14, ubuntu-latest ]
-        #platform: [ macos-13, macos-14, ubuntu-latest ]
+        platform: [ windows-latest, macos-15-intel, macos-15, ubuntu-latest ]
+        #platform: [ macos-15-intel, macos-15, ubuntu-latest ]
         python-version: ["3.9","3.10","3.11","3.12"]
         exclude:
           - platform: windows-latest
@@ -32,7 +32,7 @@ jobs:
         submodules: true
 
     - name: Install Intel MacOS dependencies
-      if: matrix.platform == 'macos-13'
+      if: matrix.platform == 'macos-15-intel'
       shell: bash
       run: |
         brew install boost
@@ -54,7 +54,7 @@ jobs:
 
 
     - name: Install ARM MacOS dependencies
-      if: matrix.platform == 'macos-14'
+      if: matrix.platform == 'macos-15'
       shell: bash
       run: |
         brew install boost
@@ -150,7 +150,7 @@ jobs:
       with:
         python-version: "${{ matrix.python-version }}"
 
-    - name: Build and install macos-13
+    - name: Build and install macos-15-intel
       run: |
         export MACOSX_DEPLOYMENT_TARGET=13.0
         PATH="/usr/local/opt/llvm/bin:$PATH"
@@ -160,9 +160,9 @@ jobs:
         delocate-listdeps dist/*.whl
         delocate-wheel -v dist/*.whl
         pip install dist/*.whl
-      if: matrix.platform == 'macos-13'
+      if: matrix.platform == 'macos-15-intel'
 
-    - name: Build and install macos-14
+    - name: Build and install macos-15
       run: |
         PATH="/opt/homebrew/opt/llvm/bin:$PATH"
         pip wheel . -w dist
@@ -171,7 +171,7 @@ jobs:
         delocate-listdeps dist/*.whl
         delocate-wheel -v dist/*.whl
         pip install dist/*.whl
-      if: matrix.platform == 'macos-14'
+      if: matrix.platform == 'macos-15'
 
     - name: Build and install windows-latest
       shell: msys2 {0}

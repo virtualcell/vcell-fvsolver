@@ -149,9 +149,9 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 ####### Option: Compile with MinGW ##########
 
-if (OPTION_MINGW)
+if (WIN32 AND OPTION_MINGW)
 	message(STATUS "Cross-compiling for Windows using MinGW libraries from: ${MINGWDIR}")
-endif(OPTION_MINGW)
+endif()
 
 
 ######### Platform dependent information ##########
@@ -330,7 +330,7 @@ endif(OPTION_USE_LIBTIFF)
 ####### Option: Build with Zlib ##########
 
 if(OPTION_USE_ZLIB)
-	if(OPTION_MINGW)
+	if(WIN32 AND OPTION_MINGW)
 		find_path(ZLIB_INCLUDE_DIRS zlib.h PATHS ${MINGWDIR}/include NO_DEFAULT_PATH)
 		find_library(ZLIB_LIBRARIES libz.a PATHS ${MINGWDIR}/lib NO_DEFAULT_PATH)
 	elseif(OPTION_STATIC)
