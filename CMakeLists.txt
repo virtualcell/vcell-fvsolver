@@ -93,7 +93,7 @@ if(NOT DEFINED CMAKE_CXX_COMPILER)
 	set(CMAKE_CXX_COMPILER "clang++")
 endif()
 if(NOT DEFINED CMAKE_Fortran_COMPILER)
-	set(CMAKE_CXX_COMPILER "flang")
+	set(CMAKE_Fortran_COMPILER "flang")
 endif()
 
 if (APPLE)

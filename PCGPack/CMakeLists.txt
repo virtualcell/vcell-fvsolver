@@ -1,5 +1,9 @@
 project(PCGPack Fortran)    
-   
+
+if(NOT DEFINED CMAKE_Fortran_COMPILER)
+	set(CMAKE_CXX_COMPILER "flang")
+endif()
+
 if (MSVC)
     set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} /names:lowercase")
 elseif (UNIX)
@@ -7,7 +11,7 @@ elseif (UNIX)
 endif()
 
 if (APPLE)
-	set (CMAKE_Fortran_COMPILER gfortran)
+	#set (CMAKE_Fortran_COMPILER gfortran)
 	set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -m64")
 endif()
     
