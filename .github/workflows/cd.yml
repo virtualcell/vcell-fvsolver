@@ -76,97 +76,46 @@ jobs:
         with:
           submodules: true
 
-      - name: Install Intel MacOS dependencies
+      - name: Install MacOS dependencies
+        if: matrix.platform == 'macos-15' || matrix.platform == 'macos-15-intel'
+        shell: bash
+        run: |
+          brew install boost
+          brew install hdf5
+          brew install libzip
+          brew install ninja
+          brew install libaec
+          brew uninstall llvm@18
+          brew install flang
+
+          clang --version
+          flang --version
+          cmake --version
+          brew info boost
+          brew info hdf5
+
+      - name: Install Intel MacOS specific dependencies
         if: matrix.platform == 'macos-15-intel'
-        shell: bash
-        run: |
-          brew install boost
-          brew install hdf5
-          brew install libzip
-          brew install ninja
-          brew install libaec
-
-          brew install llvm
-          echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
-          source /Users/runner/.bash_profile
-          ln -s $(which gfortran-14) /usr/local/bin/gfortran
-          
-          python3 -m pip install h5py numpy
-
-          gcc --version
-          gfortran --version
-          cmake --version
-          brew info boost
-          brew info hdf5
-
-      - name: Install ARM MacOS dependencies Part 1
-        if: matrix.platform == 'macos-15'
-        shell: bash
-
-        run: |
-          brew install boost
-          brew install hdf5
-          brew install libzip
-          brew install ninja
-          brew install libaec
-
-          brew install llvm
-          echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
-          ln -s /opt/homebrew/bin/gfortran-14 /usr/local/bin/gfortran
-          
-          gcc --version
-          gfortran --version
-          cmake --version
-          brew info boost
-          brew info hdf5
+        run: python3 -m pip install h5py numpy --break-system-packages
 
       - name: Install ARM MacOS dependencies Part 2
         if: matrix.platform == 'macos-15'
-        run: |
-          /opt/homebrew/bin/python3 -m pip install h5py --break-system-packages
+        run: /opt/homebrew/bin/python3 -m pip install numpy h5py --break-system-packages
 
-      - name: Build Macos ARM
-        if: matrix.platform == 'macos-15'
+      - name: Build Macos
+        if: matrix.platform == 'macos-15' || matrix.platform == 'macos-15-intel'
         run: |
           platform=macos
           echo "working dir is $PWD"
 
           mkdir build
           cd build
-
-          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
           
           # General Build
           cmake \
           -G Ninja \
-          -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
-          -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ \
-          -DOPTION_TARGET_PYTHON_BINDING=OFF \
-          -DOPTION_MINGW=OFF \
-          -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
-          -DOPTION_TARGET_FV_SOLVER=ON \
-          -DOPTION_TARGET_DOCS=ON \
-          -DOPTION_TARGET_TESTS=ON \
-          -B . -S ..
-
-          ninja
-
-      - name: Build Macos Intel
-        if: matrix.platform == 'macos-15-intel'
-        run: |
-          platform=macos
-          echo "working dir is $PWD"
-
-          mkdir build
-          cd build
-
-          export PATH="/usr/local/opt/llvm/bin:$PATH"
-
-          cmake \
-          -G Ninja \
-          -DCMAKE_C_COMPILER=/usr/local/opt/llvm/bin/clang \
-          -DCMAKE_CXX_COMPILER=/usr/local/opt/llvm/bin/clang++ \
+          -DCMAKE_C_COMPILER=clang \
+          -DCMAKE_CXX_COMPILER=clang++ \
           -DOPTION_TARGET_PYTHON_BINDING=OFF \
           -DOPTION_MINGW=OFF \
           -DOPTION_TARGET_MESSAGING=OFF \
