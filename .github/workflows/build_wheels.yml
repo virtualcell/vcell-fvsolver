@@ -44,8 +44,8 @@ jobs:
 #          sudo cmake --install ../libzip-source/libzip-1.11.3/build
 #          echo "Confirming header presence..."
 
-      - name: Install Intel MacOS Dependencies
-        if: matrix.os == 'macos-15-intel'
+      - name: Install MacOS Dependencies
+        if: matrix.os == 'macos-15' || matrix.os == 'macos-15-intel'
         shell: bash
         run: |
           brew install boost
@@ -53,25 +53,14 @@ jobs:
           brew install libzip
           brew install ninja
           brew install libaec
-          
-          brew install llvm
-          echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
-          source /Users/runner/.bash_profile
-          ln -s $(which gfortran-14) /usr/local/bin/gfortran
+          brew uninstall llvm@18
+          brew install flang
 
-      - name: Install ARM MacOS dependencies
-        if: matrix.os == 'macos-15'
-        shell: bash
-        run: |
-          brew install boost
-          brew install hdf5
-          brew install libzip
-          brew install ninja
-          brew install libaec
-          
-          brew install llvm
-          echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
-          ln -s /opt/homebrew/bin/gfortran-14 /usr/local/bin/gfortran
+          clang --version
+          flang --version
+          cmake --version
+          brew info boost
+          brew info hdf5
 
       - name: Install Python for Windows (Python 3.10)
         if: matrix.os == 'windows-latest' && matrix.python_version == 'cp310-*'
@@ -154,11 +143,9 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.2
         if: matrix.os == 'macos-15-intel'
         env:
+          MACOSX_DEPLOYMENT_TARGET: 15.0
           CIBW_BUILD: ${{ matrix.python_version }}
           CIBW_ARCHES: "native"
-          CIBW_ENVIRONMENT: >
-            FC=/usr/local/bin/gfortran
-            MACOSX_DEPLOYMENT_TARGET="15"
         # with:
         #   package-dir: .
         #   output-dir: wheelhouse
@@ -171,8 +158,6 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: 15.0
           CIBW_BUILD: ${{ matrix.python_version }}
           CIBW_ARCHES: "native"
-          CIBW_ENVIRONMENT: >
-            FC=/opt/homebrew/bin/gfortran-14
         # with:
         #   package-dir: .
         #   output-dir: wheelhouse
