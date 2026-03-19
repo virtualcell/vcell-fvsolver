@@ -158,7 +158,7 @@ jobs:
           CIBW_ARCHES: "native"
           CIBW_ENVIRONMENT: >
             FC=/usr/local/bin/gfortran
-            MACOSX_DEPLOYMENT_TARGET="10.13"
+            MACOSX_DEPLOYMENT_TARGET="15"
         # with:
         #   package-dir: .
         #   output-dir: wheelhouse
@@ -168,7 +168,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.23.2
         if: matrix.os == 'macos-15'
         env:
-          MACOSX_DEPLOYMENT_TARGET: 14.0
+          MACOSX_DEPLOYMENT_TARGET: 15.0
           CIBW_BUILD: ${{ matrix.python_version }}
           CIBW_ARCHES: "native"
           CIBW_ENVIRONMENT: >

@@ -19,7 +19,7 @@ jobs:
       matrix:
         platform: [ windows-latest, macos-15-intel, macos-15, ubuntu-latest ]
         #platform: [ macos-15-intel, macos-15, ubuntu-latest ]
-        python-version: ["3.9","3.10","3.11","3.12"]
+        python-version: ["3.10","3.11","3.12"]
         exclude:
           - platform: windows-latest
             python-version: "3.9"
@@ -32,7 +32,7 @@ jobs:
         submodules: true
 
     - name: Install Intel MacOS dependencies
-      if: matrix.platform == 'macos-15-intel'
+      if: matrix.platform == 'macos-15' || matrix.platform == 'macos-15-intel'
       shell: bash
       run: |
         brew install boost
@@ -40,39 +40,14 @@ jobs:
         brew install libzip
         brew install ninja
         brew install libaec
-        
-        brew install llvm
-        echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
-        source /Users/runner/.bash_profile
-        ln -s $(which gfortran-14) /usr/local/bin/gfortran
-        
-        gcc --version
-        gfortran --version
+        brew uninstall llvm@18
+        brew install flang
+
+        clang --version
+        flang --version
         cmake --version
         brew info boost
         brew info hdf5
-
-
-    - name: Install ARM MacOS dependencies
-      if: matrix.platform == 'macos-15'
-      shell: bash
-      run: |
-        brew install boost
-        brew install hdf5
-        brew install libzip
-        brew install ninja
-        brew install libaec
-        
-        brew install llvm
-        echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
-        ln -s /opt/homebrew/bin/gfortran-14 /usr/local/bin/gfortran
-        
-        gcc --version
-        gfortran --version
-        cmake --version
-        brew info boost
-        brew info hdf5
-
 
     - name: Install Windows Dependencies
       if: matrix.platform == 'windows-latest'
@@ -150,30 +125,19 @@ jobs:
       with:
         python-version: "${{ matrix.python-version }}"
 
-    - name: Build and install macos-15-intel
+    - name: Build and install Intel MacOS
+      if: matrix.platform == 'macos-15' || matrix.platform == 'macos-15-intel'
       run: |
-        export MACOSX_DEPLOYMENT_TARGET=13.0
-        PATH="/usr/local/opt/llvm/bin:$PATH"
+        export MACOSX_DEPLOYMENT_TARGET=15.0
         pip wheel . -w dist
         ls -al dist
         pip install delocate
         delocate-listdeps dist/*.whl
         delocate-wheel -v dist/*.whl
-        pip install dist/*.whl
-      if: matrix.platform == 'macos-15-intel'
-
-    - name: Build and install macos-15
-      run: |
-        PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-        pip wheel . -w dist
-        ls -al dist
-        pip install delocate
-        delocate-listdeps dist/*.whl
-        delocate-wheel -v dist/*.whl
-        pip install dist/*.whl
-      if: matrix.platform == 'macos-15'
+        pip install dist/*.whl 
 
     - name: Build and install windows-latest
+      if: matrix.platform == 'windows-latest'
       shell: msys2 {0}
       run: |
         which python3
@@ -187,9 +151,10 @@ jobs:
           echo "delvewheel repair -v $wheel_file"
         done
         python3 -m pip install dist/*.whl
-      if: matrix.platform == 'windows-latest'
+      
 
     - name: Build and install manylinux for python 3.9
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.9'
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
             /bin/bash -c \
@@ -199,9 +164,10 @@ jobs:
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
         sudo rm -rf dist/*-linux_x86_64.whl
         pip install dist/*.whl
-      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.9'
+      
 
     - name: Build and install manylinux for python 3.10
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.10'
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
             /bin/bash -c \
@@ -211,9 +177,10 @@ jobs:
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
         sudo rm -rf dist/*-linux_x86_64.whl
         pip install dist/*.whl
-      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.10'
+      
 
     - name: Build and install manylinux for python 3.11
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.11'
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
             /bin/bash -c \
@@ -223,9 +190,9 @@ jobs:
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
         sudo rm -rf dist/*-linux_x86_64.whl
         pip install dist/*.whl
-      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.11'
 
     - name: Build and install manylinux for python 3.12
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.12'
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
             /bin/bash -c \
@@ -235,22 +202,22 @@ jobs:
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
         sudo rm -rf dist/*-linux_x86_64.whl
         pip install dist/*.whl
-      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.12'
+      
 
     - name: Test not windows
+      if: matrix.platform != 'windows-latest'
       run: |
         pip install pytest
         pytest
-      if: matrix.platform != 'windows-latest'
 
     - name: Test on windows
+      if: matrix.platform == 'windows-latest'
       shell: msys2 {0}
       run: |
         which python3
         python3 --version
         python3 -m pip install pytest
         python3 -m pytest
-      if: matrix.platform == 'windows-latest'
 
     - name: set wheel_file and artifact_name environment vars (non-windows)
       if: matrix.platform != 'windows-latest'
