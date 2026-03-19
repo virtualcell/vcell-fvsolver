@@ -19,6 +19,7 @@ endif()
 
 set(SRC_FILES
         TestVCell.cpp
+        TestSmoldyn.cpp
         testFiles/SmoldynComplexDataStructures/TestSmoldynCHashtable.cpp
         testFiles/SmoldynComplexDataStructures/TestSmoldynCLinkedList.cpp
         testFiles/SmoldynComplexDataStructures/TestSmoldynCVector.cpp
