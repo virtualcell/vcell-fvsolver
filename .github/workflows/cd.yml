@@ -65,7 +65,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-15-intel, windows-latest, ubuntu-latest, macos-15]
+        platform: [macos-15-intel, windows-latest, ubuntu-latest, ubuntu-24.04-arm, macos-15]
 
 
     runs-on: ${{ matrix.platform }}
@@ -233,20 +233,33 @@ jobs:
           echo
 
       - name: Install Linux Dependencies
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm'
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip libboost-all-dev libhdf5-dev libzip-dev libbz2-dev ninja-build
           python3 -m pip install h5py numpy
-
-          gcc --version
-          gfortran --version
+          
+          # LLVM Install (need version 22+ for flang)
+          wget https://apt.llvm.org/llvm.sh
+          python3 -c "
+          content = open('llvm.sh').read()
+          old = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\nfi'
+          new = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\n    if test \$LLVM_VERSION -ge 16; then\n        PKG=\"\$PKG flang-\$LLVM_VERSION\"\n    fi\nfi'
+          open('llvm.sh', 'w').write(content.replace(old, new, 1))"
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22 all
+          export PATH="/usr/lib/llvm-22/bin:$PATH"
+          echo "/usr/lib/llvm-22/bin" >> $GITHUB_PATH
+          
+          clang --version
+          clang++ --version
+          flang --version
           cmake --version
           dpkg -s libboost-all-dev
           dpkg -s libhdf5-dev
 
       - name: Build Linux
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm'
         run: |
           platform=linux
           echo "working dir is $PWD"
@@ -256,6 +269,9 @@ jobs:
 
           cmake \
           -G Ninja \
+          -DCMAKE_C_COMPILER=clang \
+          -DCMAKE_CXX_COMPILER=clang++ \
+          -DCMAKE_Fortran_COMPILER=flang \
           -DOPTION_TARGET_PYTHON_BINDING=OFF \
           -DOPTION_TARGET_MESSAGING=OFF \
           -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
@@ -267,7 +283,7 @@ jobs:
           ninja
 
       - name: Test Linux
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm'
         run: |
           platform=linux
           echo "working dir is $PWD"
@@ -343,11 +359,18 @@ jobs:
           name: fvsolver_win64.zip
           path: build/upload/fvsolver_win64.zip
 
-      - name: Upload Linux binaries
+      - name: Upload Linux binaries (x86)
         if: matrix.platform == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: fvsolver_linux64.tgz
+          path: build/upload/fvsolver_linux64.tgz
+
+      - name: Upload Linux binaries (ARM)
+        if: matrix.platform == 'ubuntu-24.04-arm'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_linux_arm64.tgz
           path: build/upload/fvsolver_linux64.tgz
 
       - name: Setup tmate session
