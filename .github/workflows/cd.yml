@@ -322,6 +322,18 @@ jobs:
           mkdir -p ~/.conan2/profiles/
           touch ~/.conan2/profiles/default # if we don't make a file first, cp thinks its a folder that doesn't exist
           cp conan-profiles/CI-CD/Linux-AMD64_profile.txt ~/.conan2/profiles/default
+          
+          # LLVM Install (need version 21+ for flang)
+          wget https://apt.llvm.org/llvm.sh
+          python3 -c "
+          content = open('llvm.sh').read()
+          old = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\nfi'
+          new = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\n    if test \$LLVM_VERSION -ge 16; then\n        PKG=\"\$PKG flang-\$LLVM_VERSION\"\n    fi\nfi'
+          open('llvm.sh', 'w').write(content.replace(old, new, 1))"
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21 all
+          export PATH="/usr/lib/llvm-21/bin:$PATH"
+          echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
 
       - name: Install Linux Dependencies <ARM64>
         if: matrix.platform == 'ubuntu-24.04-arm'
@@ -336,6 +348,18 @@ jobs:
           mkdir -p ~/.conan2/profiles/
           touch ~/.conan2/profiles/default # if we don't make a file first, cp thinks its a folder that doesn't exist
           cp conan-profiles/CI-CD/Linux-ARM64_profile.txt ~/.conan2/profiles/default
+          
+          # LLVM Install (need version 21+ for flang)
+          wget https://apt.llvm.org/llvm.sh
+          python3 -c "
+          content = open('llvm.sh').read()
+          old = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\nfi'
+          new = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\n    if test \$LLVM_VERSION -ge 16; then\n        PKG=\"\$PKG flang-\$LLVM_VERSION\"\n    fi\nfi'
+          open('llvm.sh', 'w').write(content.replace(old, new, 1))"
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21 all
+          export PATH="/usr/lib/llvm-21/bin:$PATH"
+          echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
 
       - name: Install Dependencies through Conan on Linux <x86_64>
         if: matrix.platform == 'ubuntu-latest'
