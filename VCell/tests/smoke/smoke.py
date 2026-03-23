@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import platform
 import posixpath
 import subprocess
 import sys
@@ -45,6 +46,8 @@ test_dir = test_dir.replace("\\", "/")
 # tell os.path.join to use / as the path separator
 os.path.sep = "/"
 exe = sys.argv[1]
+if platform.system() == "Windows":
+    exe += ".exe"
 
 print(f"test_dir: {test_dir}")
 print(f"exe: {exe}")

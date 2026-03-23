@@ -179,83 +179,102 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ windows-latest ]
+        platform: [ windows-latest, windows-11-arm ]
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - name: checkout vcell-solvers repo
+      - name: Install Build Environment (Part 1 - MSVC toolset)
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install Build Environment (Part 1 - Python)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Build Environment (Part 2 - Build Tools & Python Init)
+        shell: powershell
+        run: |
+          choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64" -y
+          choco install zip -y
+          python3 -m pip install numpy h5py
+
+      - name: Pre-install Configuration (Part 1 - Conan) <x86_64>
+        if: matrix.platform == 'windows-latest'
+        shell: bash
+        run: |
+          echo "CONAN_PROFILE_NAME=Windows-AMD64_profile.txt" >> $GITHUB_ENV
+
+      - name: Pre-install Configuration (Part 1 - Conan) <ARM64>
+        if: matrix.platform == 'windows-11-arm'
+        shell: bash
+        run: |
+          echo "CONAN_PROFILE_NAME=Windows-ARM64_profile.txt" >> $GITHUB_ENV
+
+
+      - name: Pre-install Configuration (Part 2 - Setup LLVM-style)
+        run: |
+          choco upgrade llvm
+          $llvmDir = "C:\Program Files\Conan\conan"
+          $env:PATH = "$llvmDir;$env:PATH"
+          $llvmDir | Set-Content -Path $env:GITHUB_PATH
+          clang --version
+          flang --version
+
+      - name: Pre-install Configuration (Part 3 - checkout VCell-Solvers Repo)
         uses: actions/checkout@v4
         with:
           submodules: true
 
-      - name: Install Windows Dependencies #Part 1
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: CLANG64
-          update: true
-          install: >
-            python3
-            python-pip
-            zip
-            git
-            mingw-w64-clang-x86_64-python-h5py
-            mingw-w64-clang-x86_64-curl
-            mingw-w64-clang-x86_64-toolchain
-            mingw-w64-clang-x86_64-flang
-            mingw-w64-clang-x86_64-cmake
-            mingw-w64-clang-x86_64-boost
-            mingw-w64-clang-x86_64-hdf5
-            mingw-w64-clang-x86_64-libzip
-            mingw-w64-clang-x86_64-zlib
-            mingw-w64-clang-x86_64-libaec
+      - name: Pre-install Configuration (Part 4 - Conan Installation)
+        shell: powershell
+        run: |
+          choco install conan -y
+          $conanDir = "C:\Program Files\Conan\conan"
+          $env:PATH = "$conanDir;$env:PATH"
+          $conanDir | Set-Content -Path $env:GITHUB_PATH
+          $env:CONAN_HOME = "C:\.conan"
+          "CONAN_HOME=C:\.conan" | Out-File -FilePath $env:GITHUB_ENV -Append
+          conan --version
+          conan profile detect --force
 
-      #      - name: Install Windows Dependencies Part 2
-      #        if: matrix.platform == 'windows-latest'
-      #        shell: msys2 {0}
-      #        run: |
-      #          pip install h5py --break-system-packages
+      - name: Diagnose ARM64 clang-cl environment
+        shell: powershell
+        if: matrix.platform == 'windows-11-arm'
+        run: |
+          # Check clang-cl version and target
+          clang-cl --version
+          # Check what float.h is being used
+          "" | clang-cl /EP /showIncludes /FI float.h 2>&1 | Select-String "float.h"
+          # Check if FLT16_MAX is defined in that float.h
+          echo "#include <float.h>" > test.c
+          echo "#ifndef FLT16_MAX" >> test.c
+          echo "#error FLT16_MAX not defined" >> test.c
+          echo "#endif" >> test.c
+          clang-cl /std:clatest test.c
+          clang-cl test.c
 
-      #      - name: Setup tmate session
-      #        uses: mxschmitt/action-tmate@v3
-      #        with:
-      #          limit-access-to-actor: false
+      - name: Install Windows Dependencies through Conan
+        shell: powershell
+        run: |
+          Copy-Item (Join-Path "conan-profiles\CI-CD" "${{ env.CONAN_PROFILE_NAME }}") (Join-Path $env:CONAN_HOME "profiles\default")
+          conan install . --output-folder build --build=missing -o include_messaging=False
+          icacls (Join-Path $PWD "build") /grant Everyone:F /T
 
       - name: Build Windows
-        shell: msys2 {0}
+        shell: powershell
         run: |
-          platform=windows
-          echo "working dir is $PWD"
-          
-          mkdir build
           cd build
-          
-          export PATH="/c/Program\ Files/LLVM/bin:$PATH"
-          
-          cmake -B . -S .. -G "Ninja" \
-            -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DLIBZIPPP_CMAKE_CONFIG_MODE=ON \
-            -DOPTION_TARGET_PYTHON_BINDING=OFF \
-            -DOPTION_TARGET_MESSAGING=OFF \
-            -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
-            -DOPTION_TARGET_FV_SOLVER=ON \
-            -DOPTION_TARGET_DOCS=ON \
-            -DOPTION_TARGET_TESTS=ON
+          . ./conanbuild.ps1
+          cmake -B . -S .. -G "Ninja"  -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" -DCMAKE_BUILD_TYPE=Release -DLIBZIPPP_CMAKE_CONFIG_MODE=ON -DOPTION_TARGET_PYTHON_BINDING=OFF -DOPTION_TARGET_MESSAGING=OFF -DOPTION_TARGET_SMOLDYN_SOLVER=ON -DOPTION_TARGET_FV_SOLVER=ON -DOPTION_TARGET_DOCS=OFF -DOPTION_TARGET_TESTS=ON
           cmake --build . --config Release
 
       - name: Test Windows
-        shell: msys2 {0}
+        shell: bash
         run: |
-          platform=windows
           echo "working dir is $PWD"
-          
           cd build
           
-          export PATH="/d/a/_temp/msys64/clang64/bin:$PATH"
-          pacman -Sy --noconfirm diffutils
-          
           ctest -VV
-          
           echo "------ running FiniteVolume_x64 ------"
           ./bin/FiniteVolume_x64 || true
           echo
@@ -263,7 +282,7 @@ jobs:
           ./bin/smoldyn_x64 || true
 
       - name: handle shared object paths for Windows native build
-        shell: msys2 {0}
+        shell: bash
         run: |
           mkdir build/upload
           cd build/bin
@@ -281,6 +300,13 @@ jobs:
         with:
           name: fvsolver_win64.zip
           path: build/upload/fvsolver_win64.zip
+
+      - name: Upload Windows binaries
+        if: matrix.platform == 'windows-11-arm'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_win64.zip
+          path: build/upload/fvsolver_win_arm64.zip
 
       - name: Setup tmate session
         if: ${{ failure() }}
@@ -315,7 +341,7 @@ jobs:
           echo "CONAN_DEB_DOWNLOAD_LINK=https://github.com/conan-io/conan/releases/download/2.26.2/conan-2.26.2-arm64.deb" >> $GITHUB_ENV
           echo "CONAN_PROFILE_NAME=Linux-ARM64_profile.txt" >> $GITHUB_ENV
 
-      - name: Install Linux Dependencies <x86_64>
+      - name: Install Linux Dependencies
         run: |          
           sudo apt update
           sudo apt upgrade -y
@@ -341,7 +367,7 @@ jobs:
           export PATH="/usr/lib/llvm-21/bin:$PATH"
           echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
 
-      - name: Install Dependencies through Conan on Linux <x86_64>
+      - name: Install Dependencies through Conan on Linux
         shell: bash
         run: |
           sudo apt --purge remove gcc
@@ -394,7 +420,7 @@ jobs:
           tar czvf ../upload/fvsolver_linux64.tgz --dereference .
           cd ../..
 
-      - name: Upload Linux binaries (x86)
+      - name: Upload Linux binaries (x86_64)
         if: matrix.platform == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
