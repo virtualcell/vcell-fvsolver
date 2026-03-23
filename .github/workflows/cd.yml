@@ -112,20 +112,16 @@ jobs:
           cd build
           
           # General Build
-          cmake \
-          -G Ninja \
-          -DCMAKE_C_COMPILER=clang \
-          -DCMAKE_CXX_COMPILER=clang++ \
-          -DOPTION_TARGET_PYTHON_BINDING=OFF \
-          -DOPTION_MINGW=OFF \
-          -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
-          -DOPTION_TARGET_FV_SOLVER=ON \
-          -DOPTION_TARGET_DOCS=ON \
-          -DOPTION_TARGET_TESTS=ON \
-          -B . -S ..
-          
-          ninja
+          cmake -B . -S .. -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLIBZIPPP_CMAKE_CONFIG_MODE=ON \
+            -DOPTION_TARGET_PYTHON_BINDING=OFF \
+            -DOPTION_TARGET_MESSAGING=OFF \
+            -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
+            -DOPTION_TARGET_FV_SOLVER=ON \
+            -DOPTION_TARGET_DOCS=ON \
+            -DOPTION_TARGET_TESTS=ON
+          cmake --build . --config Release
 
       - name: Test Macos
         if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-15'
@@ -235,19 +231,17 @@ jobs:
           
           export PATH="/c/Program\ Files/LLVM/bin:$PATH"
           
-          cmake \
-          -G Ninja \
-          -DCMAKE_C_COMPILER="clang.exe" \
-          -DCMAKE_CXX_COMPILER="clang++.exe" \
-          -DOPTION_TARGET_PYTHON_BINDING=OFF \
-          -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
-          -DOPTION_TARGET_FV_SOLVER=ON \
-          -DOPTION_TARGET_DOCS=OFF \
-          -DOPTION_TARGET_TESTS=ON \
-          -B . -S ..
-          
-          ninja -j 1
+          cmake -B . -S .. -G "Ninja" \
+            -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLIBZIPPP_CMAKE_CONFIG_MODE=ON \
+            -DOPTION_TARGET_PYTHON_BINDING=OFF \
+            -DOPTION_TARGET_MESSAGING=OFF \
+            -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
+            -DOPTION_TARGET_FV_SOLVER=ON \
+            -DOPTION_TARGET_DOCS=ON \
+            -DOPTION_TARGET_TESTS=ON
+          cmake --build . --config Release
 
       - name: Test Windows
         shell: msys2 {0}
@@ -309,45 +303,31 @@ jobs:
         with:
           submodules: true
 
-      - name: Install Linux Dependencies <x86_64>
+      - name: Pre-install Configuration <x86_64>
         if: matrix.platform == 'ubuntu-latest'
         run: |
-          sudo apt update
-          sudo apt upgrade -y
-          sudo apt install -y wget
-          wget --version
-          wget https://github.com/conan-io/conan/releases/download/2.26.2/conan-2.26.2-amd64.deb
-          sudo apt install -y ./conan-*.deb
-          conan --version
-          mkdir -p ~/.conan2/profiles/
-          touch ~/.conan2/profiles/default # if we don't make a file first, cp thinks its a folder that doesn't exist
-          cp conan-profiles/CI-CD/Linux-AMD64_profile.txt ~/.conan2/profiles/default
-          
-          # LLVM Install (need version 21+ for flang)
-          wget https://apt.llvm.org/llvm.sh
-          python3 -c "
-          content = open('llvm.sh').read()
-          old = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\nfi'
-          new = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\n    if test \$LLVM_VERSION -ge 16; then\n        PKG=\"\$PKG flang-\$LLVM_VERSION\"\n    fi\nfi'
-          open('llvm.sh', 'w').write(content.replace(old, new, 1))"
-          chmod +x llvm.sh
-          sudo ./llvm.sh 21 all
-          export PATH="/usr/lib/llvm-21/bin:$PATH"
-          echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
+          echo "CONAN_DEB_DOWNLOAD_LINK=https://github.com/conan-io/conan/releases/download/2.26.2/conan-2.26.2-amd64.deb" >> $GITHUB_ENV
+          echo "CONAN_PROFILE_NAME=Linux-AMD64_profile.txt" >> $GITHUB_ENV
 
-      - name: Install Linux Dependencies <ARM64>
+      - name: Pre-install Configuration <ARM64>
         if: matrix.platform == 'ubuntu-24.04-arm'
         run: |
+          echo "CONAN_DEB_DOWNLOAD_LINK=https://github.com/conan-io/conan/releases/download/2.26.2/conan-2.26.2-arm64.deb" >> $GITHUB_ENV
+          echo "CONAN_PROFILE_NAME=Linux-ARM64_profile.txt" >> $GITHUB_ENV
+
+      - name: Install Linux Dependencies <x86_64>
+        run: |          
           sudo apt update
           sudo apt upgrade -y
-          sudo apt install -y wget
+          sudo apt install -y wget python3-pip
+          python3 -m pip install h5py numpy
           wget --version
-          wget https://github.com/conan-io/conan/releases/download/2.26.2/conan-2.26.2-arm64.deb
+          wget ${{ env.CONAN_DEB_DOWNLOAD_LINK }}
           sudo apt install -y ./conan-*.deb
           conan --version
           mkdir -p ~/.conan2/profiles/
           touch ~/.conan2/profiles/default # if we don't make a file first, cp thinks its a folder that doesn't exist
-          cp conan-profiles/CI-CD/Linux-ARM64_profile.txt ~/.conan2/profiles/default
+          cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} ~/.conan2/profiles/default
           
           # LLVM Install (need version 21+ for flang)
           wget https://apt.llvm.org/llvm.sh
@@ -362,24 +342,10 @@ jobs:
           echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
 
       - name: Install Dependencies through Conan on Linux <x86_64>
-        if: matrix.platform == 'ubuntu-latest'
         shell: bash
         run: |
           sudo apt --purge remove gcc
           sudo ln -s /usr/bin/clang /usr/bin/cc
-          sudo apt install mold libc++-dev libc++abi-dev
-          sudo rm /usr/bin/ld
-          sudo ln -s $(which mold) /usr/bin/ld
-          conan install -v trace . --output-folder build --build=missing
-
-      - name: Install Dependencies through Conan on Linux <ARM>
-        if: matrix.platform == 'ubuntu-24.04-arm'
-        shell: bash
-        run: |
-          sudo apt --purge remove gcc
-          sudo ln -s /usr/bin/clang /usr/bin/cc
-          sudo ln -s /usr/bin/clang /usr/bin/gcc
-          sudo ln -s /usr/bin/clang++ /usr/bin/g++
           sudo apt install mold libc++-dev libc++abi-dev
           sudo rm /usr/bin/ld
           sudo ln -s $(which mold) /usr/bin/ld
@@ -390,7 +356,16 @@ jobs:
           echo "working dir is $PWD"
           cd build
           source conanbuild.sh
-          cmake -B . -S .. -G "Ninja" -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" -DCMAKE_BUILD_TYPE=Release
+          cmake -B . -S .. -G "Ninja" \
+            -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLIBZIPPP_CMAKE_CONFIG_MODE=ON \
+            -DOPTION_TARGET_PYTHON_BINDING=OFF \
+            -DOPTION_TARGET_MESSAGING=OFF \
+            -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
+            -DOPTION_TARGET_FV_SOLVER=ON \
+            -DOPTION_TARGET_DOCS=ON \
+            -DOPTION_TARGET_TESTS=ON
           cmake --build . --config Release
 
       - name: Test Linux

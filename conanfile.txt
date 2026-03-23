@@ -5,8 +5,7 @@ libzip/[~1.11.3]
 zlib/[~1.2.11]
 
 [options]
-hdf5/*:with_zlibng=True
-hdf5/*:with_zlib=False
+hdf5/*:with_zlib=True
 
 [tool_requires]
 cmake/[~3.31.6]
