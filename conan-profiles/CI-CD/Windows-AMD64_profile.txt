@@ -2,7 +2,7 @@
 os=Windows
 arch=x86_64
 compiler=clang
-compiler.version=21
+compiler.version=22
 compiler.libcxx=libc++
 compiler.cppstd=17
 build_type=Release
@@ -13,5 +13,6 @@ tools.build:compiler_executables={'c': 'clang', 'cpp': 'clang++'}
 tools.env.virtualenv:powershell=pwsh
 
 [buildenv]
-CC=clang
-CXX=clang++
+CC=clang-22
+CXX=clang++-22
+FC=flang-22

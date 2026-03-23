@@ -16,7 +16,9 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push-image:
+  DockerImage:
+    name:
+      Build Docker Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -59,19 +61,17 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  native-build:
+  MacOS:
     name:
-      native-build-${{ matrix.platform }}
+      Build ${{ matrix.platform }} (Native)
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-15-intel, windows-latest, ubuntu-latest, ubuntu-24.04-arm, macos-15]
-
-
+        platform: [ macos-15-intel, macos-15 ]
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - name: checkout vcell-solvers repo
+      - name: checkout fv-solver repo
         uses: actions/checkout@v4
         with:
           submodules: true
@@ -87,7 +87,7 @@ jobs:
           brew install libaec
           brew uninstall llvm@18
           brew install flang
-
+          
           clang --version
           flang --version
           cmake --version
@@ -107,7 +107,7 @@ jobs:
         run: |
           platform=macos
           echo "working dir is $PWD"
-
+          
           mkdir build
           cd build
           
@@ -124,7 +124,7 @@ jobs:
           -DOPTION_TARGET_DOCS=ON \
           -DOPTION_TARGET_TESTS=ON \
           -B . -S ..
-
+          
           ninja
 
       - name: Test Macos
@@ -132,31 +132,67 @@ jobs:
         run: |
           platform=macos
           echo "working dir is $PWD"
-
+          
           cd build
-
+          
           ctest -VV
           
           echo "------ running FiniteVolume_x64 ------"
           ./bin/FiniteVolume_x64 || true
           echo
-          echo "------ running NFsim_x64 ------"
-          ./bin/NFsim_x64 || true
-          echo "------ running SundialsSolverStandalone_x64 ------"
-          ./bin/SundialsSolverStandalone_x64 || true
-          echo "------ running VCellStoch_x64 ------"
-          ./bin/VCellStoch_x64 || true
           echo "------ running smoldyn_x64 ------"
           ./bin/smoldyn_x64 || true
 
-#      - name: Setup tmate session
-#        uses: mxschmitt/action-tmate@v3
-#        with:
-#          limit-access-to-actor: false
+      - name: fix Macos shared object paths
+        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-15'
+        shell: bash
+        run: |
+          mkdir build/upload
+          cd build/bin
+          ls *_x64   | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
+          ls *.dylib | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
+          ls *.dylib | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
+          chmod u+w,+x *
+          tar czvf ../upload/mac64_bad_paths.tgz .
+          ../../.github/scripts/install_name_tool_macos.sh
+          tar czvf ../upload/fvsolver_mac64.tgz --dereference .
 
+      - name: Upload Intel Macos binaries
+        if: matrix.platform == 'macos-15-intel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_macos_x86_64.tgz
+          path: build/upload/fvsolver_mac64.tgz
+
+      - name: Upload ARM Macos binaries
+        if: matrix.platform == 'macos-15'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_macos_arm64.tgz
+          path: build/upload/fvsolver_mac64.tgz
+
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+
+  WindowsOS:
+    name:
+      Build ${{ matrix.platform }} (Native)
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ windows-latest ]
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: checkout vcell-solvers repo
+        uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Install Windows Dependencies #Part 1
-        if: matrix.platform == 'windows-latest'
         uses: msys2/setup-msys2@v2
         with:
           msystem: CLANG64
@@ -177,29 +213,28 @@ jobs:
             mingw-w64-clang-x86_64-zlib
             mingw-w64-clang-x86_64-libaec
 
-#      - name: Install Windows Dependencies Part 2
-#        if: matrix.platform == 'windows-latest'
-#        shell: msys2 {0}
-#        run: |
-#          pip install h5py --break-system-packages
+      #      - name: Install Windows Dependencies Part 2
+      #        if: matrix.platform == 'windows-latest'
+      #        shell: msys2 {0}
+      #        run: |
+      #          pip install h5py --break-system-packages
 
-#      - name: Setup tmate session
-#        uses: mxschmitt/action-tmate@v3
-#        with:
-#          limit-access-to-actor: false
+      #      - name: Setup tmate session
+      #        uses: mxschmitt/action-tmate@v3
+      #        with:
+      #          limit-access-to-actor: false
 
       - name: Build Windows
-        if: matrix.platform == 'windows-latest'
         shell: msys2 {0}
         run: |
           platform=windows
           echo "working dir is $PWD"
-
+          
           mkdir build
           cd build
-
+          
           export PATH="/c/Program\ Files/LLVM/bin:$PATH"
-
+          
           cmake \
           -G Ninja \
           -DCMAKE_C_COMPILER="clang.exe" \
@@ -211,108 +246,29 @@ jobs:
           -DOPTION_TARGET_DOCS=OFF \
           -DOPTION_TARGET_TESTS=ON \
           -B . -S ..
-
+          
           ninja -j 1
 
       - name: Test Windows
-        if: matrix.platform == 'windows-latest'
         shell: msys2 {0}
         run: |
           platform=windows
           echo "working dir is $PWD"
-
+          
           cd build
           
           export PATH="/d/a/_temp/msys64/clang64/bin:$PATH"
           pacman -Sy --noconfirm diffutils
-
+          
           ctest -VV
-
+          
           echo "------ running FiniteVolume_x64 ------"
           ./bin/FiniteVolume_x64 || true
           echo
-
-      - name: Install Linux Dependencies
-        if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y python3-pip libboost-all-dev libhdf5-dev libzip-dev libbz2-dev ninja-build
-          python3 -m pip install h5py numpy
-          
-          # LLVM Install (need version 22+ for flang)
-          wget https://apt.llvm.org/llvm.sh
-          python3 -c "
-          content = open('llvm.sh').read()
-          old = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\nfi'
-          new = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\n    if test \$LLVM_VERSION -ge 16; then\n        PKG=\"\$PKG flang-\$LLVM_VERSION\"\n    fi\nfi'
-          open('llvm.sh', 'w').write(content.replace(old, new, 1))"
-          chmod +x llvm.sh
-          sudo ./llvm.sh 22 all
-          export PATH="/usr/lib/llvm-22/bin:$PATH"
-          echo "/usr/lib/llvm-22/bin" >> $GITHUB_PATH
-          
-          clang --version
-          clang++ --version
-          flang --version
-          cmake --version
-          dpkg -s libboost-all-dev
-          dpkg -s libhdf5-dev
-
-      - name: Build Linux
-        if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm'
-        run: |
-          platform=linux
-          echo "working dir is $PWD"
-
-          mkdir build
-          cd build
-
-          cmake \
-          -G Ninja \
-          -DCMAKE_C_COMPILER=clang \
-          -DCMAKE_CXX_COMPILER=clang++ \
-          -DCMAKE_Fortran_COMPILER=flang \
-          -DOPTION_TARGET_PYTHON_BINDING=OFF \
-          -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
-          -DOPTION_TARGET_FV_SOLVER=ON \
-          -DOPTION_TARGET_DOCS=ON \
-          -DOPTION_TARGET_TESTS=ON \
-          -B . -S ..
-
-          ninja
-
-      - name: Test Linux
-        if: matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm'
-        run: |
-          platform=linux
-          echo "working dir is $PWD"
-
-          cd build
-
-          ctest -VV
-
-          echo "------ running FiniteVolume_x64 ------"
-          ./bin/FiniteVolume_x64 || true
-          echo
-
-
-      - name: fix Macos shared object paths
-        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-15'
-        shell: bash
-        run: |
-          mkdir build/upload
-          cd build/bin
-          ls *_x64   | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
-          ls *.dylib | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
-          ls *.dylib | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
-          chmod u+w,+x *
-          tar czvf ../upload/mac64_bad_paths.tgz .
-          ../../.github/scripts/install_name_tool_macos.sh
-          tar czvf ../upload/fvsolver_mac64.tgz --dereference .
+          echo "------ running smoldyn_x64 ------"
+          ./bin/smoldyn_x64 || true
 
       - name: handle shared object paths for Windows native build
-        if: matrix.platform == 'windows-latest'
         shell: msys2 {0}
         run: |
           mkdir build/upload
@@ -325,8 +281,109 @@ jobs:
           cd ../..
           # fi
 
-      - name: handle shared object paths for Linux native build
+      - name: Upload Windows binaries
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_win64.zip
+          path: build/upload/fvsolver_win64.zip
+
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+
+  GNULinux:
+    name:
+      Build ${{ matrix.platform }} (Native)
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: checkout fv-solver repo
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Linux Dependencies <x86_64>
         if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt update
+          sudo apt upgrade -y
+          sudo apt install -y wget
+          wget --version
+          wget https://github.com/conan-io/conan/releases/download/2.26.2/conan-2.26.2-amd64.deb
+          sudo apt install -y ./conan-*.deb
+          conan --version
+          mkdir -p ~/.conan2/profiles/
+          touch ~/.conan2/profiles/default # if we don't make a file first, cp thinks its a folder that doesn't exist
+          cp conan-profiles/CI-CD/Linux-AMD64_profile.txt ~/.conan2/profiles/default
+
+      - name: Install Linux Dependencies <ARM64>
+        if: matrix.platform == 'ubuntu-24.04-arm'
+        run: |
+          sudo apt update
+          sudo apt upgrade -y
+          sudo apt install -y wget
+          wget --version
+          wget https://github.com/conan-io/conan/releases/download/2.26.2/conan-2.26.2-arm64.deb
+          sudo apt install -y ./conan-*.deb
+          conan --version
+          mkdir -p ~/.conan2/profiles/
+          touch ~/.conan2/profiles/default # if we don't make a file first, cp thinks its a folder that doesn't exist
+          cp conan-profiles/CI-CD/Linux-ARM64_profile.txt ~/.conan2/profiles/default
+
+      - name: Install Dependencies through Conan on Linux <x86_64>
+        if: matrix.platform == 'ubuntu-latest'
+        shell: bash
+        run: |
+          sudo apt --purge remove gcc
+          sudo ln -s /usr/bin/clang /usr/bin/cc
+          sudo apt install mold libc++-dev libc++abi-dev
+          sudo rm /usr/bin/ld
+          sudo ln -s $(which mold) /usr/bin/ld
+          conan install -v trace . --output-folder build --build=missing
+
+      - name: Install Dependencies through Conan on Linux <ARM>
+        if: matrix.platform == 'ubuntu-24.04-arm'
+        shell: bash
+        run: |
+          sudo apt --purge remove gcc
+          sudo ln -s /usr/bin/clang /usr/bin/cc
+          sudo ln -s /usr/bin/clang /usr/bin/gcc
+          sudo ln -s /usr/bin/clang++ /usr/bin/g++
+          sudo apt install mold libc++-dev libc++abi-dev
+          sudo rm /usr/bin/ld
+          sudo ln -s $(which mold) /usr/bin/ld
+          conan install . --output-folder build --build=missing
+
+      - name: Build Linux
+        run: |
+          echo "working dir is $PWD"
+          cd build
+          source conanbuild.sh
+          cmake -B . -S .. -G "Ninja" -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" -DCMAKE_BUILD_TYPE=Release
+          cmake --build . --config Release
+
+      - name: Test Linux
+        run: |
+          platform=linux
+          echo "working dir is $PWD"
+
+          cd build
+          ctest -VV
+
+          echo "------ running FiniteVolume_x64 ------"
+          ./bin/FiniteVolume_x64 || true
+          echo
+          echo "------ running smoldyn_x64 ------"
+          ./bin/smoldyn_x64 || true
+
+      - name: handle shared object paths for Linux native build
         shell: bash
         run: |
           mkdir build/upload
@@ -337,27 +394,6 @@ jobs:
           chmod u+w,+x *
           tar czvf ../upload/fvsolver_linux64.tgz --dereference .
           cd ../..
-
-      - name: Upload Intel Macos binaries
-        if: matrix.platform == 'macos-15-intel'
-        uses: actions/upload-artifact@v4
-        with:
-          name: fvsolver_macos_x86_64.tgz
-          path: build/upload/fvsolver_mac64.tgz
-
-      - name: Upload ARM Macos binaries
-        if: matrix.platform == 'macos-15'
-        uses: actions/upload-artifact@v4
-        with:
-          name: fvsolver_macos_arm64.tgz
-          path: build/upload/fvsolver_mac64.tgz
-
-      - name: Upload Windows binaries
-        if: matrix.platform == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: fvsolver_win64.zip
-          path: build/upload/fvsolver_win64.zip
 
       - name: Upload Linux binaries (x86)
         if: matrix.platform == 'ubuntu-latest'
