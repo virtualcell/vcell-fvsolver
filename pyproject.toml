@@ -29,12 +29,11 @@ test = ["pytest"]
 [tool.scikit-build]
 wheel.expand-macos-universal-tags = true
 
-[tool.scikit-build.cmake.define]
-CMAKE_C_COMPILER = "clang"
-CMAKE_CXX_COMPILER = "clang++"
-CMAKE_Fortran_COMPILER = "flang"
-CMAKE_CXX_FLAGS = "-stdlib=libc++"
-
+#[tool.scikit-build.cmake.define]
+#CMAKE_C_COMPILER = "clang"
+#CMAKE_CXX_COMPILER = "clang++"
+#CMAKE_Fortran_COMPILER = "flang"
+#CMAKE_CXX_FLAGS = "-stdlib=libc++"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -51,6 +50,7 @@ testpaths = ["tests"]
 test-command = "pytest {project}/tests"
 test-extras = ["test"]
 test-skip = ["*universal2:arm64"]
+skip = "cp3*t-*"
 before-build = "pip install cmake ninja"
 build-verbosity = 1
 

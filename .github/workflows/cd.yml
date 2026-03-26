@@ -77,7 +77,6 @@ jobs:
           submodules: true
 
       - name: Install MacOS dependencies
-        if: matrix.platform == 'macos-15' || matrix.platform == 'macos-15-intel'
         shell: bash
         run: |
           brew install boost
@@ -103,7 +102,6 @@ jobs:
         run: /opt/homebrew/bin/python3 -m pip install numpy h5py --break-system-packages
 
       - name: Build Macos
-        if: matrix.platform == 'macos-15' || matrix.platform == 'macos-15-intel'
         run: |
           platform=macos
           echo "working dir is $PWD"
@@ -124,7 +122,6 @@ jobs:
           cmake --build . --config Release
 
       - name: Test Macos
-        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-15'
         run: |
           platform=macos
           echo "working dir is $PWD"
@@ -140,7 +137,6 @@ jobs:
           ./bin/smoldyn_x64 || true
 
       - name: fix Macos shared object paths
-        if: matrix.platform == 'macos-15-intel' || matrix.platform == 'macos-15'
         shell: bash
         run: |
           mkdir build/upload
@@ -179,7 +175,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ windows-latest, windows-11-arm ]
+        #platform: [ windows-latest, windows-11-arm ]
+        platform: [ windows-latest ]
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -236,22 +233,6 @@ jobs:
           "CONAN_HOME=C:\.conan" | Out-File -FilePath $env:GITHUB_ENV -Append
           conan --version
           conan profile detect --force
-
-      - name: Diagnose ARM64 clang-cl environment
-        shell: powershell
-        if: matrix.platform == 'windows-11-arm'
-        run: |
-          # Check clang-cl version and target
-          clang-cl --version
-          # Check what float.h is being used
-          "" | clang-cl /EP /showIncludes /FI float.h 2>&1 | Select-String "float.h"
-          # Check if FLT16_MAX is defined in that float.h
-          echo "#include <float.h>" > test.c
-          echo "#ifndef FLT16_MAX" >> test.c
-          echo "#error FLT16_MAX not defined" >> test.c
-          echo "#endif" >> test.c
-          clang-cl /std:clatest test.c
-          clang-cl test.c
 
       - name: Install Windows Dependencies through Conan
         shell: powershell
