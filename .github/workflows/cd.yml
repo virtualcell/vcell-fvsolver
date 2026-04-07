@@ -41,11 +41,21 @@ jobs:
         with:
           images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
 
-      - name: Build and push Docker image
+      - name: Build and Push Docker image
         uses: docker/build-push-action@v5
+        if: github.event_name == 'release' && github.event.action == 'published'
         with:
           context: .
           push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Only Build Docker image
+        uses: docker/build-push-action@v5
+        if: github.event_name != 'release' || github.event.action != 'published'
+        with:
+          context: .
+          push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
@@ -80,6 +90,8 @@ jobs:
           echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
           source /Users/runner/.bash_profile
           ln -s $(which gfortran-14) /usr/local/bin/gfortran
+          
+          python3 -m pip install h5py numpy
 
           gcc --version
           gfortran --version
@@ -87,9 +99,10 @@ jobs:
           brew info boost
           brew info hdf5
 
-      - name: Install ARM MacOS dependencies
+      - name: Install ARM MacOS dependencies Part 1
         if: matrix.platform == 'macos-14'
         shell: bash
+
         run: |
           brew install boost
           brew install hdf5
@@ -107,6 +120,11 @@ jobs:
           brew info boost
           brew info hdf5
 
+      - name: Install ARM MacOS dependencies Part 2
+        if: matrix.platform == 'macos-14'
+        run: |
+          /opt/homebrew/bin/python3 -m pip install h5py --break-system-packages
+
       - name: Build Macos ARM
         if: matrix.platform == 'macos-14'
         run: |
@@ -117,7 +135,8 @@ jobs:
           cd build
 
           export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-
+          
+          # General Build
           cmake \
           -G Ninja \
           -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
@@ -125,9 +144,10 @@ jobs:
           -DOPTION_TARGET_PYTHON_BINDING=OFF \
           -DOPTION_MINGW=ON \
           -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
+          -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
           -DOPTION_TARGET_FV_SOLVER=ON \
           -DOPTION_TARGET_DOCS=ON \
+          -DOPTION_TARGET_TESTS=ON \
           -B . -S ..
 
           ninja
@@ -150,9 +170,10 @@ jobs:
           -DOPTION_TARGET_PYTHON_BINDING=OFF \
           -DOPTION_MINGW=ON \
           -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
+          -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
           -DOPTION_TARGET_FV_SOLVER=ON \
           -DOPTION_TARGET_DOCS=ON \
+          -DOPTION_TARGET_TESTS=ON \
           -B . -S ..
 
           ninja
@@ -185,15 +206,18 @@ jobs:
 #          limit-access-to-actor: false
 
 
-      - name: Install Windows Dependencies
+      - name: Install Windows Dependencies #Part 1
         if: matrix.platform == 'windows-latest'
         uses: msys2/setup-msys2@v2
         with:
           msystem: CLANG64
           update: true
           install: >
+            python3
+            python-pip
             zip
             git
+            mingw-w64-clang-x86_64-python-h5py
             mingw-w64-clang-x86_64-curl
             mingw-w64-clang-x86_64-toolchain
             mingw-w64-clang-x86_64-flang
@@ -203,6 +227,12 @@ jobs:
             mingw-w64-clang-x86_64-libzip
             mingw-w64-clang-x86_64-zlib
             mingw-w64-clang-x86_64-libaec
+
+#      - name: Install Windows Dependencies Part 2
+#        if: matrix.platform == 'windows-latest'
+#        shell: msys2 {0}
+#        run: |
+#          pip install h5py --break-system-packages
 
 #      - name: Setup tmate session
 #        uses: mxschmitt/action-tmate@v3
@@ -227,9 +257,10 @@ jobs:
           -DCMAKE_CXX_COMPILER="clang++.exe" \
           -DOPTION_TARGET_PYTHON_BINDING=OFF \
           -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
+          -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
           -DOPTION_TARGET_FV_SOLVER=ON \
           -DOPTION_TARGET_DOCS=OFF \
+          -DOPTION_TARGET_TESTS=ON \
           -B . -S ..
 
           ninja -j 1
@@ -256,7 +287,8 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libboost-all-dev libhdf5-dev libzip-dev libbz2-dev ninja-build
+          sudo apt-get install -y python3-pip libboost-all-dev libhdf5-dev libzip-dev libbz2-dev ninja-build
+          python3 -m pip install h5py numpy
 
           gcc --version
           gfortran --version
@@ -277,9 +309,10 @@ jobs:
           -G Ninja \
           -DOPTION_TARGET_PYTHON_BINDING=OFF \
           -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
+          -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
           -DOPTION_TARGET_FV_SOLVER=ON \
           -DOPTION_TARGET_DOCS=ON \
+          -DOPTION_TARGET_TESTS=ON \
           -B . -S ..
 
           ninja
@@ -372,5 +405,5 @@ jobs:
         if: ${{ failure() }}
         uses: mxschmitt/action-tmate@v3
         with:
-          limit-access-to-actor: false
+          limit-access-to-actor: true
 

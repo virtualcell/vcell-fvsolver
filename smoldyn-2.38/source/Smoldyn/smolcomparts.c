@@ -861,7 +861,7 @@ int compartupdatebox_volumeSample(simptr sim,compartptr cmpt,boxptr bptr,double 
 /* compartreadstring */
 compartptr compartreadstring(simptr sim,ParseFilePtr pfp,compartptr cmpt,const char *word,char *line2) {
 	char nm[STRCHAR],nm1[STRCHAR];
-	int s,er,cl,dim,itct;
+	int er,cl,dim,itct,found;
 	double v1[DIMMAX];
 	enum CmptLogic sym;
 	compartssptr cmptss;
@@ -881,9 +881,9 @@ compartptr compartreadstring(simptr sim,ParseFilePtr pfp,compartptr cmpt,const c
 		CHECKS(sim->srfss,"surfaces need to be entered before compartment surfaces");
 		itct=sscanf(line2,"%s",nm);
 		CHECKS(itct==1,"error reading surface name");
-		s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
-		CHECKS(s>=0,"surface name '%s' not recognized",nm);
-		er=compartaddsurf(cmpt,sim->srfss->srflist[s]);
+		found=sim->srfss->snametosrf->contains(sim->srfss->snametosrf, nm);
+		CHECKS(found,"surface name '%s' not recognized",nm);
+		er=compartaddsurf(cmpt, (surfaceptr)sim->srfss->snametosrf->getFrom(sim->srfss->snametosrf, nm));
 		CHECKS(er!=1,"out of memory adding surface to compartment");
 		CHECKS(er!=2,"cannot add surface to compartment more than once");
 		CHECKS(!strnword(line2,2),"unexpected text following surface"); }

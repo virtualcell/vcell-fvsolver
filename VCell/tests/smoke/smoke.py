@@ -5,7 +5,6 @@ import posixpath
 import subprocess
 import sys
 from pathlib import Path
-
 import h5py
 
 def compare_hdf5_structure(file1: Path, file2: Path) -> bool:
@@ -37,7 +36,7 @@ def compare_hdf5_structure(file1: Path, file2: Path) -> bool:
 
     with h5py.File(file1, 'r') as f1, h5py.File(file2, 'r') as f2:
         return compare_groups(f1, f2)
-
+#end Def
 
 # get the directory of this script
 test_dir = os.path.dirname(os.path.realpath(__file__))
@@ -50,10 +49,28 @@ exe = sys.argv[1]
 print(f"test_dir: {test_dir}")
 print(f"exe: {exe}")
 
-fv_input_file = posixpath.join(test_dir, "SimID_1585623750_0_.fvinput")
-vcg_input_file = posixpath.join(test_dir, "SimID_1585623750_0_.vcg")
-output_file = posixpath.join(test_dir, "SimID_1585623750_0_.hdf5")
-expected_output_file = posixpath.join(test_dir, "SimID_1585623750_0_.hdf5.expected")
+filename_prefix = "SimID_1585623750_0_"
+fv_prefix_filepath = posixpath.join(test_dir, filename_prefix)
+fv_template_file = posixpath.join(test_dir, filename_prefix + ".fvinput.in")
+fv_input_file = posixpath.join(test_dir, filename_prefix + ".fvinput")
+vcg_input_file = posixpath.join(test_dir, filename_prefix + ".vcg")
+output_file = posixpath.join(test_dir, filename_prefix + ".hdf5")
+expected_output_file = posixpath.join(test_dir, filename_prefix + ".hdf5.expected")
+
+# perform substitution on *fvinput.in file, if it exists
+if not posixpath.exists(fv_template_file):
+    print(f"template file not found. Exiting...")
+    sys.exit(1)
+
+with open(fv_template_file) as f:
+    template_text = f.read()
+if "@BASE_FILE_NAME@" not in template_text:
+    print("No `@BASE_FILE_NAME@` substitution variable detected\n")
+else:
+    print(f"Replacing `@BASE_FILE_NAME@` with `{fv_prefix_filepath}`\n")
+filled_text = template_text.replace("@BASE_FILE_NAME@", fv_prefix_filepath)
+with open(fv_input_file, "w") as f:
+    f.write(filled_text)
 
 if not posixpath.exists(exe):
     print(f"FiniteVolume_x64 executable {exe} not found. Exiting...")
@@ -71,7 +88,8 @@ if not posixpath.exists(expected_output_file):
     print(f"Expected output file {expected_output_file} not found. Exiting...")
     sys.exit(1)
 
-command = [exe, fv_input_file, vcg_input_file]
+#command = [exe, fv_input_file, vcg_input_file]
+command = [exe, fv_input_file]
 print(" ".join(command))
 
 try:

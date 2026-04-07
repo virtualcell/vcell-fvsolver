@@ -62,6 +62,10 @@ set(HEADER_FILES
 	source/lib/SurfaceParam.h
 	source/lib/Zn.h
 	source/lib/SFMT/SFMT.h
+	source/lib/ComplexDataStructures/LinkedList.h
+	source/lib/ComplexDataStructures/LinkedListNode.h
+	source/lib/ComplexDataStructures/Hashtable.h
+	source/lib/ComplexDataStructures/Vector.h
 	source/Smoldyn/smoldyn.h
 	source/Smoldyn/smoldynfuncs.h
 	source/NextSubVolume/nsvc.h
@@ -85,6 +89,10 @@ set(SRC_FILES
 	source/lib/SurfaceParam.c
 	source/lib/Zn.c
 	source/lib/SFMT/SFMT.c
+	source/lib/ComplexDataStructures/LinkedList.c
+	source/lib/ComplexDataStructures/LinkedListNode.c
+	source/lib/ComplexDataStructures/Hashtable.c
+	source/lib/ComplexDataStructures/Vector.c
 	source/Smoldyn/smolbng.c
 	source/Smoldyn/smolboxes.c
 	source/Smoldyn/smolcmd.c
@@ -98,6 +106,7 @@ set(SRC_FILES
 	source/Smoldyn/smolsim.c
 	source/Smoldyn/smolsurface.c
 	source/Smoldyn/smolwall.c
+		source/Smoldyn/vcell_smoldyn.cpp
 )
 
 set(MAIN_FILES source/Smoldyn/smoldyn.c)
