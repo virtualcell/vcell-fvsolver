@@ -29,11 +29,11 @@ test = ["pytest"]
 [tool.scikit-build]
 wheel.expand-macos-universal-tags = true
 
-#[tool.scikit-build.cmake.define]
-#CMAKE_C_COMPILER = "clang"
-#CMAKE_CXX_COMPILER = "clang++"
-#CMAKE_Fortran_COMPILER = "flang"
-#CMAKE_CXX_FLAGS = "-stdlib=libc++"
+[tool.cibuildwheel.linux.environment]
+CC  = "clang"
+CXX = "clang++"
+FC = "flang"
+
 
 [tool.pytest.ini_options]
 minversion = "6.0"
