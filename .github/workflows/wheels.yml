@@ -258,40 +258,37 @@ jobs:
           cd ../..
           # fi
 
-      - name: Upload Windows binaries
+      - name: Upload Windows binaries (AMD64)
         if: matrix.platform == 'windows-latest' && matrix.python.std_version == '3.12'
         uses: actions/upload-artifact@v4
         with:
           name: fvsolver_win64.zip
           path: build/upload/fvsolver_win64.zip
 
-      - name: Upload Windows binaries
+      - name: Upload Windows binaries (ARM64)
         if: matrix.platform == 'windows-11-arm' && matrix.python.std_version == '3.12'
         uses: actions/upload-artifact@v4
         with:
           name: fvsolver_win64.zip
           path: build/upload/fvsolver_win_arm64.zip
 
+      - name: Set up Python ${{ matrix.python.std_version  }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python.std_version }}
+
       - name: Build Wheels (Windows)
-        uses: pypa/cibuildwheel@v3.4.0
         env:
-          CC: "clang-cl"
-          CXX: "clang-cl"
-          FC: "flang"
-          CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
-          CIBW_ARCHS_WINDOWS: "native"
-          CIBW_BEFORE_BUILD_WINDOWS: |
-            conan install . --output-folder build --build=missing -o include_messaging=False && pwsh -Command "choco upgrade llvm && pip install h5py"
-          CIBW_PYTHON_BIN: ${{ env.CUSTOM_PYTHON_BIN }}
-          CIBW_ENVIRONMENT: |
-            CC=clang-cl
-            CXX=clang-cl
-            FC=flang
-            CMAKE_GENERATOR=Ninja
-            CMAKE_TOOLCHAIN_FILE=D:\\a\\vcell-fvsolver\\vcell-fvsolver\\build\\conan_toolchain.cmake
-            OPTION_EXTRA_CONFIG_INFO=ON
-          CIBW_BUILD_FRONTEND: "build"
-          
+          CC: clang-cl
+          CXX: clang-cl
+          FC: flang
+          CMAKE_GENERATOR: Ninja
+          CMAKE_TOOLCHAIN_FILE: ${{ github.workspace }}/build/conan_toolchain.cmake
+        run: |
+          cd $env:GITHUB_WORKSPACE
+          . $env:GITHUB_WORKSPACE/build/conanbuild.ps1
+          python3 -m pip install build h5py
+          python3 -m build --wheel -o ./wheelhouse -C cmake.define.LIBZIPPP_CMAKE_CONFIG_MODE=ON -C cmake.define.OPTION_TARGET_PYTHON_BINDING=ON -C cmake.define.OPTION_TARGET_MESSAGING=OFF -C cmake.define.OPTION_TARGET_SMOLDYN_SOLVER=ON -C cmake.define.OPTION_TARGET_FV_SOLVER=ON -C cmake.define.OPTION_TARGET_DOCS=OFF -C cmake.define.OPTION_TARGET_TESTS=ON
 
       - name: Upload Python Wheel
         uses: actions/upload-artifact@v4
