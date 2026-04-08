@@ -338,98 +338,105 @@ jobs:
           echo "CONAN_DEB_DOWNLOAD_LINK=https://github.com/conan-io/conan/releases/download/2.26.2/conan-2.26.2-arm64.deb" >> $GITHUB_ENV
           echo "CONAN_PROFILE_NAME=Linux-ARM64_profile.txt" >> $GITHUB_ENV
 
-      - name: Install Linux Dependencies
-        run: |
-          sudo apt update
-          sudo apt upgrade -y
-          sudo apt install -y wget python3-pip
-          python3 -m pip install h5py numpy
-          wget --version
-          wget ${{ env.CONAN_DEB_DOWNLOAD_LINK }}
-          sudo apt install -y ./conan-*.deb
-          conan --version
-          mkdir -p ~/.conan2/profiles/
-          touch ~/.conan2/profiles/default # if we don't make a file first, cp thinks its a folder that doesn't exist
-          cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} ~/.conan2/profiles/default
-          
-          # LLVM Install (need version 21+ for flang)
-          wget https://apt.llvm.org/llvm.sh
-          python3 -c "
-          content = open('llvm.sh').read()
-          old = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\nfi'
-          new = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\n    if test \$LLVM_VERSION -ge 16; then\n        PKG=\"\$PKG flang-\$LLVM_VERSION\"\n    fi\nfi'
-          open('llvm.sh', 'w').write(content.replace(old, new, 1))"
-          chmod +x llvm.sh
-          sudo ./llvm.sh 21 all
-          export PATH="/usr/lib/llvm-21/bin:$PATH"
-          echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
+#      - name: Install Linux Dependencies
+#        run: |
+#          sudo apt update
+#          sudo apt upgrade -y
+#          sudo apt install -y wget python3-pip
+#          python3 -m pip install h5py numpy
+#          wget --version
+#          wget ${{ env.CONAN_DEB_DOWNLOAD_LINK }}
+#          sudo apt install -y ./conan-*.deb
+#          conan --version
+#          mkdir -p ~/.conan2/profiles/
+#          touch ~/.conan2/profiles/default # if we don't make a file first, cp thinks its a folder that doesn't exist
+#          cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} ~/.conan2/profiles/default
+#
+#          # LLVM Install (need version 21+ for flang)
+#          wget https://apt.llvm.org/llvm.sh
+#          python3 -c "
+#          content = open('llvm.sh').read()
+#          old = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\nfi'
+#          new = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\n    if test \$LLVM_VERSION -ge 16; then\n        PKG=\"\$PKG flang-\$LLVM_VERSION\"\n    fi\nfi'
+#          open('llvm.sh', 'w').write(content.replace(old, new, 1))"
+#          chmod +x llvm.sh
+#          sudo ./llvm.sh 21 all
+#          export PATH="/usr/lib/llvm-21/bin:$PATH"
+#          echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
+#
+#      - name: Install Dependencies through Conan on Linux
+#        shell: bash
+#        run: |
+#          sudo apt --purge remove gcc
+#          sudo ln -s /usr/bin/clang /usr/bin/cc
+#          sudo apt install mold libc++-dev libc++abi-dev
+#          sudo rm /usr/bin/ld
+#          sudo ln -s $(which mold) /usr/bin/ld
+#          conan install . --output-folder build --build=missing
+#
+#      - name: Build Linux
+#        run: |
+#          echo "working dir is $PWD"
+#          cd build
+#          source conanbuild.sh
+#          cmake -B . -S .. -G "Ninja" \
+#            -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" \
+#            -DCMAKE_BUILD_TYPE=Release \
+#            -DLIBZIPPP_CMAKE_CONFIG_MODE=ON \
+#            -DOPTION_TARGET_PYTHON_BINDING=OFF \
+#            -DOPTION_TARGET_MESSAGING=OFF \
+#            -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
+#            -DOPTION_TARGET_FV_SOLVER=ON \
+#            -DOPTION_TARGET_DOCS=ON \
+#            -DOPTION_TARGET_TESTS=ON
+#          cmake --build . --config Release
+#
+#      - name: Test Linux
+#        run: |
+#          platform=linux
+#          echo "working dir is $PWD"
+#
+#          cd build
+#          ctest -VV
+#
+#          echo "------ running FiniteVolume_x64 ------"
+#          ./bin/FiniteVolume_x64 || true
+#          echo
+#          echo "------ running smoldyn_x64 ------"
+#          ./bin/smoldyn_x64 || true
+#
+#      - name: handle shared object paths for Linux native build
+#        shell: bash
+#        run: |
+#          mkdir build/upload
+#          cd build/bin
+#          ls *_x64   | awk '{print $1}' | xargs -I '{}' ldd '{}' | grep "=> /" | grep -v "build" | awk '{print $3}' | xargs -I '{}' cp -vn '{}' . || true
+#          ls *.so    | awk '{print $1}' | xargs -I '{}' ldd '{}' | grep "=> /" | grep -v "build" | awk '{print $3}' | xargs -I '{}' cp -vn '{}' . || true
+#          ls *.so    | awk '{print $1}' | xargs -I '{}' ldd '{}' | grep "=> /" | grep -v "build" | awk '{print $3}' | xargs -I '{}' cp -vn '{}' . || true
+#          chmod u+w,+x *
+#          tar czvf ../upload/fvsolver_linux64.tgz --dereference .
+#          cd ../..
+#
+#      - name: Upload Linux binaries (x86_64)
+#        if: matrix.platform == 'ubuntu-latest' && matrix.python.std_version == '3.12'
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: fvsolver_linux64.tgz
+#          path: build/upload/fvsolver_linux64.tgz
+#
+#      - name: Upload Linux binaries (ARM)
+#        if: matrix.platform == 'ubuntu-24.04-arm' && matrix.python.std_version == '3.12'
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: fvsolver_linux_arm64.tgz
+#          path: build/upload/fvsolver_linux64.tgz
 
-      - name: Install Dependencies through Conan on Linux
-        shell: bash
-        run: |
-          sudo apt --purge remove gcc
-          sudo ln -s /usr/bin/clang /usr/bin/cc
-          sudo apt install mold libc++-dev libc++abi-dev
-          sudo rm /usr/bin/ld
-          sudo ln -s $(which mold) /usr/bin/ld
-          conan install . --output-folder build --build=missing
-
-      - name: Build Linux
-        run: |
-          echo "working dir is $PWD"
-          cd build
-          source conanbuild.sh
-          cmake -B . -S .. -G "Ninja" \
-            -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DLIBZIPPP_CMAKE_CONFIG_MODE=ON \
-            -DOPTION_TARGET_PYTHON_BINDING=OFF \
-            -DOPTION_TARGET_MESSAGING=OFF \
-            -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
-            -DOPTION_TARGET_FV_SOLVER=ON \
-            -DOPTION_TARGET_DOCS=ON \
-            -DOPTION_TARGET_TESTS=ON
-          cmake --build . --config Release
-
-      - name: Test Linux
-        run: |
-          platform=linux
-          echo "working dir is $PWD"
-
-          cd build
-          ctest -VV
-
-          echo "------ running FiniteVolume_x64 ------"
-          ./bin/FiniteVolume_x64 || true
-          echo
-          echo "------ running smoldyn_x64 ------"
-          ./bin/smoldyn_x64 || true
-
-      - name: handle shared object paths for Linux native build
-        shell: bash
-        run: |
-          mkdir build/upload
-          cd build/bin
-          ls *_x64   | awk '{print $1}' | xargs -I '{}' ldd '{}' | grep "=> /" | grep -v "build" | awk '{print $3}' | xargs -I '{}' cp -vn '{}' . || true
-          ls *.so    | awk '{print $1}' | xargs -I '{}' ldd '{}' | grep "=> /" | grep -v "build" | awk '{print $3}' | xargs -I '{}' cp -vn '{}' . || true
-          ls *.so    | awk '{print $1}' | xargs -I '{}' ldd '{}' | grep "=> /" | grep -v "build" | awk '{print $3}' | xargs -I '{}' cp -vn '{}' . || true
-          chmod u+w,+x *
-          tar czvf ../upload/fvsolver_linux64.tgz --dereference .
-          cd ../..
-
-      - name: Upload Linux binaries (x86_64)
-        if: matrix.platform == 'ubuntu-latest' && matrix.python.std_version == '3.12'
-        uses: actions/upload-artifact@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          name: fvsolver_linux64.tgz
-          path: build/upload/fvsolver_linux64.tgz
-
-      - name: Upload Linux binaries (ARM)
-        if: matrix.platform == 'ubuntu-24.04-arm' && matrix.python.std_version == '3.12'
-        uses: actions/upload-artifact@v4
-        with:
-          name: fvsolver_linux_arm64.tgz
-          path: build/upload/fvsolver_linux64.tgz
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Wheels (Linux<x86_64>)
         uses: pypa/cibuildwheel@v3.4.0
@@ -440,6 +447,33 @@ jobs:
           CIBW_ARCHS_LINUX: "native"
           CIBW_MANYLINUX_X86_64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_34_amd64:latest'
           CIBW_REPAIR_WHEEL_COMMAND: 'auditwheel repair --disable-isa-ext-check {wheel} -w {dest_dir}'
+          CIBW_CONFIG_SETTINGS_LINUX: >-
+            cmake.args=-DCMAKE_TOOLCHAIN_FILE=/project/build/conan_toolchain.cmake
+            cmake.args=-DLIBZIPPP_CMAKE_CONFIG_MODE=ON
+            cmake.args=-DOPTION_TARGET_PYTHON_BINDING=ON
+            cmake.args=-DOPTION_TARGET_MESSAGING=OFF
+            cmake.args=-DOPTION_TARGET_SMOLDYN_SOLVER=ON
+            cmake.args=-DOPTION_TARGET_FV_SOLVER=ON
+            cmake.args=-DOPTION_TARGET_DOCS=OFF
+            cmake.args=-DOPTION_TARGET_TESTS=OFF
+          CIBW_ENVIRONMENT_LINUX: CC="clang" CXX="clang++" FC="flang"
+          CIBW_BEFORE_BUILD: |
+            echo $PWD
+            ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
+            ln -sf /usr/local/bin/clang   /usr/local/bin/cc
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/g++
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/c++
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/cpp
+            ln -sf /usr/local/bin/flang   /usr/local/bin/gfortran
+            dnf install perl -y
+            rm -rf /opt/rh/*
+            python3 -m pip install conan
+            mkdir -p /root/.conan2/profiles/
+            cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} /root/.conan2/profiles/default
+            conan install . --output-folder /project/build --build=missing
+            echo "source /project/build/conanbuild.sh" >> ~/.profile
+            echo "source /project/build/conanbuild.sh" >> ~/.bashrc
+            source /project/build/conanbuild.sh
 
       - name: Build Wheels (Linux<ARM>)
         uses: pypa/cibuildwheel@v3.4.0
@@ -450,12 +484,40 @@ jobs:
           CIBW_ARCHS_LINUX: "native"
           CIBW_MANYLINUX_AARCH64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_34_aarch64:latest'
           CIBW_REPAIR_WHEEL_COMMAND: 'auditwheel repair --disable-isa-ext-check {wheel} -w {dest_dir}'
-          CIBW_BEFORE_BUILD: "mkdir /xz_source \
-            && wget https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.gz \
-            && tar -xzvf xz-5.8.1.tar.gz -C /xz_source \
-            && cmake -S /xz_source/xz-5.8.1 -B /xz_source/xz-5.8.1/build \
-            && cmake --build /xz_source/xz-5.8.1/build \
-            && cmake --install /xz_source/xz-5.8.1/build"
+          CIBW_CONFIG_SETTINGS_LINUX: >-
+            cmake.args=-DCMAKE_TOOLCHAIN_FILE=/project/build/conan_toolchain.cmake
+            cmake.args=-DLIBZIPPP_CMAKE_CONFIG_MODE=ON
+            cmake.args=-DOPTION_TARGET_PYTHON_BINDING=ON
+            cmake.args=-DOPTION_TARGET_MESSAGING=OFF
+            cmake.args=-DOPTION_TARGET_SMOLDYN_SOLVER=ON
+            cmake.args=-DOPTION_TARGET_FV_SOLVER=ON
+            cmake.args=-DOPTION_TARGET_DOCS=OFF
+            cmake.args=-DOPTION_TARGET_TESTS=OFF
+          CIBW_ENVIRONMENT_LINUX: CC="clang" CXX="clang++" FC="flang"
+          CIBW_BEFORE_BUILD: |
+            echo $PWD
+            ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
+            ln -sf /usr/local/bin/clang   /usr/local/bin/cc
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/g++
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/c++
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/cpp
+            ln -sf /usr/local/bin/flang   /usr/local/bin/gfortran
+            dnf install perl -y
+            rm -rf /opt/rh/*
+            python3 -m pip install conan
+            mkdir -p /root/.conan2/profiles/
+            cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} /root/.conan2/profiles/default
+            conan install . --output-folder /project/build --build=missing
+            echo "source /project/build/conanbuild.sh" >> ~/.profile
+            echo "source /project/build/conanbuild.sh" >> ~/.bashrc
+            source /project/build/conanbuild.sh
+            #mkdir /xz_source 
+            #yum install wget 
+            #wget https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.gz 
+            #tar -xzvf xz-5.8.1.tar.gz -C /xz_source 
+            #cmake -S /xz_source/xz-5.8.1 -B /xz_source/xz-5.8.1/build 
+            #cmake --build /xz_source/xz-5.8.1/build 
+            #cmake --install /xz_source/xz-5.8.1/build
 
       - name: Upload Python Wheel
         uses: actions/upload-artifact@v4
@@ -469,3 +531,81 @@ jobs:
         with:
           limit-access-to-actor: true
 
+  UniversalMacBindings:
+    needs: MacOS
+    runs-on: macos-latest
+    steps:
+      - name: Go to workspace
+        run: cd ${{ github.workspace }}
+
+      - name: Download Intel Macos binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: fvsolver_macos_x86_64.tgz
+          path: fvsolver_amd64_artifact
+
+      - name: Unpack x86 into subfolder
+        run: |
+          mkdir MAC_X86_64
+          mv fvsolver_amd64_artifact/fvsolver_mac64.tgz .
+          tar xzvf fvsolver_mac64.tgz -C MAC_X86_64
+          rm fvsolver_mac64.tgz
+
+      - name: Download ARM Macos binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: fvsolver_macos_arm64.tgz
+          path: fvsolver_aarch64_artifact
+
+      - name: Unpack arm into subfolder
+        run: |
+          mkdir MAC_AARCH64
+          mv fvsolver_aarch64_artifact/fvsolver_mac64.tgz .
+          tar xzvf fvsolver_mac64.tgz -C MAC_AARCH64
+          rm fvsolver_mac64.tgz
+
+      - name: Combine halves, and tar
+        shell: bash
+        run: |
+          mkdir universal
+
+          # Get list of files in each folder
+          files1=($(ls -1 "MAC_X86_64" 2>/dev/null))
+          files2=($(ls -1 "MAC_AARCH64" 2>/dev/null))
+
+          # Process files from folder1
+          for file in "${files1[@]}"; do
+              if [ -f "MAC_AARCH64/$file" ]; then
+                  # File exists in both folders - use lipo
+                  echo "Creating universal binary: $file"
+                  lipo -create "MAC_X86_64/$file" "MAC_AARCH64/$file" -output "universal/$file"
+              else
+                  # File only in folder1 - move it
+                  echo "Moving architecture-specific file: $file"
+                  cp "MAC_X86_64/$file" "universal/$file"
+              fi
+          done
+
+          # Process files only in folder2
+          for file in "${files2[@]}"; do
+              if [ ! -f "MAC_X86_64/$file" ]; then
+                  echo "Moving architecture-specific file: $file"
+                  cp "MAC_AARCH64/$file" "universal/$file"
+              fi
+          done
+          
+          # change dir and tar up
+          cd universal
+          tar czfv fvsolver_mac64.tgz --dereference .
+
+      - name: Upload universal binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_macos_universal.tgz
+          path: ${{ github.workspace }}/universal/fvsolver_mac64.tgz
+
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true

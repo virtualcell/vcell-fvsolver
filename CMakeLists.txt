@@ -24,6 +24,11 @@ option(OPTION_USE_ICONV "Build with Libiconv support" OFF)
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
 set(BUILD_SHARED_LIBS OFF)
 
+# If there's a toolchain defined in the env, let's get it early
+if(DEFINED ENV{CMAKE_TOOLCHAIN_FILE})
+	set(CMAKE_TOOLCHAIN_FILE $ENV{CMAKE_TOOLCHAIN_FILE})
+endif()
+
 if (OPTION_TARGET_PYTHON_BINDING)
 	project(
 			${SKBUILD_PROJECT_NAME}
