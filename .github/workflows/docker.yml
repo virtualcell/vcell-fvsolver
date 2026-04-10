@@ -41,6 +41,6 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: docker
-          file: docker/Dockerfile_manylinux_2_34_${{ matrix.platform.arch }}
+          file: docker/Dockerfile_fvsolver_manylinux_2_34_${{ matrix.platform.arch }}
           push: true
-          tags: ghcr.io/fv-solver/Dockerfile_manylinux_2_34_${{ matrix.platform.arch }}:${{ github.event.inputs.tag }}
+          tags: ghcr.io/virtualcell/fvsolver_manylinux_2_34_${{ matrix.platform.arch }}:${{ github.event.inputs.tag }}

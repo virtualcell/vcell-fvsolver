@@ -32,11 +32,12 @@ struct SmoldynVariable {
 	}
 };
 
-class VCellSmoldynOutput
-{
+class VCellSmoldynOutput{
 public:
 	VCellSmoldynOutput(simptr sim);
 	~VCellSmoldynOutput();
+
+	static VCellSmoldynOutput* updateVCellSmoldynOutput(VCellSmoldynOutput* output, simptr sim);
 
 	void write();
 	void computeHistogram();

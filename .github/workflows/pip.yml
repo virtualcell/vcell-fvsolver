@@ -17,12 +17,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        #platform: [ windows-latest, macos-13, macos-14, ubuntu-latest ]
-        platform: [ macos-13, macos-14, ubuntu-latest ]
-        python-version: ["3.9","3.10","3.11","3.12"]
-#        exclude:
-#          - platform: windows-latest
-#            python-version: "3.9"
+        platform: [ windows-latest, macos-15-intel, macos-15, ubuntu-latest ]
+        #platform: [ macos-15-intel, macos-15, ubuntu-latest ]
+        python-version: ["3.10","3.11","3.12"]
+        exclude:
+          - platform: windows-latest
+            python-version: "3.9"
 #          - platform: windows-latest
 #            python-version: "3.12"
 
@@ -32,7 +32,7 @@ jobs:
         submodules: true
 
     - name: Install Intel MacOS dependencies
-      if: matrix.platform == 'macos-13'
+      if: matrix.platform == 'macos-15' || matrix.platform == 'macos-15-intel'
       shell: bash
       run: |
         brew install boost
@@ -40,39 +40,14 @@ jobs:
         brew install libzip
         brew install ninja
         brew install libaec
-        
-        brew install llvm
-        echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
-        source /Users/runner/.bash_profile
-        ln -s $(which gfortran-14) /usr/local/bin/gfortran
-        
-        gcc --version
-        gfortran --version
+        brew uninstall llvm@18
+        brew install flang
+
+        clang --version
+        flang --version
         cmake --version
         brew info boost
         brew info hdf5
-
-
-    - name: Install ARM MacOS dependencies
-      if: matrix.platform == 'macos-14'
-      shell: bash
-      run: |
-        brew install boost
-        brew install hdf5
-        brew install libzip
-        brew install ninja
-        brew install libaec
-        
-        brew install llvm
-        echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
-        ln -s /opt/homebrew/bin/gfortran-14 /usr/local/bin/gfortran
-        
-        gcc --version
-        gfortran --version
-        cmake --version
-        brew info boost
-        brew info hdf5
-
 
     - name: Install Windows Dependencies
       if: matrix.platform == 'windows-latest'
@@ -94,107 +69,155 @@ jobs:
           mingw-w64-clang-x86_64-libaec
           mingw-w64-clang-x86_64-python-pip-tools
 
+    - name: Fix windows python version for python3.10
+      if: matrix.platform == 'windows-latest' && matrix.python-version == '3.10'
+      shell: msys2 {0}
+      run: |
+        echo "Preparing files for installation"
+        pacman -Sy --noconfirm mingw-w64-clang-x86_64-python-pip
+        echo "Downloading old archives"
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.10-3.10.5-1-any.pkg.tar.zst
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-23.1.2-1-any.pkg.tar.zst
+        echo "Installing Python 3.10"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python3.10-3.10.5-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.10 | grep bin/python
+        echo "Installing Corresponding Pip"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-23.1.2-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip
+        echo "Attempting to create python symlink"
+        ln -sf /clang64/bin/python3.10.exe /clang64/bin/python3
+        /clang64/bin/python3 --version
+
+    - name: Fix windows python version for python3.11
+      if: matrix.platform == 'windows-latest' && matrix.python-version == '3.11'
+      shell: msys2 {0}
+      run: |
+        echo "Preparing files for installation"
+        pacman -Sy --noconfirm mingw-w64-x86_64-python-pip
+        echo "Downloading old archives"
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.11-3.11.4-1-any.pkg.tar.zst
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-23.3.2-1-any.pkg.tar.zst
+        echo "Installing Python 3.11"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python3.11-3.11.4-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.11 | grep bin/python
+        echo "Installing Corresponding Pip"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-23.3.2-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip
+        echo "Attempting to create python symlink..."
+        ln -sf /clang64/bin/python3.11.exe /clang64/bin/python3
+        /clang64/bin/python3 --version
+
+    - name: Fix windows python version for python3.12
+      if: matrix.platform == 'windows-latest' && matrix.python-version == '3.12'
+      shell: msys2 {0}
+      run: |
+        echo "Preparing files for installation"
+        pacman -Sy --noconfirm mingw-w64-x86_64-python-pip
+        echo "Downloading old archives"
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python3.12-3.12.7-1-any.pkg.tar.zst
+        curl -LO https://repo.msys2.org/mingw/clang64/mingw-w64-clang-x86_64-python-pip-25.0.1-1-any.pkg.tar.zst
+        echo "Installing Python 3.12"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python3.12-3.12.7-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python3.12 | grep bin/python
+        echo "Installing Corresponding Pip"
+        pacman -U --noconfirm mingw-w64-clang-x86_64-python-pip-25.0.1-1-any.pkg.tar.zst && pacman -Ql mingw-w64-clang-x86_64-python-pip | grep bin/pip
+        echo "Attempting to create python symlink"
+        ln -sf /clang64/bin/python3.12.exe /clang64/bin/python3
+        /clang64/bin/python3 --version
+
     - uses: actions/setup-python@v5
+      if: matrix.platform != 'windows-latest'
       with:
         python-version: "${{ matrix.python-version }}"
 
-    - name: Build and install macos-13
+    - name: Build and install Intel MacOS
+      if: matrix.platform == 'macos-15' || matrix.platform == 'macos-15-intel'
       run: |
-        export MACOSX_DEPLOYMENT_TARGET=13.0
-        PATH="/usr/local/opt/llvm/bin:$PATH"
+        export MACOSX_DEPLOYMENT_TARGET=15.0
         pip wheel . -w dist
         ls -al dist
         pip install delocate
         delocate-listdeps dist/*.whl
         delocate-wheel -v dist/*.whl
-        pip install dist/*.whl
-      if: matrix.platform == 'macos-13'
-
-    - name: Build and install macos-14
-      run: |
-        PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-        pip wheel . -w dist
-        ls -al dist
-        pip install delocate
-        delocate-listdeps dist/*.whl
-        delocate-wheel -v dist/*.whl
-        pip install dist/*.whl
-      if: matrix.platform == 'macos-14'
+        pip install dist/*.whl 
 
     - name: Build and install windows-latest
+      if: matrix.platform == 'windows-latest'
       shell: msys2 {0}
       run: |
-        pip wheel --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" . -w dist
-        pip install delvewheel
+        which python3
+        python3 --version
+        python3 -m pip wheel --verbose -Ccmake.define.CMAKE_C_COMPILER="clang.exe" -Ccmake.define.CMAKE_CXX_COMPILER="clang++.exe" . -w dist
+        python3 -m pip install delvewheel
         for wheel_file in dist/*.whl; do
           echo "not inspecting $wheel_file"
           echo "delvewheel needed -v $wheel_file"
           echo "not repairing $wheel_file"
           echo "delvewheel repair -v $wheel_file"
         done
-        pip install dist/*.whl
-      if: matrix.platform == 'windows-latest'
+        python3 -m pip install dist/*.whl
+      
 
     - name: Build and install manylinux for python 3.9
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.9'
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
-           /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
-           /opt/python/cp39-cp39/bin/pip wheel /io/ -w /io/dist && \
-           auditwheel repair /io/dist/*.whl -w /io/dist/"
+            /bin/bash -c \
+            "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
+            /opt/python/cp39-cp39/bin/pip wheel /io/ -w /io/dist && \
+            auditwheel repair --disable-isa-ext-check /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
         sudo rm -rf dist/*-linux_x86_64.whl
         pip install dist/*.whl
-      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.9'
+      
 
     - name: Build and install manylinux for python 3.10
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.10'
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
-           /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
-           /opt/python/cp310-cp310/bin/pip wheel /io/ -w /io/dist && \
-           auditwheel repair /io/dist/*.whl -w /io/dist/"
+            /bin/bash -c \
+            "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
+            /opt/python/cp310-cp310/bin/pip wheel /io/ -w /io/dist && \
+            auditwheel repair --disable-isa-ext-check /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
         sudo rm -rf dist/*-linux_x86_64.whl
         pip install dist/*.whl
-      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.10'
+      
 
     - name: Build and install manylinux for python 3.11
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.11'
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
-           /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
-           /opt/python/cp311-cp311/bin/pip wheel /io/ -w /io/dist && \
-           auditwheel repair /io/dist/*.whl -w /io/dist/"
+            /bin/bash -c \
+            "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
+            /opt/python/cp311-cp311/bin/pip wheel /io/ -w /io/dist && \
+            auditwheel repair --disable-isa-ext-check /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
         sudo rm -rf dist/*-linux_x86_64.whl
         pip install dist/*.whl
-      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.11'
 
     - name: Build and install manylinux for python 3.12
+      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.12'
       run: |
         docker run --rm -v $(pwd):/io quay.io/pypa/manylinux_2_34_x86_64 \
-           /bin/bash -c \
-           "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
-           /opt/python/cp312-cp312/bin/pip wheel /io/ -w /io/dist && \
-           auditwheel repair /io/dist/*.whl -w /io/dist/"
+            /bin/bash -c \
+            "yum install -y boost-devel hdf5-devel libzip-devel bzip2-devel ninja-build openssl-devel xz-devel && \
+            /opt/python/cp312-cp312/bin/pip wheel /io/ -w /io/dist && \
+            auditwheel repair --disable-isa-ext-check /io/dist/*.whl -w /io/dist/"
         echo "keeping only the manylinux wheels, remove those with -linux_x86_64.whl in the name"
         sudo rm -rf dist/*-linux_x86_64.whl
         pip install dist/*.whl
-      if: matrix.platform == 'ubuntu-latest' && matrix.python-version == '3.12'
+      
 
     - name: Test not windows
+      if: matrix.platform != 'windows-latest'
       run: |
         pip install pytest
         pytest
-      if: matrix.platform != 'windows-latest'
 
     - name: Test on windows
+      if: matrix.platform == 'windows-latest'
       shell: msys2 {0}
       run: |
-        pip install pytest
-        pytest
-      if: matrix.platform == 'windows-latest'
+        which python3
+        python3 --version
+        python3 -m pip install pytest
+        python3 -m pytest
 
     - name: set wheel_file and artifact_name environment vars (non-windows)
       if: matrix.platform != 'windows-latest'
@@ -225,7 +248,7 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       if: ${{ failure() }}
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
+        limit-access-to-actor: true
 
   publish-to-pypi:
     name: Publish to PyPI
@@ -266,6 +289,5 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       if: ${{ failure() }}
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        limit-access-to-actor: false
+        limit-access-to-actor: true
 

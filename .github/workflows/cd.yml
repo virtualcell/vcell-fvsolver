@@ -16,7 +16,9 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-push-image:
+  DockerImage:
+    name:
+      Build Docker Image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -41,33 +43,40 @@ jobs:
         with:
           images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
 
-      - name: Build and push Docker image
+      - name: Build and Push Docker image
         uses: docker/build-push-action@v5
+        if: github.event_name == 'release' && github.event.action == 'published'
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  native-build:
+      - name: Only Build Docker image
+        uses: docker/build-push-action@v5
+        if: github.event_name != 'release' || github.event.action != 'published'
+        with:
+          context: .
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  MacOS:
     name:
-      native-build-${{ matrix.platform }}
+      Build ${{ matrix.platform }} (Native)
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-13, windows-latest, ubuntu-latest, macos-14]
-
-
+        platform: [ macos-15-intel, macos-15 ]
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - name: checkout vcell-solvers repo
+      - name: checkout fv-solver repo
         uses: actions/checkout@v4
         with:
           submodules: true
 
-      - name: Install Intel MacOS dependencies
-        if: matrix.platform == 'macos-13'
+      - name: Install MacOS dependencies
         shell: bash
         run: |
           brew install boost
@@ -75,232 +84,59 @@ jobs:
           brew install libzip
           brew install ninja
           brew install libaec
-
-          brew install llvm
-          echo 'export PATH="/usr/local/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
-          source /Users/runner/.bash_profile
-          ln -s $(which gfortran-14) /usr/local/bin/gfortran
-
-          gcc --version
-          gfortran --version
-          cmake --version
-          brew info boost
-          brew info hdf5
-
-      - name: Install ARM MacOS dependencies
-        if: matrix.platform == 'macos-14'
-        shell: bash
-        run: |
-          brew install boost
-          brew install hdf5
-          brew install libzip
-          brew install ninja
-          brew install libaec
-
-          brew install llvm
-          echo 'export PATH="/opt/homebrew/opt/llvm/bin:$PATH"' >> /Users/runner/.bash_profile
-          ln -s /opt/homebrew/bin/gfortran-14 /usr/local/bin/gfortran
+          brew uninstall llvm@18
+          brew install flang
           
-          gcc --version
-          gfortran --version
+          clang --version
+          flang --version
           cmake --version
           brew info boost
           brew info hdf5
 
-      - name: Build Macos ARM
-        if: matrix.platform == 'macos-14'
+      - name: Install Intel MacOS specific dependencies
+        if: matrix.platform == 'macos-15-intel'
+        run: python3 -m pip install h5py numpy --break-system-packages
+
+      - name: Install ARM MacOS dependencies Part 2
+        if: matrix.platform == 'macos-15'
+        run: /opt/homebrew/bin/python3 -m pip install numpy h5py --break-system-packages
+
+      - name: Build Macos
         run: |
           platform=macos
           echo "working dir is $PWD"
-
+          
           mkdir build
           cd build
-
-          export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-
-          cmake \
-          -G Ninja \
-          -DCMAKE_C_COMPILER=/opt/homebrew/opt/llvm/bin/clang \
-          -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++ \
-          -DOPTION_TARGET_PYTHON_BINDING=OFF \
-          -DOPTION_MINGW=ON \
-          -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
-          -DOPTION_TARGET_FV_SOLVER=ON \
-          -DOPTION_TARGET_DOCS=ON \
-          -B . -S ..
-
-          ninja
-
-      - name: Build Macos Intel
-        if: matrix.platform == 'macos-13'
-        run: |
-          platform=macos
-          echo "working dir is $PWD"
-
-          mkdir build
-          cd build
-
-          export PATH="/usr/local/opt/llvm/bin:$PATH"
-
-          cmake \
-          -G Ninja \
-          -DCMAKE_C_COMPILER=/usr/local/opt/llvm/bin/clang \
-          -DCMAKE_CXX_COMPILER=/usr/local/opt/llvm/bin/clang++ \
-          -DOPTION_TARGET_PYTHON_BINDING=OFF \
-          -DOPTION_MINGW=ON \
-          -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
-          -DOPTION_TARGET_FV_SOLVER=ON \
-          -DOPTION_TARGET_DOCS=ON \
-          -B . -S ..
-
-          ninja
+          
+          # General Build
+          cmake -B . -S .. -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLIBZIPPP_CMAKE_CONFIG_MODE=ON \
+            -DOPTION_TARGET_PYTHON_BINDING=OFF \
+            -DOPTION_TARGET_MESSAGING=OFF \
+            -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
+            -DOPTION_TARGET_FV_SOLVER=ON \
+            -DOPTION_TARGET_DOCS=ON \
+            -DOPTION_TARGET_TESTS=ON
+          cmake --build . --config Release
 
       - name: Test Macos
-        if: matrix.platform == 'macos-13' || matrix.platform == 'macos-14'
         run: |
           platform=macos
           echo "working dir is $PWD"
-
+          
           cd build
-
+          
           ctest -VV
           
           echo "------ running FiniteVolume_x64 ------"
           ./bin/FiniteVolume_x64 || true
           echo
-          echo "------ running NFsim_x64 ------"
-          ./bin/NFsim_x64 || true
-          echo "------ running SundialsSolverStandalone_x64 ------"
-          ./bin/SundialsSolverStandalone_x64 || true
-          echo "------ running VCellStoch_x64 ------"
-          ./bin/VCellStoch_x64 || true
           echo "------ running smoldyn_x64 ------"
           ./bin/smoldyn_x64 || true
 
-#      - name: Setup tmate session
-#        uses: mxschmitt/action-tmate@v3
-#        with:
-#          limit-access-to-actor: false
-
-
-      - name: Install Windows Dependencies
-        if: matrix.platform == 'windows-latest'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: CLANG64
-          update: true
-          install: >
-            zip
-            git
-            mingw-w64-clang-x86_64-curl
-            mingw-w64-clang-x86_64-toolchain
-            mingw-w64-clang-x86_64-flang
-            mingw-w64-clang-x86_64-cmake
-            mingw-w64-clang-x86_64-boost
-            mingw-w64-clang-x86_64-hdf5
-            mingw-w64-clang-x86_64-libzip
-            mingw-w64-clang-x86_64-zlib
-            mingw-w64-clang-x86_64-libaec
-
-#      - name: Setup tmate session
-#        uses: mxschmitt/action-tmate@v3
-#        with:
-#          limit-access-to-actor: false
-
-      - name: Build Windows
-        if: matrix.platform == 'windows-latest'
-        shell: msys2 {0}
-        run: |
-          platform=windows
-          echo "working dir is $PWD"
-
-          mkdir build
-          cd build
-
-          export PATH="/c/Program\ Files/LLVM/bin:$PATH"
-
-          cmake \
-          -G Ninja \
-          -DCMAKE_C_COMPILER="clang.exe" \
-          -DCMAKE_CXX_COMPILER="clang++.exe" \
-          -DOPTION_TARGET_PYTHON_BINDING=OFF \
-          -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
-          -DOPTION_TARGET_FV_SOLVER=ON \
-          -DOPTION_TARGET_DOCS=OFF \
-          -B . -S ..
-
-          ninja -j 1
-
-      - name: Test Windows
-        if: matrix.platform == 'windows-latest'
-        shell: msys2 {0}
-        run: |
-          platform=windows
-          echo "working dir is $PWD"
-
-          cd build
-          
-          export PATH="/d/a/_temp/msys64/clang64/bin:$PATH"
-          pacman -Sy --noconfirm diffutils
-
-          ctest -VV
-
-          echo "------ running FiniteVolume_x64 ------"
-          ./bin/FiniteVolume_x64 || true
-          echo
-
-      - name: Install Linux Dependencies
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libboost-all-dev libhdf5-dev libzip-dev libbz2-dev ninja-build
-
-          gcc --version
-          gfortran --version
-          cmake --version
-          dpkg -s libboost-all-dev
-          dpkg -s libhdf5-dev
-
-      - name: Build Linux
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          platform=linux
-          echo "working dir is $PWD"
-
-          mkdir build
-          cd build
-
-          cmake \
-          -G Ninja \
-          -DOPTION_TARGET_PYTHON_BINDING=OFF \
-          -DOPTION_TARGET_MESSAGING=OFF \
-          -DOPTION_TARGET_SMOLDYN_SOLVER=OFF \
-          -DOPTION_TARGET_FV_SOLVER=ON \
-          -DOPTION_TARGET_DOCS=ON \
-          -B . -S ..
-
-          ninja
-
-      - name: Test Linux
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          platform=linux
-          echo "working dir is $PWD"
-
-          cd build
-
-          ctest -VV
-
-          echo "------ running FiniteVolume_x64 ------"
-          ./bin/FiniteVolume_x64 || true
-          echo
-
-
       - name: fix Macos shared object paths
-        if: matrix.platform == 'macos-13' || matrix.platform == 'macos-14'
         shell: bash
         run: |
           mkdir build/upload
@@ -313,9 +149,121 @@ jobs:
           ../../.github/scripts/install_name_tool_macos.sh
           tar czvf ../upload/fvsolver_mac64.tgz --dereference .
 
-      - name: handle shared object paths for Windows native build
+      - name: Upload Intel Macos binaries
+        if: matrix.platform == 'macos-15-intel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_macos_x86_64.tgz
+          path: build/upload/fvsolver_mac64.tgz
+
+      - name: Upload ARM Macos binaries
+        if: matrix.platform == 'macos-15'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_macos_arm64.tgz
+          path: build/upload/fvsolver_mac64.tgz
+
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+
+  WindowsOS:
+    name:
+      Build ${{ matrix.platform }} (Native)
+    strategy:
+      fail-fast: false
+      matrix:
+        #platform: [ windows-latest, windows-11-arm ]
+        platform: [ windows-latest ]
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Install Build Environment (Part 1 - MSVC toolset)
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install Build Environment (Part 1 - Python)
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Build Environment (Part 2 - Build Tools & Python Init)
+        shell: powershell
+        run: |
+          choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64" -y
+          choco install zip -y
+          python3 -m pip install numpy h5py
+
+      - name: Pre-install Configuration (Part 1 - Conan) <x86_64>
         if: matrix.platform == 'windows-latest'
-        shell: msys2 {0}
+        shell: bash
+        run: |
+          echo "CONAN_PROFILE_NAME=Windows-AMD64_profile.txt" >> $GITHUB_ENV
+
+      - name: Pre-install Configuration (Part 1 - Conan) <ARM64>
+        if: matrix.platform == 'windows-11-arm'
+        shell: bash
+        run: |
+          echo "CONAN_PROFILE_NAME=Windows-ARM64_profile.txt" >> $GITHUB_ENV
+
+
+      - name: Pre-install Configuration (Part 2 - Setup LLVM-style)
+        run: |
+          choco upgrade llvm
+          $llvmDir = "C:\Program Files\Conan\conan"
+          $env:PATH = "$llvmDir;$env:PATH"
+          $llvmDir | Set-Content -Path $env:GITHUB_PATH
+          clang --version
+          flang --version
+
+      - name: Pre-install Configuration (Part 3 - checkout VCell-Solvers Repo)
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Pre-install Configuration (Part 4 - Conan Installation)
+        shell: powershell
+        run: |
+          choco install conan -y
+          $conanDir = "C:\Program Files\Conan\conan"
+          $env:PATH = "$conanDir;$env:PATH"
+          $conanDir | Set-Content -Path $env:GITHUB_PATH
+          $env:CONAN_HOME = "C:\.conan"
+          "CONAN_HOME=C:\.conan" | Out-File -FilePath $env:GITHUB_ENV -Append
+          conan --version
+          conan profile detect --force
+
+      - name: Install Windows Dependencies through Conan
+        shell: powershell
+        run: |
+          Copy-Item (Join-Path "conan-profiles\CI-CD" "${{ env.CONAN_PROFILE_NAME }}") (Join-Path $env:CONAN_HOME "profiles\default")
+          conan install . --output-folder build --build=missing -o include_messaging=False
+          icacls (Join-Path $PWD "build") /grant Everyone:F /T
+
+      - name: Build Windows
+        shell: powershell
+        run: |
+          cd build
+          . ./conanbuild.ps1
+          cmake -B . -S .. -G "Ninja"  -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" -DCMAKE_BUILD_TYPE=Release -DLIBZIPPP_CMAKE_CONFIG_MODE=ON -DOPTION_TARGET_PYTHON_BINDING=OFF -DOPTION_TARGET_MESSAGING=OFF -DOPTION_TARGET_SMOLDYN_SOLVER=ON -DOPTION_TARGET_FV_SOLVER=ON -DOPTION_TARGET_DOCS=OFF -DOPTION_TARGET_TESTS=ON
+          cmake --build . --config Release
+
+      - name: Test Windows
+        shell: bash
+        run: |
+          echo "working dir is $PWD"
+          cd build
+          
+          ctest -VV
+          echo "------ running FiniteVolume_x64 ------"
+          ./bin/FiniteVolume_x64 || true
+          echo
+          echo "------ running smoldyn_x64 ------"
+          ./bin/smoldyn_x64 || true
+
+      - name: handle shared object paths for Windows native build
+        shell: bash
         run: |
           mkdir build/upload
           cd build/bin
@@ -327,8 +275,121 @@ jobs:
           cd ../..
           # fi
 
-      - name: handle shared object paths for Linux native build
+      - name: Upload Windows binaries
+        if: matrix.platform == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_win64.zip
+          path: build/upload/fvsolver_win64.zip
+
+      - name: Upload Windows binaries
+        if: matrix.platform == 'windows-11-arm'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_win64.zip
+          path: build/upload/fvsolver_win_arm64.zip
+
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+
+  GNULinux:
+    name:
+      Build ${{ matrix.platform }} (Native)
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: checkout fv-solver repo
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Pre-install Configuration <x86_64>
         if: matrix.platform == 'ubuntu-latest'
+        run: |
+          echo "CONAN_DEB_DOWNLOAD_LINK=https://github.com/conan-io/conan/releases/download/2.26.2/conan-2.26.2-amd64.deb" >> $GITHUB_ENV
+          echo "CONAN_PROFILE_NAME=Linux-AMD64_profile.txt" >> $GITHUB_ENV
+
+      - name: Pre-install Configuration <ARM64>
+        if: matrix.platform == 'ubuntu-24.04-arm'
+        run: |
+          echo "CONAN_DEB_DOWNLOAD_LINK=https://github.com/conan-io/conan/releases/download/2.26.2/conan-2.26.2-arm64.deb" >> $GITHUB_ENV
+          echo "CONAN_PROFILE_NAME=Linux-ARM64_profile.txt" >> $GITHUB_ENV
+
+      - name: Install Linux Dependencies
+        run: |          
+          sudo apt update
+          sudo apt upgrade -y
+          sudo apt install -y wget python3-pip
+          python3 -m pip install h5py numpy
+          wget --version
+          wget ${{ env.CONAN_DEB_DOWNLOAD_LINK }}
+          sudo apt install -y ./conan-*.deb
+          conan --version
+          mkdir -p ~/.conan2/profiles/
+          touch ~/.conan2/profiles/default # if we don't make a file first, cp thinks its a folder that doesn't exist
+          cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} ~/.conan2/profiles/default
+          
+          # LLVM Install (need version 21+ for flang)
+          wget https://apt.llvm.org/llvm.sh
+          python3 -c "
+          content = open('llvm.sh').read()
+          old = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\nfi'
+          new = '    if test \$LLVM_VERSION -gt 14; then\n        PKG=\"\$PKG libclang-rt-\$LLVM_VERSION-dev libpolly-\$LLVM_VERSION-dev\"\n    fi\n    if test \$LLVM_VERSION -ge 16; then\n        PKG=\"\$PKG flang-\$LLVM_VERSION\"\n    fi\nfi'
+          open('llvm.sh', 'w').write(content.replace(old, new, 1))"
+          chmod +x llvm.sh
+          sudo ./llvm.sh 21 all
+          export PATH="/usr/lib/llvm-21/bin:$PATH"
+          echo "/usr/lib/llvm-21/bin" >> $GITHUB_PATH
+
+      - name: Install Dependencies through Conan on Linux
+        shell: bash
+        run: |
+          sudo apt --purge remove gcc
+          sudo ln -s /usr/bin/clang /usr/bin/cc
+          sudo apt install mold libc++-dev libc++abi-dev
+          sudo rm /usr/bin/ld
+          sudo ln -s $(which mold) /usr/bin/ld
+          conan install . --output-folder build --build=missing
+
+      - name: Build Linux
+        run: |
+          echo "working dir is $PWD"
+          cd build
+          source conanbuild.sh
+          cmake -B . -S .. -G "Ninja" \
+            -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLIBZIPPP_CMAKE_CONFIG_MODE=ON \
+            -DOPTION_TARGET_PYTHON_BINDING=OFF \
+            -DOPTION_TARGET_MESSAGING=OFF \
+            -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
+            -DOPTION_TARGET_FV_SOLVER=ON \
+            -DOPTION_TARGET_DOCS=ON \
+            -DOPTION_TARGET_TESTS=ON
+          cmake --build . --config Release
+
+      - name: Test Linux
+        run: |
+          platform=linux
+          echo "working dir is $PWD"
+
+          cd build
+          ctest -VV
+
+          echo "------ running FiniteVolume_x64 ------"
+          ./bin/FiniteVolume_x64 || true
+          echo
+          echo "------ running smoldyn_x64 ------"
+          ./bin/smoldyn_x64 || true
+
+      - name: handle shared object paths for Linux native build
         shell: bash
         run: |
           mkdir build/upload
@@ -340,37 +401,23 @@ jobs:
           tar czvf ../upload/fvsolver_linux64.tgz --dereference .
           cd ../..
 
-      - name: Upload Intel Macos binaries
-        if: matrix.platform == 'macos-13'
-        uses: actions/upload-artifact@v4
-        with:
-          name: fvsolver_macos_x86_64.tgz
-          path: build/upload/fvsolver_mac64.tgz
-
-      - name: Upload ARM Macos binaries
-        if: matrix.platform == 'macos-14'
-        uses: actions/upload-artifact@v4
-        with:
-          name: fvsolver_macos_arm64.tgz
-          path: build/upload/fvsolver_mac64.tgz
-
-      - name: Upload Windows binaries
-        if: matrix.platform == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: fvsolver_win64.zip
-          path: build/upload/fvsolver_win64.zip
-
-      - name: Upload Linux binaries
+      - name: Upload Linux binaries (x86_64)
         if: matrix.platform == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: fvsolver_linux64.tgz
           path: build/upload/fvsolver_linux64.tgz
 
+      - name: Upload Linux binaries (ARM)
+        if: matrix.platform == 'ubuntu-24.04-arm'
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_linux_arm64.tgz
+          path: build/upload/fvsolver_linux64.tgz
+
       - name: Setup tmate session
         if: ${{ failure() }}
         uses: mxschmitt/action-tmate@v3
         with:
-          limit-access-to-actor: false
+          limit-access-to-actor: true
 

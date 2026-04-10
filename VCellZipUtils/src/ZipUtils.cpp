@@ -16,8 +16,6 @@ using std::endl;
 using namespace std;
 struct zip;
 
-#include <unistd.h>
-
 bool exists(const char* name){
     if (FILE *file = fopen(name, "r")) {
         fclose(file);
