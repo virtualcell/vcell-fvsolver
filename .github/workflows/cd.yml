@@ -36,18 +36,15 @@ jobs:
 
     steps:
       - name: checkout fv-solver repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           submodules: true
 
-      - name: Install MacOS dependencies
+      - name: Install MacOS Dependencies
         shell: bash
         run: |
           brew install boost
           brew install hdf5
-          brew install libzip
-          brew install ninja
-          brew install libaec
           brew uninstall llvm@18
           brew install flang
           
@@ -57,13 +54,16 @@ jobs:
           brew info boost
           brew info hdf5
 
-      - name: Install Intel MacOS specific dependencies
+      - name: Install Architecture-specific Dependencies <x86_64>
         if: matrix.platform == 'macos-15-intel'
-        run: python3 -m pip install h5py numpy --break-system-packages
+        run: |
+          python3 -m pip install h5py numpy --break-system-packages
 
-      - name: Install ARM MacOS dependencies Part 2
+      - name: Install Architecture-specific Dependencies <ARM64>
         if: matrix.platform == 'macos-15'
-        run: /opt/homebrew/bin/python3 -m pip install numpy h5py --break-system-packages
+        run: |
+          brew install libzip
+          /opt/homebrew/bin/python3 -m pip install numpy h5py --break-system-packages
 
       - name: Build Macos
         run: |
@@ -100,7 +100,7 @@ jobs:
           echo "------ running smoldyn_x64 ------"
           ./bin/smoldyn_x64 || true
 
-      - name: fix Macos shared object paths
+      - name: Fix Macos shared object paths
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         shell: bash
         run: |
@@ -114,16 +114,16 @@ jobs:
           ../../.github/scripts/install_name_tool_macos.sh
           tar czvf ../upload/fvsolver_mac64.tgz --dereference .
 
-      - name: Upload Intel Macos binaries
+      - name: Upload Macos Native Binaries <x86_64>
         if: matrix.platform == 'macos-15-intel' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fvsolver_macos_x86_64.tgz
           path: build/upload/fvsolver_mac64.tgz
 
-      - name: Upload ARM Macos binaries
+      - name: Upload Macos Native Binaries <ARM64>
         if: matrix.platform == 'macos-15' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fvsolver_macos_arm64.tgz
           path: build/upload/fvsolver_mac64.tgz
@@ -139,7 +139,7 @@ jobs:
 #          output-dir: wheelhouse
 
       - name: Upload Python Wheel
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         with:
           name: pyvcell-fv-${{ matrix.platform }}-${{ matrix.python.cibw_version }}-cibw-wheels
@@ -171,48 +171,36 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - name: Install Build Environment (Part 1 - MSVC toolset)
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Install Build Environment (Part 2 - Build Tools & Python Init)
-        shell: powershell
-        run: |
-          choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64" -y
-          choco install zip -y
-          python3 -m pip install numpy h5py
-
-      - name: Pre-install Configuration (Part 1 - Conan) <x86_64>
+      - name: Pre-install Configuration <x86_64>
         if: matrix.platform == 'windows-latest'
         shell: bash
         run: |
           echo "CONAN_PROFILE_NAME=Windows-AMD64_profile.txt" >> $GITHUB_ENV
           echo "CONAN_ENV_PATH=${{ github.workspace }}/build/conan_toolchain.cmake" | sed 's/\\/\//g' >> $GITHUB_ENV
 
-      - name: Pre-install Configuration (Part 1 - Conan) <ARM64>
+      - name: Pre-install Configuration <ARM64>
         if: matrix.platform == 'windows-11-arm'
         shell: bash
         run: |
           echo "CONAN_PROFILE_NAME=Windows-ARM64_profile.txt" >> $GITHUB_ENV
           echo "CONAN_ENV_PATH=${{ github.workspace }}/build/conan_toolchain.cmake" | sed 's/\\/\//g' >> $GITHUB_ENV
 
+      - name: Install Build Environment (Part 1 - MSVC toolset)
+        uses: microsoft/setup-msbuild@v2
 
-      - name: Pre-install Configuration (Part 2 - Setup LLVM-style)
+      - name: Install Build Environment (Part 2 - Remaining Build Tools & Python Init)
+        shell: powershell
         run: |
+          choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64" -y
+          choco install zip -y
+          
           choco upgrade llvm
           $llvmDir = "C:\Program Files\Conan\conan"
           $env:PATH = "$llvmDir;$env:PATH"
           $llvmDir | Set-Content -Path $env:GITHUB_PATH
           clang --version
           flang --version
-
-      - name: Pre-install Configuration (Part 3 - checkout VCell-Solvers Repo)
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Pre-install Configuration (Part 4 - Conan Installation)
-        shell: powershell
-        run: |
+          
           choco install conan -y
           $conanDir = "C:\Program Files\Conan\conan"
           $env:PATH = "$conanDir;$env:PATH"
@@ -221,6 +209,14 @@ jobs:
           "CONAN_HOME=C:\.conan" | Out-File -FilePath $env:GITHUB_ENV -Append
           conan --version
           conan profile detect --force
+          
+          python3 -m pip install numpy h5py
+          python3 -m pip freeze
+
+      - name: Checkout VCell's FV-Solver Repo
+        uses: actions/checkout@v6
+        with:
+          submodules: true
 
       - name: Install Windows Dependencies through Conan
         shell: powershell
@@ -250,7 +246,7 @@ jobs:
           echo "------ running smoldyn_x64 ------"
           ./bin/smoldyn_x64 || true
 
-      - name: handle shared object paths for Windows native build
+      - name: Handle shared object paths for Windows native build
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         shell: bash
         run: |
@@ -264,16 +260,16 @@ jobs:
           cd ../..
           # fi
 
-      - name: Upload Windows binaries (AMD64)
+      - name: Upload Windows Binaries <x86_64>
         if: matrix.platform == 'windows-latest' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fvsolver_win64.zip
           path: build/upload/fvsolver_win64.zip
 
-      - name: Upload Windows binaries (ARM64)
+      - name: Upload Windows Binaries <ARM64>
         if: matrix.platform == 'windows-11-arm' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fvsolver_win64.zip
           path: build/upload/fvsolver_win_arm64.zip
@@ -300,7 +296,7 @@ jobs:
 
       - name: Upload Python Wheel
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pyvcell-fv-${{ matrix.platform }}-${{ matrix.python.cibw_version }}-cibw-wheels
           path: ./wheelhouse/*.whl
@@ -330,8 +326,8 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - name: checkout fv-solver repo
-        uses: actions/checkout@v4
+      - name: Checkout VCell's FV-Solver Repo
+        uses: actions/checkout@v6
         with:
           submodules: true
 
@@ -414,7 +410,7 @@ jobs:
           echo "------ running smoldyn_x64 ------"
           ./bin/smoldyn_x64 || true
 
-      - name: handle shared object paths for Linux native build
+      - name: Handle shared object paths for Linux native build
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         shell: bash
         run: |
@@ -427,16 +423,16 @@ jobs:
           tar czvf ../upload/fvsolver_linux64.tgz --dereference .
           cd ../..
 
-      - name: Upload Linux binaries (x86_64)
+      - name: Upload Linux binaries <x86_64>
         if: matrix.platform == 'ubuntu-latest' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fvsolver_linux64.tgz
           path: build/upload/fvsolver_linux64.tgz
 
-      - name: Upload Linux binaries (ARM)
+      - name: Upload Linux binaries <ARM64>
         if: matrix.platform == 'ubuntu-24.04-arm' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fvsolver_linux_arm64.tgz
           path: build/upload/fvsolver_linux64.tgz
@@ -449,7 +445,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build Wheels (Linux<x86_64>)
+      - name: Build Wheels with CIBuildWheel (via Docker) <x86_64>
         uses: pypa/cibuildwheel@v3.4.0
         if: matrix.platform == 'ubuntu-latest' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         env:
@@ -486,7 +482,7 @@ jobs:
             echo "source /project/build/conanbuild.sh" >> ~/.bashrc
             source /project/build/conanbuild.sh
 
-      - name: Build Wheels (Linux<ARM>)
+      - name: Build Wheels with CIBuildWheel (via Docker) <ARM64>
         uses: pypa/cibuildwheel@v3.4.0
         if: matrix.platform == 'ubuntu-24.04-arm' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         env:
@@ -532,7 +528,7 @@ jobs:
 
       - name: Upload Python Wheel
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pyvcell-fv-${{ matrix.platform }}-${{ matrix.python.cibw_version }}-cibw-wheels
           path: ./wheelhouse/*.whl
@@ -552,7 +548,7 @@ jobs:
         run: cd ${{ github.workspace }}
 
       - name: Download Intel Macos binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fvsolver_macos_x86_64.tgz
           path: fvsolver_amd64_artifact
@@ -565,7 +561,7 @@ jobs:
           rm fvsolver_mac64.tgz
 
       - name: Download ARM Macos binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fvsolver_macos_arm64.tgz
           path: fvsolver_aarch64_artifact
@@ -612,7 +608,7 @@ jobs:
           tar czfv fvsolver_mac64.tgz --dereference .
 
       - name: Upload universal binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fvsolver_macos_universal.tgz
           path: ${{ github.workspace }}/universal/fvsolver_mac64.tgz
@@ -633,13 +629,13 @@ jobs:
       id-token: write
 
     steps:
-      - name: download all artifacts (wheels and executables)
-        uses: actions/download-artifact@v4
+      - name: Download all artifacts (wheels and executables)
+        uses: actions/download-artifact@v8
         with:
           path: dist_temp/
 
       - name: Install Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
