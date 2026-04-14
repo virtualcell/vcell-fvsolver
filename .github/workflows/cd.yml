@@ -1,4 +1,4 @@
-name: CD
+name: "CI/CD"
 
 on:
   workflow_dispatch:
@@ -16,58 +16,22 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  DockerImage:
-    name:
-      Build Docker Image
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
-
-      - name: Build and Push Docker image
-        uses: docker/build-push-action@v5
-        if: github.event_name == 'release' && github.event.action == 'published'
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Only Build Docker image
-        uses: docker/build-push-action@v5
-        if: github.event_name != 'release' || github.event.action != 'published'
-        with:
-          context: .
-          push: false
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
   MacOS:
     name:
-      Build ${{ matrix.platform }} (Native)
+      Build Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
     strategy:
       fail-fast: false
       matrix:
         platform: [ macos-15-intel, macos-15 ]
+        python:
+          - std_version: "3.10"
+            cibw_version: "cp310-"
+          - std_version: "3.11"
+            cibw_version: "cp311-"
+          - std_version: "3.12"
+            cibw_version: "cp312-"
+          - std_version: "3.13"
+            cibw_version: "cp313-"
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -137,6 +101,7 @@ jobs:
           ./bin/smoldyn_x64 || true
 
       - name: fix Macos shared object paths
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         shell: bash
         run: |
           mkdir build/upload
@@ -150,18 +115,35 @@ jobs:
           tar czvf ../upload/fvsolver_mac64.tgz --dereference .
 
       - name: Upload Intel Macos binaries
-        if: matrix.platform == 'macos-15-intel'
+        if: matrix.platform == 'macos-15-intel' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v4
         with:
           name: fvsolver_macos_x86_64.tgz
           path: build/upload/fvsolver_mac64.tgz
 
       - name: Upload ARM Macos binaries
-        if: matrix.platform == 'macos-15'
+        if: matrix.platform == 'macos-15' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v4
         with:
           name: fvsolver_macos_arm64.tgz
           path: build/upload/fvsolver_mac64.tgz
+
+      - name: Build Wheels
+        uses: pypa/cibuildwheel@v3.4.0
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        env:
+          MACOSX_DEPLOYMENT_TARGET: 15.0
+          CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
+          CIBW_ARCHES: "native"
+#        with:
+#          output-dir: wheelhouse
+
+      - name: Upload Python Wheel
+        uses: actions/upload-artifact@v4
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        with:
+          name: pyvcell-fv-${{ matrix.platform }}-${{ matrix.python.cibw_version }}-cibw-wheels
+          path: ./wheelhouse/*.whl
 
       - name: Setup tmate session
         if: ${{ failure() }}
@@ -171,22 +153,26 @@ jobs:
 
   WindowsOS:
     name:
-      Build ${{ matrix.platform }} (Native)
+      Build Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
     strategy:
       fail-fast: false
       matrix:
         #platform: [ windows-latest, windows-11-arm ]
         platform: [ windows-latest ]
+        python:
+          - std_version: "3.10"
+            cibw_version: "cp310-"
+          - std_version: "3.11"
+            cibw_version: "cp311-"
+          - std_version: "3.12"
+            cibw_version: "cp312-"
+          - std_version: "3.13"
+            cibw_version: "cp313-"
     runs-on: ${{ matrix.platform }}
 
     steps:
       - name: Install Build Environment (Part 1 - MSVC toolset)
         uses: microsoft/setup-msbuild@v2
-
-      - name: Install Build Environment (Part 1 - Python)
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.11'
 
       - name: Install Build Environment (Part 2 - Build Tools & Python Init)
         shell: powershell
@@ -200,12 +186,14 @@ jobs:
         shell: bash
         run: |
           echo "CONAN_PROFILE_NAME=Windows-AMD64_profile.txt" >> $GITHUB_ENV
+          echo "CONAN_ENV_PATH=${{ github.workspace }}/build/conan_toolchain.cmake" | sed 's/\\/\//g' >> $GITHUB_ENV
 
       - name: Pre-install Configuration (Part 1 - Conan) <ARM64>
         if: matrix.platform == 'windows-11-arm'
         shell: bash
         run: |
           echo "CONAN_PROFILE_NAME=Windows-ARM64_profile.txt" >> $GITHUB_ENV
+          echo "CONAN_ENV_PATH=${{ github.workspace }}/build/conan_toolchain.cmake" | sed 's/\\/\//g' >> $GITHUB_ENV
 
 
       - name: Pre-install Configuration (Part 2 - Setup LLVM-style)
@@ -263,6 +251,7 @@ jobs:
           ./bin/smoldyn_x64 || true
 
       - name: handle shared object paths for Windows native build
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         shell: bash
         run: |
           mkdir build/upload
@@ -275,19 +264,46 @@ jobs:
           cd ../..
           # fi
 
-      - name: Upload Windows binaries
-        if: matrix.platform == 'windows-latest'
+      - name: Upload Windows binaries (AMD64)
+        if: matrix.platform == 'windows-latest' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v4
         with:
           name: fvsolver_win64.zip
           path: build/upload/fvsolver_win64.zip
 
-      - name: Upload Windows binaries
-        if: matrix.platform == 'windows-11-arm'
+      - name: Upload Windows binaries (ARM64)
+        if: matrix.platform == 'windows-11-arm' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v4
         with:
           name: fvsolver_win64.zip
           path: build/upload/fvsolver_win_arm64.zip
+
+      - name: Set up Python ${{ matrix.python.std_version  }}
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python.std_version }}
+
+      - name: Build Wheels (Windows)
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        env:
+          CC: clang-cl
+          CXX: clang-cl
+          FC: flang
+          CMAKE_GENERATOR: Ninja
+          CMAKE_TOOLCHAIN_FILE: ${{ env.CONAN_ENV_PATH }}
+        run: |
+          cd $env:GITHUB_WORKSPACE
+          . $env:GITHUB_WORKSPACE/build/conanbuild.ps1
+          python3 -m pip install build h5py
+          python3 -m build --wheel -o ./wheelhouse -C cmake.define.LIBZIPPP_CMAKE_CONFIG_MODE=ON -C cmake.define.OPTION_TARGET_PYTHON_BINDING=ON -C cmake.define.OPTION_TARGET_MESSAGING=OFF -C cmake.define.OPTION_TARGET_SMOLDYN_SOLVER=ON -C cmake.define.OPTION_TARGET_FV_SOLVER=ON -C cmake.define.OPTION_TARGET_DOCS=OFF -C cmake.define.OPTION_TARGET_TESTS=ON
+
+      - name: Upload Python Wheel
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyvcell-fv-${{ matrix.platform }}-${{ matrix.python.cibw_version }}-cibw-wheels
+          path: ./wheelhouse/*.whl
 
       - name: Setup tmate session
         if: ${{ failure() }}
@@ -297,11 +313,20 @@ jobs:
 
   GNULinux:
     name:
-      Build ${{ matrix.platform }} (Native)
+      Build Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
     strategy:
       fail-fast: false
       matrix:
         platform: [ubuntu-latest, ubuntu-24.04-arm]
+        python:
+          - std_version: "3.10"
+            cibw_version: "cp310-"
+          - std_version: "3.11"
+            cibw_version: "cp311-"
+          - std_version: "3.12"
+            cibw_version: "cp312-"
+          - std_version: "3.13"
+            cibw_version: "cp313-"
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -323,7 +348,7 @@ jobs:
           echo "CONAN_PROFILE_NAME=Linux-ARM64_profile.txt" >> $GITHUB_ENV
 
       - name: Install Linux Dependencies
-        run: |          
+        run: |
           sudo apt update
           sudo apt upgrade -y
           sudo apt install -y wget python3-pip
@@ -335,7 +360,7 @@ jobs:
           mkdir -p ~/.conan2/profiles/
           touch ~/.conan2/profiles/default # if we don't make a file first, cp thinks its a folder that doesn't exist
           cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} ~/.conan2/profiles/default
-          
+
           # LLVM Install (need version 21+ for flang)
           wget https://apt.llvm.org/llvm.sh
           python3 -c "
@@ -390,6 +415,7 @@ jobs:
           ./bin/smoldyn_x64 || true
 
       - name: handle shared object paths for Linux native build
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         shell: bash
         run: |
           mkdir build/upload
@@ -402,18 +428,114 @@ jobs:
           cd ../..
 
       - name: Upload Linux binaries (x86_64)
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-latest' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v4
         with:
           name: fvsolver_linux64.tgz
           path: build/upload/fvsolver_linux64.tgz
 
       - name: Upload Linux binaries (ARM)
-        if: matrix.platform == 'ubuntu-24.04-arm'
+        if: matrix.platform == 'ubuntu-24.04-arm' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v4
         with:
           name: fvsolver_linux_arm64.tgz
           path: build/upload/fvsolver_linux64.tgz
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Wheels (Linux<x86_64>)
+        uses: pypa/cibuildwheel@v3.4.0
+        if: matrix.platform == 'ubuntu-latest' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
+        env:
+          CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
+          CIBW_SKIP: "*musllinux*"
+          CIBW_ARCHS_LINUX: "native"
+          CIBW_MANYLINUX_X86_64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_34_amd64:latest'
+          CIBW_REPAIR_WHEEL_COMMAND: 'LD_LIBRARY_PATH=/usr/local/lib/x86_64-unknown-linux-gnu:$LD_LIBRARY_PATH auditwheel repair --disable-isa-ext-check {wheel} -w {dest_dir}'
+          CIBW_CONFIG_SETTINGS_LINUX: >-
+            cmake.args=-DCMAKE_TOOLCHAIN_FILE=/project/build/conan_toolchain.cmake
+            cmake.args=-DLIBZIPPP_CMAKE_CONFIG_MODE=ON
+            cmake.args=-DOPTION_TARGET_PYTHON_BINDING=ON
+            cmake.args=-DOPTION_TARGET_MESSAGING=OFF
+            cmake.args=-DOPTION_TARGET_SMOLDYN_SOLVER=ON
+            cmake.args=-DOPTION_TARGET_FV_SOLVER=ON
+            cmake.args=-DOPTION_TARGET_DOCS=OFF
+            cmake.args=-DOPTION_TARGET_TESTS=OFF
+          CIBW_ENVIRONMENT_LINUX: CC="clang" CXX="clang++" FC="flang"
+          CIBW_BEFORE_BUILD: |
+            echo $PWD
+            ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
+            ln -sf /usr/local/bin/clang   /usr/local/bin/cc
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/g++
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/c++
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/cpp
+            ln -sf /usr/local/bin/flang   /usr/local/bin/gfortran
+            dnf install perl -y
+            rm -rf /opt/rh/*
+            python3 -m pip install conan
+            mkdir -p /root/.conan2/profiles/
+            cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} /root/.conan2/profiles/default
+            conan install . --output-folder /project/build --build=missing
+            echo "source /project/build/conanbuild.sh" >> ~/.profile
+            echo "source /project/build/conanbuild.sh" >> ~/.bashrc
+            source /project/build/conanbuild.sh
+
+      - name: Build Wheels (Linux<ARM>)
+        uses: pypa/cibuildwheel@v3.4.0
+        if: matrix.platform == 'ubuntu-24.04-arm' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
+        env:
+          CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
+          CIBW_SKIP: "*musllinux*"
+          CIBW_ARCHS_LINUX: "native"
+          CIBW_MANYLINUX_AARCH64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_34_aarch64:latest'
+          CIBW_REPAIR_WHEEL_COMMAND: 'LD_LIBRARY_PATH=/usr/local/lib/aarch64-unknown-linux-gnu:$LD_LIBRARY_PATH auditwheel repair --disable-isa-ext-check {wheel} -w {dest_dir}'
+          CIBW_CONFIG_SETTINGS_LINUX: >-
+            cmake.args=-DCMAKE_TOOLCHAIN_FILE=/project/build/conan_toolchain.cmake
+            cmake.args=-DLIBZIPPP_CMAKE_CONFIG_MODE=ON
+            cmake.args=-DOPTION_TARGET_PYTHON_BINDING=ON
+            cmake.args=-DOPTION_TARGET_MESSAGING=OFF
+            cmake.args=-DOPTION_TARGET_SMOLDYN_SOLVER=ON
+            cmake.args=-DOPTION_TARGET_FV_SOLVER=ON
+            cmake.args=-DOPTION_TARGET_DOCS=OFF
+            cmake.args=-DOPTION_TARGET_TESTS=OFF
+          CIBW_ENVIRONMENT_LINUX: CC="clang" CXX="clang++" FC="flang"
+          CIBW_BEFORE_BUILD: |
+            echo $PWD
+            ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
+            ln -sf /usr/local/bin/clang   /usr/local/bin/cc
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/g++
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/c++
+            ln -sf /usr/local/bin/clang++ /usr/local/bin/cpp
+            ln -sf /usr/local/bin/flang   /usr/local/bin/gfortran
+            dnf install perl -y
+            rm -rf /opt/rh/*
+            python3 -m pip install conan
+            mkdir -p /root/.conan2/profiles/
+            cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} /root/.conan2/profiles/default
+            conan install . --output-folder /project/build --build=missing
+            echo "source /project/build/conanbuild.sh" >> ~/.profile
+            echo "source /project/build/conanbuild.sh" >> ~/.bashrc
+            source /project/build/conanbuild.sh
+            #mkdir /xz_source 
+            #yum install wget 
+            #wget https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.gz 
+            #tar -xzvf xz-5.8.1.tar.gz -C /xz_source 
+            #cmake -S /xz_source/xz-5.8.1 -B /xz_source/xz-5.8.1/build 
+            #cmake --build /xz_source/xz-5.8.1/build 
+            #cmake --install /xz_source/xz-5.8.1/build
+
+      - name: Upload Python Wheel
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyvcell-fv-${{ matrix.platform }}-${{ matrix.python.cibw_version }}-cibw-wheels
+          path: ./wheelhouse/*.whl
 
       - name: Setup tmate session
         if: ${{ failure() }}
@@ -421,3 +543,123 @@ jobs:
         with:
           limit-access-to-actor: true
 
+  UniversalMacBindings:
+    needs: MacOS
+    runs-on: macos-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+    steps:
+      - name: Go to workspace
+        run: cd ${{ github.workspace }}
+
+      - name: Download Intel Macos binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: fvsolver_macos_x86_64.tgz
+          path: fvsolver_amd64_artifact
+
+      - name: Unpack x86 into subfolder
+        run: |
+          mkdir MAC_X86_64
+          mv fvsolver_amd64_artifact/fvsolver_mac64.tgz .
+          tar xzvf fvsolver_mac64.tgz -C MAC_X86_64
+          rm fvsolver_mac64.tgz
+
+      - name: Download ARM Macos binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: fvsolver_macos_arm64.tgz
+          path: fvsolver_aarch64_artifact
+
+      - name: Unpack arm into subfolder
+        run: |
+          mkdir MAC_AARCH64
+          mv fvsolver_aarch64_artifact/fvsolver_mac64.tgz .
+          tar xzvf fvsolver_mac64.tgz -C MAC_AARCH64
+          rm fvsolver_mac64.tgz
+
+      - name: Combine halves, and tar
+        shell: bash
+        run: |
+          mkdir universal
+
+          # Get list of files in each folder
+          files1=($(ls -1 "MAC_X86_64" 2>/dev/null))
+          files2=($(ls -1 "MAC_AARCH64" 2>/dev/null))
+
+          # Process files from folder1
+          for file in "${files1[@]}"; do
+              if [ -f "MAC_AARCH64/$file" ]; then
+                  # File exists in both folders - use lipo
+                  echo "Creating universal binary: $file"
+                  lipo -create "MAC_X86_64/$file" "MAC_AARCH64/$file" -output "universal/$file"
+              else
+                  # File only in folder1 - move it
+                  echo "Moving architecture-specific file: $file"
+                  cp "MAC_X86_64/$file" "universal/$file"
+              fi
+          done
+
+          # Process files only in folder2
+          for file in "${files2[@]}"; do
+              if [ ! -f "MAC_X86_64/$file" ]; then
+                  echo "Moving architecture-specific file: $file"
+                  cp "MAC_AARCH64/$file" "universal/$file"
+              fi
+          done
+          
+          # change dir and tar up
+          cd universal
+          tar czfv fvsolver_mac64.tgz --dereference .
+
+      - name: Upload universal binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: fvsolver_macos_universal.tgz
+          path: ${{ github.workspace }}/universal/fvsolver_mac64.tgz
+
+      - name: Setup tmate session
+        if: ${{ failure() }}
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: true
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    needs: [WindowsOS, UniversalMacBindings, GNULinux]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    environment: pypi
+    permissions:
+      id-token: write
+
+    steps:
+      - name: download all artifacts (wheels and executables)
+        uses: actions/download-artifact@v4
+        with:
+          path: dist_temp/
+
+      - name: Install Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.12'
+
+      - name: Publish wheels to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          pip install twine
+          mkdir dist
+          echo "current directory is $(pwd)"
+          ls -al dist*
+          echo "absolute paths of wheels:"
+          find dist_temp -type f -name '*.whl' -exec sh -c 'echo "$(realpath {})"/' \;
+          echo "moving wheels to dist directory"
+          find dist_temp -type f -name '*.whl' -exec sh -c 'mv "$(realpath {})" dist/' \;
+          twine upload --repository pypi dist/*.whl
+
+      - name: Setup tmate session for PyPI upload failure
+        uses: mxschmitt/action-tmate@v3
+        if: ${{ failure() }}
+        with:
+          limit-access-to-actor: true
