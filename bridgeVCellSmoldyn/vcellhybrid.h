@@ -17,7 +17,7 @@ typedef simstruct * simptr;
 */
 class vcellhybrid {
 	public:
-		static simptr smoldynInit(SimTool* simTool, string& fileName);
+		static simptr smoldynInit(SimTool* simTool, std::string& fileName);
 		static void smoldynOneStep(simptr sim);
 		static void smoldynEnd(simptr sim);
 		static bool isHybrid( ) {
@@ -25,6 +25,9 @@ class vcellhybrid {
 		}
 		static void setHybrid( ) {
 			bHybrid = true;
+		}
+		static void resetHybrid( ) {
+			bHybrid = false;
 		}
 		static void setTaskId(int t) {
 			assert(!bHybrid);
@@ -37,7 +40,7 @@ class vcellhybrid {
 			return !bHybrid && (taskID >= 0) ;
 		}
 	private:
-		static bool bHybrid ;
+		static bool bHybrid;
 		static int taskID;
 };
 
