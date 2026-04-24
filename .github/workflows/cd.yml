@@ -18,7 +18,7 @@ env:
 jobs:
   MacOS:
     name:
-      Build Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
+      Build Native Executables and Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
     strategy:
       fail-fast: false
       matrix:
@@ -135,8 +135,6 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: 15.0
           CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
           CIBW_ARCHES: "native"
-#        with:
-#          output-dir: wheelhouse
 
       - name: Upload Python Wheel
         uses: actions/upload-artifact@v7
@@ -153,7 +151,7 @@ jobs:
 
   WindowsOS:
     name:
-      Build Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
+      Build Native Executables and Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
     strategy:
       fail-fast: false
       matrix:
@@ -171,20 +169,6 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - name: Pre-install Configuration <x86_64>
-        if: matrix.platform == 'windows-latest'
-        shell: bash
-        run: |
-          echo "CONAN_PROFILE_NAME=Windows-AMD64_profile.txt" >> $GITHUB_ENV
-          echo "CONAN_ENV_PATH=${{ github.workspace }}/build/conan_toolchain.cmake" | sed 's/\\/\//g' >> $GITHUB_ENV
-
-      - name: Pre-install Configuration <ARM64>
-        if: matrix.platform == 'windows-11-arm'
-        shell: bash
-        run: |
-          echo "CONAN_PROFILE_NAME=Windows-ARM64_profile.txt" >> $GITHUB_ENV
-          echo "CONAN_ENV_PATH=${{ github.workspace }}/build/conan_toolchain.cmake" | sed 's/\\/\//g' >> $GITHUB_ENV
-
       - name: Install Build Environment (Part 1 - MSVC toolset)
         uses: microsoft/setup-msbuild@v2
 
@@ -309,7 +293,7 @@ jobs:
 
   GNULinux:
     name:
-      Build Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
+      Build Native Executables and Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
     strategy:
       fail-fast: false
       matrix:
@@ -518,13 +502,6 @@ jobs:
             echo "source /project/build/conanbuild.sh" >> ~/.profile
             echo "source /project/build/conanbuild.sh" >> ~/.bashrc
             source /project/build/conanbuild.sh
-            #mkdir /xz_source 
-            #yum install wget 
-            #wget https://github.com/tukaani-project/xz/releases/download/v5.8.1/xz-5.8.1.tar.gz 
-            #tar -xzvf xz-5.8.1.tar.gz -C /xz_source 
-            #cmake -S /xz_source/xz-5.8.1 -B /xz_source/xz-5.8.1/build 
-            #cmake --build /xz_source/xz-5.8.1/build 
-            #cmake --install /xz_source/xz-5.8.1/build
 
       - name: Upload Python Wheel
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')

@@ -28,7 +28,7 @@ PYBIND11_MODULE(_core, m) {
     )pbdoc");
 
     m.def("solve", &solve, R"pbdoc(
-        solve the PDE
+        solve the ODE
 
         The inputFilename expects a .fvinput file, the outputDir will be created as needed.
     )pbdoc",
