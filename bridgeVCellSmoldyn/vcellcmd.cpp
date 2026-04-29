@@ -42,9 +42,8 @@ enum CMDcode cmdVCellWriteOutput(simptr sim, cmdptr cmd, char *line2) {
 	if(line2 && !strcmp(line2,"cmdtype")) {
 		return CMDobserve;
 	}
-	if (vcellSmoldynOutput == NULL) {
-		vcellSmoldynOutput = new VCellSmoldynOutput(sim);
-	}
+
+	vcellSmoldynOutput = VCellSmoldynOutput::updateVCellSmoldynOutput(vcellSmoldynOutput, sim);
 
 	string token;
 	stringstream ss(line2);
@@ -81,9 +80,7 @@ enum CMDcode cmdVCellDataProcess(simptr sim,cmdptr cmd,char *line2) {
 			ss >> dataProcName;
 		} else if (token == "end") {
 			if (!vcellhybrid::isHybrid( )) {
-				if (vcellSmoldynOutput == NULL) {
-					vcellSmoldynOutput = new VCellSmoldynOutput(sim);///check it out.
-				}
+				vcellSmoldynOutput = VCellSmoldynOutput::updateVCellSmoldynOutput(vcellSmoldynOutput, sim);
 				string input = dataProcessInput.str();
 				vcellSmoldynOutput->parseDataProcessingInput(dataProcName, input);
 			}

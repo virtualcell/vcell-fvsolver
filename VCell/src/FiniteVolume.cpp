@@ -6,7 +6,6 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-using namespace std;
 
 #include <VCELL/FVSolver.h>
 #include <sys/stat.h>
@@ -16,10 +15,10 @@ using namespace std;
 #include <Exception.h>
 #include <vcellhybrid.h>
 
-void vcellExit(int returnCode, string& errorMsg) {
+void vcellExit(int returnCode, std::string& errorMsg) {
 	if (SimulationMessaging::getInstVar() == 0) {
 		if (returnCode != 0) {
-			cerr << errorMsg << endl;
+			std::cerr << errorMsg << std::endl;
 		}
 	} else if (!SimulationMessaging::getInstVar()->isStopRequested()) {
 		if (returnCode != 0) {
@@ -35,7 +34,7 @@ void printUsage() {
 #ifdef USE_MESSAGING
 	cout << "Arguments : [-d output] [-nz] [-tid taskID] fvInputFile" <<  endl;
 #else
-	cout << "Arguments : [-d output] [-nz] fvInputFile vcgInputFile" <<  endl;
+	std::cout << "Arguments : [-d output] [-nz] fvInputFile vcgInputFile" <<  std::endl;
 #endif
 }
 
@@ -47,20 +46,21 @@ int main(int argc, char *argv[])
 
 	vcellhybrid::setHybrid(); //get smoldyn library in correct state
   	int returnCode = 0;
-	string errorMsg = "Exception : ";
+	std::string errorMsg = "Exception : ";
 
-	char* outputPath = nullptr;
-	char* fvInputFile = nullptr;
-	char* vcgInputFile = nullptr;
-	ifstream ifsInput;
-	ifstream vcgInput;
+	std::string outputPathStr{};
+	std::string fvInputFileStr{};
+	std::string vcgInputFileStr{};
+
+	std::ifstream ifsInput;
+	std::ifstream vcgInput;
 	FVSolver* fvSolver = nullptr;
 
 	bool bSimZip = true;
 	try {
 		int taskID = -1;
-		if (argc < 3) {
-			cout << "Missing arguments!" << endl;
+		if (argc < 2) {
+			std::cout << "Missing arguments!" << std::endl;
 			printUsage();
 			exit(1);
 		}
@@ -68,13 +68,13 @@ int main(int argc, char *argv[])
 			if (!strcmp(argv[i], "-nz")) {
 				bSimZip = false;
 			} else if (!strcmp(argv[i], "-d")) {
-				i ++;
+				i++;
 				if (i >= argc) {
-					cout << "Missing output directory!" << endl;
+					std::cout << "Missing output directory!" << std::endl;
 					printUsage();
 					exit(1);
 				}
-				outputPath = argv[i];
+				outputPathStr = argv[i];
 			} else if (!strcmp(argv[i], "-tid")) {
 #ifdef USE_MESSAGING
 				i ++;
@@ -92,57 +92,60 @@ int main(int argc, char *argv[])
 				}
 				taskID = atoi(argv[i]);
 #else
-				cout << "Wrong argument : " << argv[i] << endl;
+				std::cout << "Wrong argument : " << argv[i] << std::endl;
 				printUsage();
 				exit(1);
 #endif
-			} else if (fvInputFile == nullptr){
-				fvInputFile = argv[i];
+			} else if (fvInputFileStr.empty()) {
+				fvInputFileStr = argv[i];
 			} else {
-				vcgInputFile = argv[i];
+				vcgInputFileStr = argv[i];
 			}
 		}
-		struct stat buf;
-		if (outputPath != 0 && stat(outputPath, &buf)) {
-			cerr << "Output directory [" << outputPath <<"] doesn't exist" << endl;
+
+		std::filesystem::path fvInputFilePath = outputPathStr;
+		if (!outputPathStr.empty() && !std::filesystem::exists(fvInputFilePath)) {
+			std::cerr << "Output directory [" << outputPathStr <<"] doesn't exist" << std::endl;
 			exit(1);
 		}
 
 		// strip " in case that file name has " around
-		int fl = strlen(fvInputFile);
-		if (fvInputFile[0] == '"' && fvInputFile[fl-1] == '"') {
-			fvInputFile[fl-1] = 0;
-			fvInputFile ++;
+		size_t fl = fvInputFileStr.length();
+		if (fvInputFileStr[0] == '"' && fvInputFileStr[fl-1] == '"') {
+			fvInputFileStr = fvInputFileStr.substr(1, fl-2);
 		}
-		ifsInput.open(fvInputFile);
+		ifsInput.open(fvInputFileStr);
 		if (!ifsInput.is_open()) {
-			cout << "File doesn't exist: " << fvInputFile << endl;
+			std::cout << "FV Input File doesn't exist: " << fvInputFileStr << std::endl;
 			exit(102);
 		}
+
+		// If we're not provided the location of the vcg, let's try and deduce it.
+		if (vcgInputFileStr.empty())
+			vcgInputFileStr = fvInputFileStr.substr(0, fvInputFileStr.find_last_of('.')) + ".vcg";
 
 		// strip " in case that file name has " around
-		fl = strlen(vcgInputFile);
-		if (vcgInputFile[0] == '"' && vcgInputFile[fl-1] == '"') {
-			vcgInputFile[fl-1] = 0;
-			vcgInputFile ++;
+		fl = vcgInputFileStr.length();
+		if (vcgInputFileStr[0] == '"' && vcgInputFileStr[fl-1] == '"') {
+			vcgInputFileStr = vcgInputFileStr.substr(1, fl-2);
 		}
-		vcgInput.open(vcgInputFile);
+		vcgInput.open(vcgInputFileStr);
 		if (!vcgInput.is_open()) {
-			cout << "File doesn't exist: " << vcgInputFile << endl;
+			std::cout << "VCG Input File doesn't exist: " << vcgInputFileStr << std::endl;
 			exit(102);
 		}
 
-		fvSolver = new FVSolver(outputPath);
+		fvSolver = new FVSolver(outputPathStr.empty() ? nullptr : outputPathStr.c_str());
 		SimTool* sim_tool = fvSolver->createSimTool(ifsInput, vcgInput, taskID, bSimZip);
 		ifsInput.close();
 		vcgInput.close();
 
-		if(fvSolver->getNumVariables(sim_tool) == 0){
+		if(FVSolver::getNumVariables(sim_tool) == 0){
 			//sims with no reactions and no diffusing species cause exit logic to 'wait' forever
 			//never sending a job failed or job finished message and never cleaning up threads
 			throw invalid_argument("FiniteVolume error: Must have at least 1 variable or reaction to solve");
 		}
-		fvSolver->solve(sim_tool);
+		FVSolver::solve(sim_tool);
 
 	} catch (const char *exStr){
 		errorMsg += exStr;

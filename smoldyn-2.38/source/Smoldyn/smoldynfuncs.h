@@ -174,6 +174,8 @@ char *surfdm2string(enum DrawMode dm,char *string);
 
 // low level utilities
 int readsurfacename(simptr sim,const char *str,enum PanelShape *psptr,int *pptr);
+surfaceptr identifypanelindexinsurfacebyname(simptr sim,const char *str,enum PanelShape *psptr,int *pptr);
+surfaceptr identifypanelinsurfacebyname(simptr sim,const char *str,enum PanelShape *psptr,panelptr *pptr);
 double panelarea(panelptr pnl,int dim);
 double surfacearea(surfaceptr srf,int dim,int *totpanelptr);
 double surfacearea2(simptr sim,int surface,enum PanelShape ps,char *pname,int *totpanelptr);
@@ -440,6 +442,7 @@ int simreadstring(simptr sim,ParseFilePtr pfp,const char *word,char *line2);
 int loadsim(simptr sim,const char *fileroot,const char *filename,const char *flags);
 int simupdate(simptr sim);
 #ifdef OPTION_VCELL
+    int runSmoldyn(int, char **);
 	int simInitAndLoad(const char *fileroot,const char *filename,simptr *smptr,const char *flags, ValueProviderFactory* valueProviderFactory, AbstractMesh* mesh);
 #else
 	int simInitAndLoad(const char *fileroot,const char *filename,simptr *smptr,const char *flags);

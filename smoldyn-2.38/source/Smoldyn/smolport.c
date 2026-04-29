@@ -281,7 +281,7 @@ portptr portaddport(simptr sim,const char *portname,surfaceptr srf,enum PanelFac
 portptr portreadstring(simptr sim,ParseFilePtr pfp,portptr port,const char *word,char *line2) {
 	char nm[STRCHAR];
 	portssptr portss;
-	int itct,s;
+	int itct;
 	enum PanelFace face;
 
 	portss=sim->portss;
@@ -297,9 +297,8 @@ portptr portreadstring(simptr sim,ParseFilePtr pfp,portptr port,const char *word
 		CHECKS(port,"port name has to be entered before surface");
 		itct=sscanf(line2,"%s",nm);
 		CHECKS(itct==1,"error reading surface name");
-		s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
-		CHECKS(s>=0,"surface '%s' not recognized",nm);
-		port=portaddport(sim,port->portname,sim->srfss->srflist[s],PFnone);
+		CHECKS(sim->srfss->snametosrf->contains(sim->srfss->snametosrf,nm),"surface '%s' not recognized",nm);
+		port=portaddport(sim,port->portname,(surfaceptr)sim->srfss->snametosrf->getFrom(sim->srfss->snametosrf,nm),PFnone);
 		CHECKBUG(port,"SMOLDYN BUG adding surface to port");
 		CHECKS(!strnword(line2,2),"unexpected text following surface"); }
 

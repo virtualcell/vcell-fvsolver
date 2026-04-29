@@ -90,6 +90,12 @@ VCellSmoldynOutput::~VCellSmoldynOutput() {
     delete[] variables;
 }
 
+VCellSmoldynOutput* VCellSmoldynOutput::updateVCellSmoldynOutput(VCellSmoldynOutput* output, simptr sim) {
+	if (output == NULL) return new VCellSmoldynOutput(sim);
+	if (output->smoldynSim != sim) output->smoldynSim = sim;
+	return output;
+}
+
 void VCellSmoldynOutput::parseDataProcessingInput(string& name, string& input) {
 	//always add variable statistics data generator
 	SmoldynDataGenerator* dataGenerator = new SmoldynVarStatDataGenerator();
@@ -188,17 +194,13 @@ void VCellSmoldynOutput::parseInput(string& input) {
 				}
 			} else if (variables[varCount]->type == VAR_MEMBRANE) {
 				surfacessptr srfss = smoldynSim->srfss;
-				for(int s=0; s<srfss->nsrf; s++) {
-					if (!strcmp(srfss->snames[s], vardomain)) {
-						variables[varCount]->srf = srfss->srflist[s];
-						break;
-					}
-				}
-				if (variables[varCount]->srf == 0) {
+				Hashtable* nameToSurfaceptrMap = smoldynSim->srfss->snametosrf;
+				if (!nameToSurfaceptrMap->contains(nameToSurfaceptrMap, vardomain)) {
 					stringstream ss;
 					ss << "found no surface for variable '" << variables[varCount]->name << "'";
 					throw ss.str();
 				}
+				variables[varCount]->srf = (surfaceptr)nameToSurfaceptrMap->getFrom(nameToSurfaceptrMap, vardomain);
 			}
 			varCount ++;
 		}

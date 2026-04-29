@@ -204,8 +204,8 @@ char *surfdm2string(enum DrawMode dm,char *string) {
 /******************************************************************************/
 
 
-/* readsurfacename. */
-int readsurfacename(simptr sim,const char *str,enum PanelShape *psptr,int *pptr) {
+/* identifypanelindexinsurfacebyindex (formerly readsurfacename). */
+int identifypanelindexinsurfacebyindex(simptr sim,const char *str,enum PanelShape *psptr,int *pptr) {
 	char snm[STRCHAR],pnm[STRCHAR],*colon;
 	int itct,s,p;
 	enum PanelShape ps;
@@ -232,9 +232,8 @@ int readsurfacename(simptr sim,const char *str,enum PanelShape *psptr,int *pptr)
 		else																						// all:panel
 			p=-2; }
 	else {																						// specific surface
-		s=stringfind(sim->srfss->snames,sim->srfss->nsrf,snm);
-		if(s==-1)																				// unknown surface
-			s=-4;
+		s = stringfind(sim->srfss->snames, sim->srfss->nsrf, snm);
+		if(s==-1) s=-4;																				// unknown surface
 		else {
 			if(pnm[0]=='\0');															// no panel name
 			else if(!strcmp(pnm,"all")) {									// surface:all
@@ -257,19 +256,141 @@ int readsurfacename(simptr sim,const char *str,enum PanelShape *psptr,int *pptr)
 	if(pptr) *pptr=p;
 	return s; }
 
+/* identifypanelinsurfacebyname. */
+surfaceptr identifypanelinsurfacebyname(simptr sim,const char *str,enum PanelShape *psptr,panelptr *pptrptr) {
+	char snm[STRCHAR],pnm[STRCHAR],*colon;
+	int itct,s;
+	enum PanelShape ps;
+	surfaceptr sptr = NULL;
+	panelptr pptr = NULL;
+
+	if(!str) return NULL;
+	if(!sim->srfss || !sim->srfss->nsrf) return NULL;
+
+	itct=sscanf(str,"%s",snm);
+	if(itct!=1) return NULL;														// cannot read name
+	colon=strchr(snm,':');
+	if(colon) {
+		strcpy(pnm,colon+1);
+		*colon='\0'; }
+	else pnm[0]='\0';
+	ps=PSnone;
+	pptr=NULL;
+
+	if(!strcmp(snm,"all")) {
+		// all surfaces
+		s=-5;
+		if(pnm[0]!='\0') {													// has panels, not just all surface
+			ps=!strcmp(pnm,"all")?PSall:ps;									// if true -> `all:all`, else `all:panel`
+			pptr = NULL;}}
+	else {
+		// specific surface
+		s = sim->srfss->snametosrf->contains(sim->srfss->snametosrf,snm);
+		if(s==0) s=-4;																				// unknown surface
+		else {
+			sptr = (surfaceptr)sim->srfss->snametosrf->getFrom(sim->srfss->snametosrf,snm);
+			if(pnm[0]=='\0');															// no panel name
+			else if(!strcmp(pnm,"all")) {									// surface:all
+				ps=PSall;
+				pptr = NULL; }
+			else if(VCellDefined && strstr(pnm,"tri_")==pnm) {		// surface:tri_#_#_#	(VCELL)
+				ps=PStri;
+				int memIndex;
+				int globalIndex;
+				int panelIndex;
+				sscanf(pnm,"tri_%d_%d_%d",&panelIndex,&globalIndex,&memIndex);
+				pptr = sptr->panels[ps][panelIndex];}
+			else {
+				// surface:panel
+				for (ps=(PanelShape)0; ps < PSMAX; ps=(PanelShape)(ps+1)) {
+					int hasValidShape = sptr->pnametopanel[ps] != NULL;
+					if (!hasValidShape) continue;
+					Hashtable *panelhash = sptr->pnametopanel[ps];
+					int hasDesiredPanel = panelhash->contains(panelhash, pnm);
+					if (!hasDesiredPanel) continue;
+					break;
+				}
+
+				if (ps != PSMAX) pptr = (panelptr)sptr->pnametopanel[ps]->getFrom(sptr->pnametopanel[ps], pnm);
+				else {
+					ps=PSnone;
+					pptr=NULL; }}}}
+
+
+	if(psptr) *psptr=ps;
+	if(pptrptr) *pptrptr=pptr;
+	return s < 0 ? NULL : sptr;}
+
+/* identifypanelindexinsurfacebyname. */
+surfaceptr identifypanelindexinsurfacebyname(simptr sim,const char *str,enum PanelShape *psptr,int *pptr) {
+	char snm[STRCHAR],pnm[STRCHAR],*colon;
+	int itct,s,p;
+	enum PanelShape ps;
+	surfaceptr sptr = NULL;
+
+	if(!str) return NULL;
+	if(!sim->srfss || !sim->srfss->nsrf) return NULL;
+
+	itct=sscanf(str,"%s",snm);
+	if(itct!=1) return NULL;														// cannot read name
+	colon=strchr(snm,':');
+	if(colon) {
+		strcpy(pnm,colon+1);
+		*colon='\0'; }
+	else pnm[0]='\0';
+	ps=PSnone;
+	p=-1;
+
+	if(!strcmp(snm,"all")) {													// all surfaces
+		s=-5;
+		if(pnm[0]=='\0');																// all surface, no panel
+		else if(!strcmp(pnm,"all")) {										// all:all
+			ps=PSall;
+			p=-5; }
+		else																						// all:panel
+			p=-2; }
+	else {
+		// specific surface
+		s = sim->srfss->snametosrf->contains(sim->srfss->snametosrf,snm);
+		if(s==0) s=-4;																				// unknown surface
+		else {
+			sptr = (surfaceptr)sim->srfss->snametosrf->getFrom(sim->srfss->snametosrf,snm);
+			if(pnm[0]=='\0');															// no panel name
+			else if(!strcmp(pnm,"all")) {									// surface:all
+				ps=PSall;
+				p=-5; }
+			else if(VCellDefined && strstr(pnm,"tri_")==pnm) {		// surface:tri_#_#_#	(VCELL)
+				ps=PStri;
+				int memIndex;
+				int globalIndex;
+				sscanf(pnm,"tri_%d_%d_%d",&p,&globalIndex,&memIndex); }
+			else {																				// surface:panel
+				for(ps=(PanelShape)0;p==-1 && ps<PSMAX;ps=(PanelShape)(ps+1))
+					p=stringfind(sim->srfss->srflist[s]->pname[ps],sim->srfss->srflist[s]->npanel[ps],pnm);
+				if(p==-1) {
+					ps=PSnone;
+					p=-3; }
+				else ps=(PanelShape)(ps-1); }}}
+
+	if(psptr) *psptr=ps;
+	if(pptr) *pptr=p;
+	return s < 0 ? NULL : sptr;}
+
 
 /* readpanelname */
 panelptr readpanelname(simptr sim,surfaceptr srf,const char *str) {
 	enum PanelShape ps;
 	char name[STRCHAR];
-	int s,p;
+	panelptr pptr;
 
+	// We either get the `<surface>:<panel` combo as a string,
+	// or we get the surface and the `<panel>` as a string.
 	if(strchr(str,':')) strcpy(name,str);
 	else if(srf) sprintf(name,"%s:%s",srf->sname,str);
 	else return NULL;
-	s=readsurfacename(sim,name,&ps,&p);
-	if(s<0 || p<0) return NULL;
-	return sim->srfss->srflist[s]->panels[ps][p]; }
+	surfaceptr sptr = identifypanelinsurfacebyname(sim, name, &ps, &pptr);
+	if(!sptr || !pptr) return NULL;
+	return pptr; }
 
 
 /* panelpoints */
@@ -397,24 +518,22 @@ double surfacearea(surfaceptr srf,int dim,int *totpanelptr) {
 
 /* surfacearea2 */
 double surfacearea2(simptr sim,int surface,enum PanelShape ps,char *pname,int *totpanelptr) {
-	int panel,dim,totpanel;
+	int panel,totpanel;
 	double area;
 	surfaceptr srf;
 	int slo,shi,pslo,pshi,plo,phi,s,p;
 
-	dim=sim->dim;
 	if(ps==PSnone) {area=0;totpanel=0;}											// ps is none
 
 	else if(surface>=0 && ps!=PSall && pname && strcmp(pname,"all")) {		// specific panel
 		srf=sim->srfss->srflist[surface];
-		panel=stringfind(srf->pname[ps],srf->npanel[ps],pname);
-		if(panel<0) {
+
+		if (!srf->pnametopanel[ps]->contains(srf->pnametopanel[ps], pname)) {
 			area=0;
 			totpanel=0; }
 		else {
-			area=panelarea(srf->panels[ps][panel],sim->dim);
+			area=panelarea((panelptr)srf->pnametopanel[ps]->getFrom(srf->pnametopanel[ps], pname), sim->dim);
 			totpanel=1; }}
-
 	else {																									// multiple panels
 		slo=(surface>=0)?surface:0;
 		shi=(surface>=0)?surface+1:sim->srfss->nsrf;
@@ -764,10 +883,12 @@ int panelsalloc(surfaceptr srf,int dim,int maxpanel,int maxspecies,enum PanelSha
 	panelptr *newpnls,pnl;
 	int p,npts,pt,d,oldmaxpanel;
 	char **newpname,string[STRCHAR];
+	Hashtable *newpnametopanel;
 
 	npts=panelpoints(ps,dim);
 	newpname=NULL;
 	newpnls=NULL;
+	newpnametopanel=NULL;
 	CHECKBUG(srf,"missing surface parameter in panelsalloc");
 	oldmaxpanel=srf->maxpanel[ps];
 
@@ -775,7 +896,7 @@ int panelsalloc(surfaceptr srf,int dim,int maxpanel,int maxspecies,enum PanelSha
 	else if(maxpanel==oldmaxpanel) return 1;
 
 	CHECKMEM(newpname=(char**) calloc(maxpanel,sizeof(char*)));
-	for(p=0;p<maxpanel;p++) newpname[p]=NULL;
+	for(p=0;p<maxpanel;p++) newpname[p]=NULL; // using `calloc` makes this redundant(?)
 	for(p=0;p<oldmaxpanel;p++)
 		newpname[p]=srf->pname[ps][p];
 	for(;p<maxpanel;p++) {
@@ -783,11 +904,11 @@ int panelsalloc(surfaceptr srf,int dim,int maxpanel,int maxspecies,enum PanelSha
 		sprintf(newpname[p],"%s%i",surfps2string(ps,string),p); }
 
 	CHECKMEM(newpnls=(panelptr*) calloc(maxpanel,sizeof(panelptr)));
-	for(p=0;p<maxpanel;p++) newpnls[p]=NULL;
+	for(p=0;p<maxpanel;p++) newpnls[p]=NULL; // using `calloc` makes this redundant(?)
 	for(p=0;p<oldmaxpanel;p++)
 		newpnls[p]=srf->panels[ps][p];
 	for(;p<maxpanel;p++) {
-		CHECKMEM(newpnls[p]=(panelptr) malloc(sizeof(struct panelstruct)));
+		CHECKMEM(newpnls[p]=(panelptr) calloc(1, sizeof(struct panelstruct)));
 		pnl=newpnls[p];
 		pnl->pname=newpname[p];
 		pnl->ps=ps;
@@ -801,7 +922,7 @@ int panelsalloc(surfaceptr srf,int dim,int maxpanel,int maxspecies,enum PanelSha
 		pnl->emitterabsorb[PFback]=NULL;
 
 		CHECKMEM(pnl->point=(double**) calloc(npts,sizeof(double*)));
-		for(pt=0;pt<npts;pt++) pnl->point[pt]=NULL;
+		for(pt=0;pt<npts;pt++) pnl->point[pt]=NULL; // using `calloc` makes this redundant(?)
 		for(pt=0;pt<npts;pt++) {
 			CHECKMEM(pnl->point[pt]=(double*) calloc(dim,sizeof(double)));
 			for(d=0;d<dim;d++) pnl->point[pt][d]=0; }
@@ -809,11 +930,17 @@ int panelsalloc(surfaceptr srf,int dim,int maxpanel,int maxspecies,enum PanelSha
 		pnl->jumpp[0]=pnl->jumpp[1]=NULL;
 		pnl->jumpf[0]=pnl->jumpf[1]=PFnone; }
 
+	CHECKMEM(newpnametopanel=createNewHashtable());
+	for (p=0; p<srf->npanel[ps];p++) {
+		newpnametopanel->putIn(newpnametopanel, newpname[p], newpnls[p]); }
+
 	srf->maxpanel[ps]=maxpanel;
 	free(srf->pname[ps]);
 	srf->pname[ps]=newpname;
 	free(srf->panels[ps]);
 	srf->panels[ps]=newpnls;
+	if (srf->pnametopanel[ps]) srf->pnametopanel[ps]->freeThis(srf->pnametopanel[ps]);
+	srf->pnametopanel[ps]=newpnametopanel;
 
 	if(srf->maxemitter[PFfront]) {		// add emitter stuff to new panels
 		CHECK(emittersalloc(srf,PFfront,maxspecies,maxspecies)==0); }
@@ -943,6 +1070,7 @@ surfaceptr surfacealloc(surfaceptr srf,int oldmaxspecies,int maxspecies,int dim)
 		for(ps=(PanelShape)0;ps<PSMAX;ps=(PanelShape)(ps+1)) srf->npanel[ps]=0;
 		for(ps=(PanelShape)0;ps<PSMAX;ps=(PanelShape)(ps+1)) srf->pname[ps]=NULL;
 		for(ps=(PanelShape)0;ps<PSMAX;ps=(PanelShape)(ps+1)) srf->panels[ps]=NULL;
+		for(ps=(PanelShape)0;ps<PSMAX;ps=(PanelShape)(ps+1)) srf->pnametopanel[ps]=NULL;
 		srf->port[PFfront]=NULL;
 		srf->port[PFback]=NULL;
 		srf->totarea=0;
@@ -1026,13 +1154,15 @@ void surfacefree(surfaceptr srf,int maxspecies) {
 	
 	free(srf->paneltable);
 	free(srf->areatable);
-	
-	for(ps=(PanelShape)0;ps<PSMAX;ps=(PanelShape)(ps+1)) {
+
+	for(ps=(PanelShape)0;ps<PSMAX;ps=(PanelShape)(ps+1)){
 		for(p=0;p<srf->maxpanel[ps];p++) {
 			if(srf->panels[ps]) panelfree(srf->panels[ps][p]);
 			if(srf->pname[ps]) free(srf->pname[ps][p]); }
 		free(srf->pname[ps]);
-		free(srf->panels[ps]); }
+		free(srf->panels[ps]);
+		if (srf->pnametopanel[ps]) srf->pnametopanel[ps]->freeThis(srf->pnametopanel[ps]);
+	}
 	
 	for(i=0;i<maxspecies;i++)
 		if(srf->actdetails[i]) {
@@ -1060,12 +1190,14 @@ surfacessptr surfacessalloc(surfacessptr srfss,int maxsurface,int maxspecies,int
 	int s,newsrfss,oldmaxsrf;
 	char **newnames;
 	surfaceptr *newsrflist;
+	Hashtable *newsnametosrf;
 
 	if(maxsurface<1 || maxspecies<0) return NULL;
 
 	newsrfss=0;
 	newnames=NULL;
 	newsrflist=NULL;
+	newsnametosrf=NULL;
 
 	if(!srfss) {												// new allocation
 		srfss=(surfacessptr) malloc(sizeof(struct surfacesuperstruct));
@@ -1081,6 +1213,7 @@ surfacessptr surfacessalloc(surfacessptr srfss,int maxsurface,int maxspecies,int
 		srfss->neighdist=1000*DBL_EPSILON;
 		srfss->snames=NULL;
 		srfss->srflist=NULL;
+		srfss->snametosrf=NULL;
 		srfss->maxmollist=0;
 		srfss->nmollist=0;
 		srfss->srfmollist=NULL; }
@@ -1093,29 +1226,32 @@ surfacessptr surfacessalloc(surfacessptr srfss,int maxsurface,int maxspecies,int
 				srfss->srflist[s]->selfindex=s; }}
 		srfss->maxspecies=maxspecies; }
 
-	if(maxsurface>srfss->maxsrf) {			// allocate any new surface names and surfaces
+	if(maxsurface > srfss->maxsrf) {			// allocate any new surface names and surfaces
 		oldmaxsrf=srfss->maxsrf;
 		CHECKMEM(newnames=(char**) calloc(maxsurface,sizeof(char*)));		// surface names
-		for(s=0;s<maxsurface;s++) newnames[s]=NULL;
+		for(s=0;s<maxsurface;s++) newnames[s]=NULL; // using `calloc` makes this redundant(?)
 		for(s=0;s<oldmaxsrf;s++) newnames[s]=srfss->snames[s];
-		for(;s<maxsurface;s++)
-			CHECKMEM(newnames[s]=EmptyString());
+		for(;s<maxsurface;s++) CHECKMEM(newnames[s]=EmptyString());
 
 		CHECKMEM(newsrflist=(surfaceptr*) calloc(maxsurface,sizeof(surfaceptr)));	// surface list
-		for(s=0;s<maxsurface;s++) newsrflist[s]=NULL;
-		for(s=0;s<oldmaxsrf;s++)
-			newsrflist[s]=srfss->srflist[s];
+		for(s=0;s<maxsurface;s++) newsrflist[s]=NULL; // using `calloc` makes this redundant(?)
+		for(s=0;s<oldmaxsrf;s++) newsrflist[s]=srfss->srflist[s];
 		for(;s<maxsurface;s++) {
 			CHECK(newsrflist[s]=surfacealloc(NULL,0,maxspecies,dim));
 			newsrflist[s]->srfss=srfss;
 			newsrflist[s]->sname=newnames[s];
 			newsrflist[s]->selfindex=s; }
 
+		CHECKMEM(newsnametosrf=createNewHashtable());
+		for (s=0; s<srfss->nsrf;s++) { // Don't need to iterate to the max; they're "null" initialized values anyway
+			newsnametosrf->putIn(newsnametosrf, newnames[s], newsrflist[s]); }
 		srfss->maxsrf=maxsurface;
 		free(srfss->snames);
 		srfss->snames=newnames;
 		free(srfss->srflist);
 		srfss->srflist=newsrflist;
+		if (srfss->snametosrf) srfss->snametosrf->freeThis(srfss->snametosrf);
+		srfss->snametosrf = newsnametosrf;
 
 		if(srfss->sim && srfss->sim->mols && srfss->sim->mols->surfdrift) {
 			CHECK(molexpandsurfdrift(srfss->sim,srfss->sim->mols->maxspecies,oldmaxsrf)==0); }}
@@ -1126,7 +1262,6 @@ surfacessptr surfacessalloc(surfacessptr srfss,int maxsurface,int maxspecies,int
  	if(newsrfss) surfacessfree(srfss);
 	if(ErrorType!=1) simLog(NULL,10,"Unable to allocate memory in surfacessalloc");
  	return NULL; }
-
 
 /* surfacessfree */
 void surfacessfree(surfacessptr srfss) {
@@ -1145,6 +1280,10 @@ void surfacessfree(surfacessptr srfss) {
 			free(srfss->snames[s]);
 		free(srfss->snames); }
 
+	if (srfss->snametosrf) {
+		srfss->snametosrf->freeThis(srfss->snametosrf); }
+
+	srfss->snametosrf->freeThis;
 	free(srfss);
 	return; }
 
@@ -1814,7 +1953,7 @@ int surfexpandmaxspecies(simptr sim,int maxspecies) {
 
 /* surfaddsurface */
 surfaceptr surfaddsurface(simptr sim,const char *surfname) {
-	int er,s;
+	int er;
 	surfacessptr srfss;
 	surfaceptr srf;
 
@@ -1823,18 +1962,18 @@ surfaceptr surfaddsurface(simptr sim,const char *surfname) {
 		if(er) return NULL; }
 	srfss=sim->srfss;
 
-	s=stringfind(srfss->snames,srfss->nsrf,surfname);
-	if(s<0) {
+	if(!srfss->snametosrf->contains(srfss->snametosrf,surfname)) {
 		if(srfss->nsrf==srfss->maxsrf) {
 			er=surfenablesurfaces(sim,srfss->nsrf*2+1);
 			if(er) return NULL; }
-		s=srfss->nsrf++;
+		int s=srfss->nsrf++;
 		strncpy(srfss->snames[s],surfname,STRCHAR-1);
 		srfss->snames[s][STRCHAR-1]='\0';
 		srf=srfss->srflist[s];
+		srfss->snametosrf->putIn(srfss->snametosrf, srfss->snames[s], srfss->srflist[s]);
 		surfsetcondition(srfss,SClists,0); }
 	else
-		srf=srfss->srflist[s];
+		srf=(surfaceptr)srfss->snametosrf->getFrom(srfss->snametosrf,surfname);
 
 	surfsetcondition(sim->srfss,SClists,0);
 	return srf; }
@@ -2152,7 +2291,7 @@ int surfsetmaxpanel(surfaceptr srf,int dim,enum PanelShape ps,int maxpanel) {
 
 /* surfaddpanel */
 int surfaddpanel(surfaceptr srf,int dim,enum PanelShape ps,const char *string,double *params,const char *name) {
-	int p,ok,pdim,pt,d,axis01,axis12;
+	int ok,pdim,pt,d,axis01,axis12;
 	panelptr pnl;
 	double point[8][3],front[3],lengthinv;
 	char ch;
@@ -2360,26 +2499,30 @@ int surfaddpanel(surfaceptr srf,int dim,enum PanelShape ps,const char *string,do
 			front[1]=params[5];
 			front[2]=params[6];
 			if(normalizeVD(front,3)<=0) return 8; }}
-	
-	p=-1;
-	if(name && name[0]!='\0') {
-		for(ps2=(PanelShape)0;ps2<PSMAX && p==-1;ps2=(PanelShape)(ps2+1))
-			p=stringfind(srf->pname[ps2],srf->npanel[ps2],name);
-		if(p!=-1 && (ps2-1)!=ps) return 9; }      // panel name was used before for a different shape
 
-	if(p==-1) {																	// new panel
+	pnl = NULL;
+	if(name && name[0]!='\0') {
+		for(ps2=(PanelShape)0;ps2<PSMAX;ps2=(PanelShape)(ps2+1)) {
+			if (!srf->pnametopanel[ps2] || !srf->pnametopanel[ps2]->contains(srf->pnametopanel[ps2], name)) continue;
+			if (ps2!=ps) return 9; // panel name was used before for a different shape
+			// else, we're editing an existing panel
+			pnl=(panelptr)srf->pnametopanel[ps2]->getFrom(srf->pnametopanel[ps2], name);
+			break; }}
+
+	if(!pnl) {																	// new panel
 		if(srf->npanel[ps]==srf->maxpanel[ps]) {
 			ok=panelsalloc(srf,dim,srf->maxpanel[ps]*2+1,srf->srfss->maxspecies,ps);
 			if(!ok) return -1; }
-		p=srf->npanel[ps]++; }
+		if(name && name[0]!='\0') strcpy(srf->pname[ps][srf->npanel[ps]],name);
+		else sprintf(srf->pname[ps][srf->npanel[ps]],"anonymous_panel[ps=%d]_%d", ps, srf->npanel[ps]);
+		pnl=srf->panels[ps][srf->npanel[ps]];
+		srf->pnametopanel[ps]->putIn(srf->pnametopanel[ps], srf->pname[ps][srf->npanel[ps]++], pnl); }
 
-	pnl=srf->panels[ps][p];
 	for(pt=0;pt<pnl->npts;pt++)
 		for(d=0;d<dim;d++)
 			pnl->point[pt][d]=point[pt][d];
 	for(d=0;d<3;d++)
 		pnl->front[d]=front[d];
-	if(name && name[0]!='\0') strcpy(srf->pname[ps][p],name);
 
 	surfsetcondition(srf->srfss,SClists,0);
 	boxsetcondition(srf->srfss->sim->boxs,SCparams,0);
@@ -2856,9 +2999,7 @@ int surfaddemitter(surfaceptr srf,enum PanelFace face,int i,double amount,double
 /* surfreadstring */
 surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char *word,char *line2) {
 	char nm[STRCHAR],nm1[STRCHAR],nm2[STRCHAR],facenm[STRCHAR],shapenm[STRCHAR],actnm[STRCHAR];
-	int dim,i,p,p2,i1,i2,i3,itct,er;
-	const int maxpnllist=128;
-	panelptr pnl,pnllist[128];
+	int dim,i, i1,i2,i3,itct,er;
 	double fltv1[9],f1;
 	surfacessptr srfss;
 	enum PanelShape ps;
@@ -2870,14 +3011,13 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 	dim=sim->dim;
 	srfss=sim->srfss;
 
-	if(!strcmp(word,"name")) {								// name
+	if (!strcmp(word,"name")) {								// name
 		itct=sscanf(line2,"%s",nm);
 		CHECKS(itct==1,"error reading surface name");
 		srf=surfaddsurface(sim,nm);
 		CHECKS(srf,"failed to add surface");
-		CHECKS(!strnword(line2,2),"unexpected text following name"); }
-
-	else if(!strcmp(word,"action")) {							// action
+		CHECKS(!strnword(line2,2),"unexpected text following name");
+	} else if(!strcmp(word,"action")) {							// action
 		CHECKS(srf,"need to enter surface name before action");
 		CHECKS(srfss->maxspecies,"need to enter molecules before action");
 		itct=sscanf(line2,"%s %s %s",nm1,nm2,actnm);
@@ -2898,9 +3038,8 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		CHECKS(act<=SAmult || act==SAadsorb,"in action statement, action not recognized or not permitted");
 		er=surfsetaction(srf,i,ms1,face,act);
 		CHECKS(!er,"BUG: error with surfsetaction statement");
-		CHECKS(!strnword(line2,4),"unexpected text following action"); }
-
-	else if(!strcmp(word,"rate") || !strcmp(word,"rate_internal")) { // rate, rate_internal
+		CHECKS(!strnword(line2,4),"unexpected text following action");
+	} else if(!strcmp(word,"rate") || !strcmp(word,"rate_internal")) { // rate, rate_internal
 		CHECKS(srf,"need to enter surface name first");
 		CHECKS(srfss->maxspecies,"need to enter molecules first");
 		
@@ -2912,8 +3051,7 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		getline(ss, rawStr);
 		size_t found = rawStr.find(";");
 		ValueProvider* valueProvider = NULL;
-		if(found!=string::npos)
-		{
+		if(found!=string::npos){
 			string rateExpStr = rawStr.substr(0, found);
 			valueProvider = sim->valueProviderFactory->createValueProvider(rateExpStr);
 			try {
@@ -2924,8 +3062,7 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 			} catch (...) {
 				constRate = false;
 			}
-		}
-		else
+		} else
 #endif
 		{
 			itct=sscanf(line2,"%s %s %s %lg",nm,nm1,nm2,&f1);
@@ -2944,17 +3081,16 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		else {
 			CHECKS(ms1==ms || ms1==MSsoln || ms1==MSbsoln,"state1 does not make sense"); }
 #ifdef OPTION_VCELL
-		if(found!=string::npos)
-		{
+		if(found!=string::npos){
 			if(constRate == true)
 				CHECKS(f1>=0,"negative surface rate values are not permitted");
 			string name = rawStr.substr(found+2); //after the ";" denoting the end of rate, the found move one more position(the space) to get to the end of the line, which would be the species name
 			char * tempLine = new char[name.size() + 1];
 			strcpy(tempLine, name.c_str());
 			line2 = tempLine;
-		}
-        else
+		} else
 #endif
+		// We scope here because of the OPTION_VCELL pre-processor directive; Scoping doesn't hurt in general, so this is a great solution, if visually weird
 		{
 			CHECKS(f1>=0,"negative surface rate values are not permitted");
 			line2=strnword(line2,5);
@@ -2968,8 +3104,7 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 			CHECKS(i3!=-1,"new species name not recognized");
 			line2=strnword(line2,2); }
 #ifdef OPTION_VCELL
-		if(found!=string::npos)
-		{
+		if(found!=string::npos){
 			if(constRate)
 			{
 				if(!strcmp(word,"rate"))
@@ -2990,9 +3125,9 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 				CHECKS(er!=-1,"out of memory");
 				CHECKS(!er,"BUG: error in surfsetrate");
 			}
-		}
-		else
+		} else
 #endif
+		// We scope here because of the OPTION_VCELL pre-processor directive; Scoping doesn't hurt in general, so this is a great solution, if visually weird
 		{
 			if(!strcmp(word,"rate"))
 				er=surfsetrate(srf,i,ms,ms1,ms2,i3,f1,1);
@@ -3002,9 +3137,8 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 			CHECKS(er!=-1,"out of memory");
 			CHECKS(!er,"BUG: error in surfsetrate");
 		}
-		CHECKS(!line2,"unexpected text at end of line"); }
-
-	else if(!strcmp(word,"color") || !strcmp(word,"colour")) {		// color
+		CHECKS(!line2,"unexpected text at end of line");
+	} else if(!strcmp(word,"color") || !strcmp(word,"colour")) {		// color
 		CHECKS(srf,"need to enter surface name before color");
 		itct=sscanf(line2,"%s",facenm);
 		CHECKS(itct==1,"color format: face color");
@@ -3019,18 +3153,16 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		CHECKS(er==0,"format is either 3 numbers or color name, and then optional alpha value");
 		er=surfsetcolor(srf,face,fltv1);
 		CHECKS(!er,"BUG: error in surfsetcolor");
-		CHECKS(!line2,"unexpected text following color"); }
-
-	else if(!strcmp(word,"thickness")) {				// thickness
+		CHECKS(!line2,"unexpected text following color");
+	} else if(!strcmp(word,"thickness")) {				// thickness
 		CHECKS(srf,"need to enter surface name before thickness");
 		itct=sscanf(line2,"%lg",&f1);
 		CHECKS(itct==1,"thickness value is missing");
 		CHECKS(f1>=0,"thickness value needs to be at least 0");
 		er=surfsetedgepts(srf,f1);
 		CHECKS(!er,"BUG: error in surfsetedgepts");
-		CHECKS(!strnword(line2,2),"unexpected text following thickness"); }
-
-	else if(!strcmp(word,"stipple")) {					// stipple
+		CHECKS(!strnword(line2,2),"unexpected text following thickness");
+	} else if(!strcmp(word,"stipple")) {					// stipple
 		CHECKS(srf,"need to enter surface name before stipple");
 		itct=sscanf(line2,"%i %i",&i1,&i2);
 		CHECKS(itct==2,"stipple format: factor pattern");
@@ -3038,9 +3170,8 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		CHECKS(i2>=0 && i2 <=0xFFFF,"stipple pattern needs to be between 0x00 and 0xFFFF");
 		er=surfsetstipple(srf,i1,i2);
 		CHECKS(!er,"BUG: error in surfsetstipple");
-		CHECKS(!strnword(line2,3),"unexpected text following stipple"); }
-
-	else if(!strcmp(word,"polygon")) {					// polygon
+		CHECKS(!strnword(line2,3),"unexpected text following stipple");
+	} else if(!strcmp(word,"polygon")) {					// polygon
 		CHECKS(srf,"need to enter surface name before polygon");
 		itct=sscanf(line2,"%s %s",facenm,nm1);
 		CHECKS(itct==2,"polygon format: face drawmode");
@@ -3050,9 +3181,8 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		CHECKS(dm!=DMnone,"in polygon, drawing mode is not recognized");
 		er=surfsetdrawmode(srf,face,dm);
 		CHECKS(!er,"BUG: error in surfsetdrawmode");
-		CHECKS(!strnword(line2,3),"unexpected text following polygon"); }
-
-	else if(!strcmp(word,"shininess")) {				// shininess
+		CHECKS(!strnword(line2,3),"unexpected text following polygon");
+	} else if(!strcmp(word,"shininess")) {				// shininess
 		CHECKS(srf,"need to enter surface name before shininess");
 		itct=sscanf(line2,"%s %lg",facenm,&f1);
 		CHECKS(itct==2,"shininess format: face value");
@@ -3061,9 +3191,8 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		CHECKS(f1>=0 && f1<=128,"shininess value needs to be between 0 and 128");
 		er=surfsetshiny(srf,face,f1);
 		CHECKS(!er,"BUG: error in surfsetshiny");
-		CHECKS(!strnword(line2,3),"unexpected text following shininess"); }
-
-	else if(!strcmp(word,"max_panels")) {					// max_panels
+		CHECKS(!strnword(line2,3),"unexpected text following shininess");
+	} else if(!strcmp(word,"max_panels")) {					// max_panels
 		CHECKS(srf,"need to enter surface name before max_panels");
 		itct=sscanf(line2,"%s %i",shapenm,&i1);
 		CHECKS(itct==2,"max_panels format: shape number");
@@ -3074,9 +3203,8 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		er=surfsetmaxpanel(srf,dim,ps,i1);
 		CHECKS(er!=-1,"out of memory allocating panels");
 		CHECKS(!er,"BUG: error in surfsetmaxpanel");
-		CHECKS(!strnword(line2,3),"unexpected text following max_panels"); }
-
-	else if(!strcmp(word,"panel")) {							// panel
+		CHECKS(!strnword(line2,3),"unexpected text following max_panels");
+	} else if(!strcmp(word,"panel")) {							// panel
 		CHECKS(srf,"need to enter surface name before panel");
 		itct=sscanf(line2,"%s",shapenm);
 		CHECKS(itct==1,"in panel, panel shape needs to be entered");
@@ -3097,9 +3225,8 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		if(line2) {
 			itct=sscanf(line2,"%s",nm);
 			CHECKS(itct==1,"Error reading panel name");
-			line2=strnword(line2,2); }
-		else
-			nm[0]='\0';
+			line2=strnword(line2,2);
+		} else nm[0]='\0';
 		er=surfaddpanel(srf,dim,ps,nm1,fltv1,nm);
 		CHECKS(er!=-1,"out of memory adding panel");
 		CHECKS(er!=1,"BUG: error in surfaddpanel");
@@ -3112,16 +3239,18 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		CHECKS(er!=8,"normal vector cannot be 0 length");
 		CHECKS(er!=9,"panel name was used previously for a different panel shape");
 
-		CHECKS(!line2,"unexpected text following panel"); }
-
-	else if(!strcmp(word,"jump")) {								// jump
+		CHECKS(!line2,"unexpected text following panel");
+	} else if(!strcmp(word,"jump")) {
+		int haspanel1, haspanel2;
+		panelptr panel1, panel2;
+		// jump
 		CHECKS(srf,"need to enter surface name before jump");
 		itct=sscanf(line2,"%s %s",nm,facenm);
 		CHECKS(itct==2,"format for jump: panel1 face1 -> panel2 face2");
-		ps=PanelShape(0);
-		p=0;
-		while(ps<PSMAX && (p=stringfind(srf->pname[ps],srf->npanel[ps],nm))==-1) ps=PanelShape(ps + 1);
-		CHECKS(p>=0,"first panel name listed in jump is not recognized");
+		for (haspanel1=0, ps=PanelShape(0); ps<PSMAX; ps=PanelShape(ps+1))
+			if (haspanel1=srf->pnametopanel[ps]? srf->pnametopanel[ps]->contains(srf->pnametopanel[ps], nm) : 0) break;
+		CHECKS(haspanel1,"first panel name listed in jump is not recognized");
+		panel1=(panelptr)srf->pnametopanel[ps]->getFrom(srf->pnametopanel[ps], nm);
 		face=surfstring2face(facenm);
 		CHECKS(face<=PFback,"first face listed in jump needs to be 'front' or 'back'");
 		CHECKS(line2=strnword(line2,3),"format for jump: panel1 face1 -> panel2 face2");
@@ -3133,30 +3262,34 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		CHECKS(line2=strnword(line2,2),"format for jump: panel1 face1 -> panel2 face2");
 		itct=sscanf(line2,"%s %s",nm,facenm);
 		CHECKS(itct==2,"format for jump: panel1 face1 -> panel2 face2");
-		p2=stringfind(srf->pname[ps],srf->npanel[ps],nm);
-		CHECKS(p2>=0,"second panel name listed in jump is not recognized, or not same shape as first panel");
+		haspanel2=srf->pnametopanel[ps]? srf->pnametopanel[ps]->contains(srf->pnametopanel[ps], nm): 0;
+		CHECKS(haspanel2,"second panel name listed in jump is not recognized, or not same shape as first panel");
+		panel2=(panelptr)srf->pnametopanel[ps]->getFrom(srf->pnametopanel[ps], nm);
 		face2=surfstring2face(facenm);
 		CHECKS(face2<=PFback,"second face listed in jump needs to be 'front' or 'back'");
-		er=surfsetjumppanel(srf,srf->panels[ps][p],face,i1,srf->panels[ps][p2],face2);
+		er=surfsetjumppanel(srf,panel1,face,i1,panel2,face2);
 		CHECKS(!er,"BUG: error in surfsetjumppanel");
-		CHECKS(!strnword(line2,3),"unexpected text following jump"); }
-
-	else if(!strcmp(word,"neighbors") || !strcmp(word,"neighbours")) {					// neighbors
+		CHECKS(!strnword(line2,3),"unexpected text following jump");
+	} else if(!strcmp(word,"neighbors") || !strcmp(word,"neighbours")) {
+		panelptr pnl;
+		panelptr pnllist[128];
+		const int maxpnllist=128;
+		// neighbors
 		CHECKS(srf,"need to enter surface name before neighbors");
 		itct=sscanf(line2,"%s",nm);
 		CHECKS(itct==1,"format for neighbors: panel neigh1 neigh2 ...");
 		pnl=readpanelname(sim,srf,nm);
 		CHECKS(pnl,"first panel name listed in neighbors, '%s', not recognized",nm);
-		for(i1=0;i1<maxpnllist && (line2=strnword(line2,2));i1++) {
-			itct=sscanf(line2,"%s",nm);
-			CHECKS(itct==1,"format for neighbors: panel neigh1 neigh2 ...");
-			pnllist[i1]=readpanelname(sim,srf,nm);
-			CHECKS(pnllist[i1],"neighbor panel name '%s' not recognized",nm); }
+		for (i1 = 0; i1 < maxpnllist && ((line2 = strnword(line2,2))); i1++) {
+			itct = sscanf(line2,"%s",nm);
+			CHECKS(itct == 1,"format for neighbors: panel neigh1 neigh2 ...");
+			pnllist[i1] = readpanelname(sim,srf,nm);
+			CHECKS(pnllist[i1],"neighbor panel name '%s' not recognized",nm);
+		}
 		CHECKS(i1<maxpnllist,"too many neighbor panels listed in one line");
 		er=surfsetneighbors(pnl,pnllist,i1,1);
-		CHECKS(!er,"out of memory allocating neighbor list"); }
-
-	else if(!strcmp(word,"neighbor_action") || !strcmp(word,"neighbour_action")) {
+		CHECKS(!er,"out of memory allocating neighbor list");
+	} else if(!strcmp(word,"neighbor_action") || !strcmp(word,"neighbour_action")) {
 		CHECKS(srf,"need to enter surface name before neighbor_action");
 		itct=sscanf(line2,"%s",nm);
 		CHECKS(itct==1,"format for neighbor_action: 'hop' or 'stay'");
@@ -3165,9 +3298,8 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		else if(!strcmp(nm,"stay")) i=0;
 		else CHECKS(0,"format for neighbor_action: 'hop' or 'stay'");
 		surfsetneighhop(srf,i);
-		CHECKS(!strnword(line2,2),"unexpected text following neighbor_action"); }
-
-	else if(!strcmp(word,"unbounded_emitter")) {	// unbounded_emitter
+		CHECKS(!strnword(line2,2),"unexpected text following neighbor_action");
+	} else if(!strcmp(word,"unbounded_emitter")) {	// unbounded_emitter
 		CHECKS(srf,"need to enter surface name before unbounded_emitter");
 		itct=sscanf(line2,"%s %s %lf",facenm,nm,&f1);
 		CHECKS(itct==3,"format for unbounded_emitter: face species amount position");
@@ -3181,37 +3313,28 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		CHECKS(itct==dim,"format for unbounded_emitter: face species amount position");
 		er=surfaddemitter(srf,face,i,f1,fltv1,dim);
 		CHECKS(er==0,"out of memory adding emitter");
-		CHECKS(!strnword(line2,dim+1),"unexpected text following unbounded_emitter"); }
-
-	else if(!strcmp(word,"action_front")) {				// action_front
-		CHECKS(0,"the action_front statement has been replaced with action (remove the underscore)"); }
-
-	else if(!strcmp(word,"action_back")) {				// action_back
-		CHECKS(0,"the action_back statement has been replaced with action (remove the underscore)"); }
-
-	else if(!strcmp(word,"action_both")) {				// action_both
-		CHECKS(0,"the action_both statement has been replaced with action (remove the underscore)"); }
-
-	else if(!strcmp(word,"polygon_front")) {			// polygon_front
-		CHECKS(0,"the polygon_front statement has been replaced with polygon (remove the underscore)"); }
-
-	else if(!strcmp(word,"polygon_back")) {			// polygon_back
-		CHECKS(0,"the polygon_back statement has been replaced with polygon (remove the underscore)"); }
-
-	else if(!strcmp(word,"polygon_both")) {			// polygon_both
-		CHECKS(0,"the polygon_both statement has been replaced with polygon (remove the underscore)"); }
-
-	else if(!strcmp(word,"color_front") || !strcmp(word,"colour_front")) {				// color_front
-		CHECKS(0,"the color_front statement has been replaced with color (remove the underscore)"); }
-
-	else if(!strcmp(word,"color_back") || !strcmp(word,"colour_back")) {					// color_back
-		CHECKS(0,"the color_back statement has been replaced with color (remove the underscore)"); }
-
-	else if(!strcmp(word,"color_both") || !strcmp(word,"colour_both")) {		// color, color_both
-		CHECKS(0,"the color_both statement has been replaced with color (remove the underscore)"); }
-
-	else {																				// unknown word
-		CHECKS(0,"syntax error within surface block: statement not recognized"); }
+		CHECKS(!strnword(line2,dim+1),"unexpected text following unbounded_emitter");
+	} else if(!strcmp(word,"action_front")) {				// action_front
+		CHECKS(0,"the action_front statement has been replaced with action (remove the underscore)");
+	} else if(!strcmp(word,"action_back")) {				// action_back
+		CHECKS(0,"the action_back statement has been replaced with action (remove the underscore)");
+	} else if(!strcmp(word,"action_both")) {				// action_both
+		CHECKS(0,"the action_both statement has been replaced with action (remove the underscore)");
+	} else if(!strcmp(word,"polygon_front")) {			// polygon_front
+		CHECKS(0,"the polygon_front statement has been replaced with polygon (remove the underscore)");
+	} else if(!strcmp(word,"polygon_back")) {			// polygon_back
+		CHECKS(0,"the polygon_back statement has been replaced with polygon (remove the underscore)");
+	} else if(!strcmp(word,"polygon_both")) {			// polygon_both
+		CHECKS(0,"the polygon_both statement has been replaced with polygon (remove the underscore)");
+	} else if(!strcmp(word,"color_front") || !strcmp(word,"colour_front")) {				// color_front
+		CHECKS(0,"the color_front statement has been replaced with color (remove the underscore)");
+	} else if(!strcmp(word,"color_back") || !strcmp(word,"colour_back")) {					// color_back
+		CHECKS(0,"the color_back statement has been replaced with color (remove the underscore)");
+	} else if(!strcmp(word,"color_both") || !strcmp(word,"colour_both")) {		// color, color_both
+		CHECKS(0,"the color_both statement has been replaced with color (remove the underscore)");
+	} else {																				// unknown word
+		CHECKS(0,"syntax error within surface block: statement not recognized");
+	}
 
 	return srf;
 
@@ -3244,21 +3367,24 @@ int loadsurface(simptr sim,ParseFilePtr *pfpptr,char *line2) {
 		*pfpptr=pfp;
 		CHECKS(pfpcode!=3,"%s",errstring);
 
-		if(pfpcode==0);																// already taken care of
-		else if(pfpcode==2) {													// end reading
-			done=1; }
-		else if(!strcmp(word,"end_surface")) {				// end_surface
+		if(pfpcode==0) continue;										// already taken care of
+
+		if(pfpcode==2) {												// end reading
+			done=1;
+		} else if(!strcmp(word,"end_surface")) {						// end_surface
 			CHECKS(!line2,"unexpected text following end_surface");
-			return 0; }
-		else if(!line2) {															// just word
-			CHECKS(0,"unknown word or missing parameter"); }
-		else {
-			srf=surfreadstring(sim,pfp,srf,word,line2);
-			CHECK(srf); }}
+			return 0;
+		} else if(!line2) {												// just word
+			CHECKS(0,"unknown word or missing parameter");
+		} else {
+			srf = surfreadstring(sim,pfp,srf,word,line2);
+			CHECK(srf);
+		}
+	}
 
 	CHECKS(0,"end of file encountered before end_surface statement");	// end of file
 
- failure:																					// failure
+ failure:																// failure
 	if(ErrorType!=1) simParseError(sim,pfp);
 	*pfpptr=pfp=NULL;
 	return 1; }

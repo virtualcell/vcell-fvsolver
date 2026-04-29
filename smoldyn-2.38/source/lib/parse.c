@@ -352,23 +352,27 @@ int Parse_ReadLine(ParseFilePtr *pfpptr,char *word,char **line2ptr,char *erstr) 
 	if(linetest) {																// pre-process line
 		pfp->lctr++;
 		strcpy(pfp->linecopy,line);
-		toolong=(!strchr(line,'\n') && !strchr(line,'\0'));
+		toolong=!strchr(line,'\n') && !strchr(line,'\0');
 
 		if(strchr(line,'#')) {											// single-line comment
 			*strchr(line,'#')='\0';
 			if(toolong) {
 				while((ch=fgetc(pfp->fptr))!=EOF && ch!='\n' && ch!='\r');
-				toolong=0; }}
+				toolong=0;
+			}
+		}
 		if(pfp->incomment) {
 			skip=1;
 			toolong=0;
 			if(!strncmp(line,"*/",2))
-				pfp->incomment=0; }
+				pfp->incomment=0;
+		}
 		if(!skip && pfp->inifdef) {
 			skip=1;
 			if(!strncmp(line,"ifdefine",8)) pfp->inifdef++;
 			else if(!strncmp(line,"endif",5)) pfp->inifdef--;
-			else if(pfp->inifdef==1 && !strncmp(line,"else",4)) pfp->inifdef=0; }
+			else if(pfp->inifdef==1 && !strncmp(line,"else",4)) pfp->inifdef=0;
+		}
 		if(!skip) {
 			CHECKS(!toolong,"Line exceeds maximum allowable length of %i characters",STRCHAR);
 			er=Parse_DoDefine(pfp);
@@ -376,7 +380,9 @@ int Parse_ReadLine(ParseFilePtr *pfpptr,char *word,char **line2ptr,char *erstr) 
 			itct=sscanf(line,"%s",word);
 			line2=strnword(line,2);
 			*line2ptr=line2;
-			if(line2) strchrreplace(line2,'\n','\0'); }}
+			if(line2) strchrreplace(line2,'\n','\0');
+		}
+	}
 
 	if(skip);
 

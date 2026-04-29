@@ -6,6 +6,11 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <fstream>
+#include <istream>
+#include <iterator>
+#include <vector>
+#include <filesystem>
 using std::stringstream;
 using std::cout;
 using std::endl;
@@ -108,8 +113,7 @@ SimTool::SimTool()
 	numSerialParameterScans(0),
 
 	postProcessingHdf5Writer(nullptr),
-	smoldynSim(nullptr)
-{ }
+	smoldynSim(nullptr) {}
 
 SimTool::~SimTool()
 {
@@ -200,6 +204,7 @@ void SimTool::setBaseFilename(const std::filesystem::path& fname) {
 	if (fname.string().empty()) {
 		throw runtime_error("invalid base file name for data set");
 	}
+	std::cout <<  "Setting Base file name to: `" << fname << "`" << std::endl;
 	baseFileName = fname;
 	baseDirName = baseFileName.parent_path();
 	baseSimName = baseFileName.filename();
@@ -627,70 +632,78 @@ void SimTool::updateLog(double progress, double time, int iteration)
 }
 
 int SimTool::getZipCount(const filesystem::path& zipFileName) {
-	const char* p = strstr(zipFileName.string().c_str(), ZIP_FILE_EXT);
-	if (p == nullptr) {
-		return -1;
-	}
+	size_t firstIndex = zipFileName.string().find_first_of(ZIP_FILE_EXT);
+	if (firstIndex == std::string::npos || firstIndex < 2) return -1;
 
-	char str[3];
-	strncpy(str, p - 2, 2 * sizeof(char));
-	str[2] = 0;
-	return atoi(str);
+	std::string strCount{zipFileName.string().substr(firstIndex - 2, 2)};
+	return std::stoi(strCount);
 }
 
-void SimTool::clearLog()
-{
-	simStartTime = 0;
-	simFileCount = 0;
-	zipFileCount = 0;
+void SimTool::clearLog(){
+	this->simStartTime = 0;
+	this->simFileCount = 0;
+	this->zipFileCount = 0;
 
-	if (isSundialsPdeSolver()) {
-		simulation->setSimStartTime(this, 0);
+	if (this->isSundialsPdeSolver()) {
+		this->simulation->setSimStartTime(this, 0);
 	}
 
-	FILE *fp;
 	std::string logFileName;
 	std::string buffer;
 
 	// remove mesh file
-	buffer.append(baseFileName.string()).append(MESH_FILE_EXT);
+	buffer.append(this->baseFileName.string()).append(MESH_FILE_EXT);
 	remove(buffer.c_str());
 	buffer.clear();
 
-	buffer.append(baseFileName.string()).append(MESHMETRICS_FILE_EXT);
+	buffer.append(this->baseFileName.string()).append(MESHMETRICS_FILE_EXT);
 	remove(buffer.c_str());
 	buffer.clear();
 
-	buffer.append(baseFileName.string()).append(ZIP_FILE_EXT);
+	buffer.append(this->baseFileName.string()).append(ZIP_FILE_EXT);
 	remove(buffer.c_str());
 	buffer.clear();
 
-	buffer.append(baseFileName.string()).append("00").append(ZIP_FILE_EXT);
+	buffer.append(this->baseFileName.string()).append("00").append(ZIP_FILE_EXT);
 	remove(buffer.c_str());
 	buffer.clear();
 
-	logFileName.append(baseFileName.string()).append(LOG_FILE_EXT);
+	logFileName.append(this->baseFileName.string()).append(LOG_FILE_EXT);
 
-	if ((fp=fopen(logFileName.c_str(), "r")) == nullptr){
-		printf("error opening log file <%s>\n", logFileName.c_str());
+	std::filesystem::path logFilePath{logFileName};
+
+	if (!std::filesystem::exists(logFilePath)) {
+		printf("No log-file found at constructed path `%s`.", logFilePath.string().c_str());
+		return;
+	}
+
+	std::ifstream logStream{};
+	logStream.open(logFilePath.string().c_str());
+
+	if (!logStream.is_open()) {
+		printf("error opening log file <%s>\n", logFilePath.string().c_str());
 		return;
 	}
 
 	std::string simFileName;
 	std::string zipFileName;
-	int iteration, oldCount=-1;
+	int iteration, oldCount=-1, correctNumTokens = this->bSimZip ? 4 : 3;
 	double time;
 
-	while (true) {
-		int numTokens;
-		if (bSimZip) {
-			numTokens =  fscanf(fp,"%d %s %s %lg\n", &iteration, simFileName.c_str(), zipFileName.c_str(), &time);
-		} else {
-			numTokens =  fscanf(fp,"%d %s %lg\n", &iteration, simFileName.c_str(), &time);
-		}
-		if (numTokens != NUM_TOKENS_PER_LINE){
+	while (logStream.good()) {
+		std::string lineBuffer{};
+		std::getline(logStream, lineBuffer);
+		std::istringstream iss(lineBuffer);
+		std::vector<std::string> tokens{std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>{}};
+		if (tokens.empty()) break;
+		if (tokens.size() != correctNumTokens) {
+			std::cerr << "Unexpected number of tokens (found:" << tokens.size() << ", expected: " << correctNumTokens << ")" << std::endl;
 			break;
 		}
+		iteration = std::stoi(tokens[0]);
+		simFileName = tokens[1];
+		zipFileName = this->bSimZip ? tokens[2] : "";
+		time = std::stod(tokens[this->bSimZip ? 3 : 2]);
 
 		char simFileNameCharArray[simFileName.size()];
 		strcpy(simFileNameCharArray, simFileName.c_str());
@@ -699,11 +712,11 @@ void SimTool::clearLog()
 
 		*dotSim = '\0';
 
-		buffer.append(baseFileName.string()).append(SIM_FILE_EXT);
+		buffer.append(this->baseFileName.string()).append(SIM_FILE_EXT);
 		remove(buffer.c_str());
 		buffer.clear();
 
-		buffer.append(baseFileName.string()).append(SIM_FILE_EXT).append(PARTICLE_FILE_EXT);
+		buffer.append(this->baseFileName.string()).append(SIM_FILE_EXT).append(PARTICLE_FILE_EXT);
 		remove(buffer.c_str());
 		buffer.clear();
 
@@ -715,9 +728,9 @@ void SimTool::clearLog()
 		}
 	}
 
-	fclose(fp);
+	logStream.close();
 	printf("SimTool::clearLog(), removing log file %s\n",logFileName.c_str());
-	remove(logFileName.c_str());
+	std::filesystem::remove(logFilePath);
 }
 
 bool SimTool::isSundialsPdeSolver() const

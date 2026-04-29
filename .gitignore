@@ -28,3 +28,14 @@ tests/__pycache__/
 *.whl
 
 VCell/tests/testFiles/output/
+
+VCell/tests/smoke/*.fvinput
+VCell/tests/smoke/*.hdf5
+VCell/tests/smoke/*.log
+VCell/tests/smoke/*.meshmetrics
+VCell/tests/smoke/*.zip
+
+VCell/tests/testFiles/input/Smoldyn/*.zip
+VCell/tests/testFiles/input/Smoldyn/*.log
+VCell/tests/testFiles/input/Smoldyn/*.hdf5
+VCell/tests/testFiles/input/Smoldyn/*.smoldynOutput
