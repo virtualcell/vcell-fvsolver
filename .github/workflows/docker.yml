@@ -1,6 +1,7 @@
 name: "Docker"
 # build and publish different docker images
 on:
+  pull_request:
   release:
     types:
       - published
@@ -34,6 +35,12 @@ jobs:
             arch: "aarch64"
     runs-on: ${{ matrix.platform.name }}
     steps:
+      - name: Set defaults
+        id: run_configuration
+        run: |
+          echo "target=${{ github.event.inputs.target || 'main' }}" >> $GITHUB_OUTPUT
+          echo "tag=${{ github.event.inputs.tag || 'latest' }}" >> $GITHUB_OUTPUT
+          echo "should_push=${{ github.event.inputs.push || github.event_name == 'release' }}" >> $GITHUB_OUTPUT
       - name: Check out
         uses: actions/checkout@v4
         with:
@@ -55,12 +62,12 @@ jobs:
       - name: Determine docker image source
         shell: bash
         run: |
-          if [[ "${{ github.event.inputs.target }}" == "main" ]]; then
+          if [[ "${{ steps.run_configuration.outputs.target }}" == "main" ]]; then
             echo "DOCKERFILE_PATH=Dockerfile" >> $GITHUB_ENV
-            echo "DOCKER_REPO_TAG=ghcr.io/virtualcell/vcell_fvsolver_${{ matrix.platform.arch }}:${{ github.event.inputs.tag }}" >> $GITHUB_ENV
-          elif [[ "${{ github.event.inputs.target }}" == "manylinux" ]]; then
+            echo "DOCKER_REPO_TAG=ghcr.io/virtualcell/vcell_fvsolver_${{ matrix.platform.arch }}:${{ steps.run_configuration.outputs.tag }}" >> $GITHUB_ENV
+          elif [[ "${{ steps.run_configuration.outputs.target }}" == "manylinux" ]]; then
             echo "DOCKERFILE_PATH=docker/Dockerfile_fvsolver_manylinux_2_34_${{ matrix.platform.arch }}" >> $GITHUB_ENV
-            echo "DOCKER_REPO_TAG=ghcr.io/virtualcell/fvsolver_manylinux_2_34_${{ matrix.platform.arch }}:${{ github.event.inputs.tag }}" >> $GITHUB_ENV
+            echo "DOCKER_REPO_TAG=ghcr.io/virtualcell/fvsolver_manylinux_2_34_${{ matrix.platform.arch }}:${{ steps.run_configuration.outputs.tag }}" >> $GITHUB_ENV
           else
             echo "Error: Unknown target requested" >&2
             exit 1
@@ -71,7 +78,7 @@ jobs:
         with:
           context: .
           file: ${{ env.DOCKERFILE_PATH }}
-          push: ${{ github.event.inputs.push || github.event_name == 'release' }}
+          push: ${{ steps.run_configuration.outputs.should_push }}
           tags: ${{ env.DOCKER_REPO_TAG }}
 
       - name: Setup Debug-shell Session on Failure
