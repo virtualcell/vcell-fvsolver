@@ -135,6 +135,9 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: 15.0
           CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
           CIBW_ARCHES: "native"
+          CIBW_CONFIG_SETTINGS: >-
+            cmake.args=-DOPTION_TARGET_PYTHON_BINDING=ON
+            
 
       - name: Upload Python Wheel
         uses: actions/upload-artifact@v7
