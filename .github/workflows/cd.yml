@@ -32,6 +32,8 @@ jobs:
             cibw_version: "cp312-"
           - std_version: "3.13"
             cibw_version: "cp313-"
+          - std_version: "3.14"
+            cibw_version: "cp314-"
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -169,6 +171,8 @@ jobs:
             cibw_version: "cp312-"
           - std_version: "3.13"
             cibw_version: "cp313-"
+          - std_version: "3.14"
+            cibw_version: "cp314-"
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -324,6 +328,8 @@ jobs:
             cibw_version: "cp312-"
           - std_version: "3.13"
             cibw_version: "cp313-"
+          - std_version: "3.14"
+            cibw_version: "cp314-"
     runs-on: ${{ matrix.platform }}
 
     steps:
