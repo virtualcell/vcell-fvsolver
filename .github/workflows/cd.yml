@@ -282,26 +282,26 @@ jobs:
       - name: Modify Archive Name <x86_64>
         if: matrix.platform == 'windows-latest' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
         run: |
-          mv build/upload/fvsolver_win64.tgz build/upload/win64.tgz
+          mv build/upload/fvsolver_win64.zip build/upload/win64.zip
 
       - name: Modify Archive Name <ARM64>
         if: matrix.platform == 'windows-11-arm' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
         run: |
-          mv build/upload/fvsolver_win64.tgz build/upload/win64arm.tgz
+          mv build/upload/fvsolver_win_arm64.zip build/upload/win64arm.zip
 
       - name: Attach Windows Binaries to Release <x86_64>
         uses: softprops/action-gh-release@v3
         if: matrix.platform == 'windows-latest' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
         with:
           files: |
-            build/upload/win64.tgz
+            build/upload/win64.zip
 
       - name: Attach Linux Binaries to Release <ARM64>
         uses: softprops/action-gh-release@v3
         if: matrix.platform == 'windows-11-arm' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
         with:
           files: |
-            build/upload/win64arm.tgz
+            build/upload/win64arm.zip
 
       - name: Set up Python ${{ matrix.python.std_version  }}
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
