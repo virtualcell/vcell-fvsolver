@@ -19,10 +19,11 @@ option(OPTION_USE_OPENGL "Build with OpenGL support" OFF)
 option(OPTION_USE_ZLIB "Build with Zlib support" ON)
 option(OPTION_USE_LIBTIFF "Build with LibTiff support" OFF)
 option(OPTION_USE_ICONV "Build with Libiconv support" OFF)
+option(OPTION_BUILD_SHARED_LIBS "Enable Build Shared Libs mode" OFF)
 
 # need to statically link everything for the python bindings and standalone solvers
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-set(BUILD_SHARED_LIBS OFF)
+set(BUILD_SHARED_LIBS ${OPTION_BUILD_SHARED_LIBS})
 
 # If there's a toolchain defined in the env, let's get it early
 if(DEFINED ENV{CMAKE_TOOLCHAIN_FILE})

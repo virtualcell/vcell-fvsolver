@@ -1,0 +1,33 @@
+FROM quay.io/pypa/manylinux_2_28_x86_64
+
+# Get System Dependencies
+RUN yum install -y wget curl lld clang cmake boost-devel hdf5-devel libzip-devel bzip2-devel openssl-devel xz-devel
+# Since AlmaLinux8 is so old, we need to manually get a new(-ish) Ninja (currently v1.13.2)
+RUN mkdir ninja_download && wget -P ninja_download https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux.zip
+RUN unzip ninja_download/ninja-linux.zip -d ninja_download && mv ninja_download/ninja /usr/bin && rm -r ninja_download
+# We need to install a later version of python through EPEL, because...python3.6 just won't cut it anymore
+RUN dnf install epel-release && dnf install -y python3.12 python3.12-devel python3.12-pip
+ENV PATH="/usr/bin:$PATH"
+RUN ln -sf /usr/bin/python3.12 /usr/local/bin/python3 && \
+    ln -sf /usr/bin/python3.12 /usr/local/bin/python
+
+# Get Python-specific dependencies
+RUN python3 -m pip install h5py pyyaml
+
+# Fetch llvm github code (v22.1.x, current latest on June 23rd, 2026 is 22.1.8)
+RUN mkdir -p /opt/llvm
+RUN git clone --depth 1 --branch llvmorg-22.1.8 https://github.com/llvm/llvm-project.git /opt/llvm
+RUN mkdir /opt/llvm/build
+
+# Build LLVM in all of it's glory!
+RUN cmake -G "Ninja" -S /opt/llvm/llvm -B /opt/llvm/build \
+    -DCMAKE_BUILD_TYPE=Release \
+#    -DLLVM_ENABLE_RTTI \
+#    -DLLVM_ENABLE_EH=ON \
+#    -DLLVM_ENABLE_LLD=ON \
+#    -DLLVM_ENABLE_ASSERTIONS=ON \
+    -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;flang;lld;lldb;mlir" \
+    -DLLVM_ENABLE_RUNTIMES="libc;libunwind;libcxxabi;libcxx;compiler-rt;openmp;flang-rt"
+
+RUN cmake --build /opt/llvm/build
+RUN cmake --build /opt/llvm/build --target install
