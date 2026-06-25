@@ -30,4 +30,15 @@ RUN cmake -G "Ninja" -S /opt/llvm/llvm -B /opt/llvm/build \
     -DLLVM_ENABLE_RUNTIMES="libc;libunwind;libcxxabi;libcxx;compiler-rt;openmp;flang-rt"
 
 RUN cmake --build /opt/llvm/build
-RUN cmake --build /opt/llvm/build --target install
+ENV PATH=/opt/llvm/build/bin:$PATH
+RUN cmake --build /opt/llvm/build --target install # Not entirely needed, but nice
+
+# Extra dependencies
+RUN dnf install -y perl
+RUN rm -rf /opt/rh/*
+RUN ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
+RUN ln -sf /usr/local/bin/clang   /usr/local/bin/cc
+RUN ln -sf /usr/local/bin/clang++ /usr/local/bin/g++
+RUN ln -sf /usr/local/bin/clang++ /usr/local/bin/c++
+RUN ln -sf /usr/local/bin/clang++ /usr/local/bin/cpp
+RUN ln -sf /usr/local/bin/flang   /usr/local/bin/gfortran

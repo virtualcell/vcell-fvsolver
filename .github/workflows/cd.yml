@@ -507,7 +507,7 @@ jobs:
           CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
           CIBW_SKIP: "*musllinux*"
           CIBW_ARCHS_LINUX: "native"
-          CIBW_MANYLINUX_X86_64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_28_x86_64:0.1.1'
+          CIBW_MANYLINUX_X86_64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_28_x86_64:0.1.2'
           CIBW_REPAIR_WHEEL_COMMAND: 'LD_LIBRARY_PATH=/usr/local/lib/x86_64-unknown-linux-gnu:$LD_LIBRARY_PATH auditwheel repair --disable-isa-ext-check {wheel} -w {dest_dir}'
           CIBW_CONFIG_SETTINGS_LINUX: >-
             cmake.args=-DCMAKE_TOOLCHAIN_FILE=/project/build/conan_toolchain.cmake
@@ -521,14 +521,6 @@ jobs:
           CIBW_ENVIRONMENT_LINUX: CC="clang" CXX="clang++" FC="flang"
           CIBW_BEFORE_BUILD: |
             echo $PWD
-            ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
-            ln -sf /usr/local/bin/clang   /usr/local/bin/cc
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/g++
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/c++
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/cpp
-            ln -sf /usr/local/bin/flang   /usr/local/bin/gfortran
-            dnf install perl -y
-            rm -rf /opt/rh/*
             python3 -m pip install conan
             mkdir -p /root/.conan2/profiles/
             cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} /root/.conan2/profiles/default
@@ -544,7 +536,7 @@ jobs:
           CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
           CIBW_SKIP: "*musllinux*"
           CIBW_ARCHS_LINUX: "native"
-          CIBW_MANYLINUX_AARCH64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_28_aarch64:0.1.1'
+          CIBW_MANYLINUX_AARCH64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_28_aarch64:0.1.2'
           CIBW_REPAIR_WHEEL_COMMAND: 'LD_LIBRARY_PATH=/usr/local/lib/aarch64-unknown-linux-gnu:$LD_LIBRARY_PATH auditwheel repair --disable-isa-ext-check {wheel} -w {dest_dir}'
           CIBW_CONFIG_SETTINGS_LINUX: >-
             cmake.args=-DCMAKE_TOOLCHAIN_FILE=/project/build/conan_toolchain.cmake
@@ -558,14 +550,6 @@ jobs:
           CIBW_ENVIRONMENT_LINUX: CC="clang" CXX="clang++" FC="flang"
           CIBW_BEFORE_BUILD: |
             echo $PWD
-            ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
-            ln -sf /usr/local/bin/clang   /usr/local/bin/cc
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/g++
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/c++
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/cpp
-            ln -sf /usr/local/bin/flang   /usr/local/bin/gfortran
-            dnf install perl -y
-            rm -rf /opt/rh/*
             python3 -m pip install conan
             mkdir -p /root/.conan2/profiles/
             cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} /root/.conan2/profiles/default
