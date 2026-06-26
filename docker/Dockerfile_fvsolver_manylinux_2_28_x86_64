@@ -31,10 +31,11 @@ RUN cmake -G "Ninja" -S /opt/llvm/llvm -B /opt/llvm/build \
 
 RUN cmake --build /opt/llvm/build
 ENV PATH=/opt/llvm/build/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/llvm/build/lib:/opt/llvm/build/lib/x86_64-unknown-linux-gnu:$LD_LIBRARY_PATH
 RUN cmake --build /opt/llvm/build --target install # Not entirely needed, but nice
 
 # Extra dependencies
-RUN dnf install -y perl
+RUN dnf install -y perl mold
 RUN rm -rf /opt/rh/*
 RUN ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
 RUN ln -sf /usr/local/bin/clang   /usr/local/bin/cc

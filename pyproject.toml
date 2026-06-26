@@ -51,7 +51,6 @@ test-command = "pytest {project}/tests"
 test-extras = ["test"]
 test-skip = ["*universal2:arm64"]
 skip = "cp3*t-*"
-before-build = "pip install cmake ninja"
 build-verbosity = 1
 
 

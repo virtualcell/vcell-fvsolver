@@ -6,7 +6,7 @@ RUN python3 -m pip install h5py
 RUN python3.14 -m pip install pyyaml
 
 RUN mkdir -p /opt/llvm
-RUN git clone --depth 1 --branch llvmorg-22.1.2 https://github.com/llvm/llvm-project.git /opt/llvm
+RUN git clone --depth 1 --branch llvmorg-22.1.8 https://github.com/llvm/llvm-project.git /opt/llvm
 RUN mkdir /opt/llvm/build
 
 RUN cmake -G "Ninja" -S /opt/llvm/llvm -B /opt/llvm/build \
@@ -20,10 +20,11 @@ RUN cmake -G "Ninja" -S /opt/llvm/llvm -B /opt/llvm/build \
 
 RUN cmake --build /opt/llvm/build
 ENV PATH=/opt/llvm/build/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/llvm/build/lib:/opt/llvm/build/lib/aarch64-unknown-linux-gnu:$LD_LIBRARY_PATH
 RUN cmake --build /opt/llvm/build --target install # Not entirely needed, but nice
 
 # Extra dependencies
-RUN dnf install -y perl
+RUN dnf install -y perl mold
 RUN rm -rf /opt/rh/*
 RUN ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
 RUN ln -sf /usr/local/bin/clang   /usr/local/bin/cc
