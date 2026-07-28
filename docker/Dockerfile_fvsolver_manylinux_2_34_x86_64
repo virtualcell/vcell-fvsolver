@@ -6,7 +6,7 @@ RUN python3 -m pip install h5py
 RUN python3.14 -m pip install pyyaml
 
 RUN mkdir -p /opt/llvm
-RUN git clone --depth 1 --branch llvmorg-22.1.2 https://github.com/llvm/llvm-project.git /opt/llvm
+RUN git clone --depth 1 --branch llvmorg-22.1.8 https://github.com/llvm/llvm-project.git /opt/llvm
 RUN mkdir /opt/llvm/build
 
 RUN cmake -G "Ninja" -S /opt/llvm/llvm -B /opt/llvm/build \
@@ -19,4 +19,16 @@ RUN cmake -G "Ninja" -S /opt/llvm/llvm -B /opt/llvm/build \
     -DLLVM_ENABLE_RUNTIMES="libc;libunwind;libcxxabi;libcxx;compiler-rt;openmp;flang-rt"
 
 RUN cmake --build /opt/llvm/build
-RUN cmake --build /opt/llvm/build --target install
+ENV PATH=/opt/llvm/build/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/llvm/build/lib:/opt/llvm/build/lib/x86_64-unknown-linux-gnu:$LD_LIBRARY_PATH
+RUN cmake --build /opt/llvm/build --target install # Not entirely needed, but nice
+
+# Extra dependencies
+RUN dnf install -y perl mold
+RUN rm -rf /opt/rh/*
+RUN ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
+RUN ln -sf /usr/local/bin/clang   /usr/local/bin/cc
+RUN ln -sf /usr/local/bin/clang++ /usr/local/bin/g++
+RUN ln -sf /usr/local/bin/clang++ /usr/local/bin/c++
+RUN ln -sf /usr/local/bin/clang++ /usr/local/bin/cpp
+RUN ln -sf /usr/local/bin/flang   /usr/local/bin/gfortran
