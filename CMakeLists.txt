@@ -21,11 +21,12 @@ option(OPTION_USE_OPENGL "Build with OpenGL support" OFF)
 option(OPTION_USE_ZLIB "Build with Zlib support" ON)
 option(OPTION_USE_LIBTIFF "Build with LibTiff support" OFF)
 option(OPTION_USE_ICONV "Build with Libiconv support" OFF)
+option(OPTION_BUILD_SHARED_LIBS "Enable Build Shared Libs mode" OFF)
 option(OPTION_STATICALLY_LINK "Fully static-link the standalone executables (libc included) so they run on any Linux distribution" OFF)
 
 # need to statically link everything for the python bindings and standalone solvers
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-set(BUILD_SHARED_LIBS OFF)
+set(BUILD_SHARED_LIBS ${OPTION_BUILD_SHARED_LIBS})
 
 # If there's a toolchain defined in the env, let's get it early
 if(DEFINED ENV{CMAKE_TOOLCHAIN_FILE})
@@ -69,6 +70,10 @@ if (OPTION_STATICALLY_LINK)
 	if (OPTION_TARGET_PYTHON_BINDING)
 		message(FATAL_ERROR "OPTION_STATICALLY_LINK cannot be combined with OPTION_TARGET_PYTHON_BINDING; "
 				"a Python extension module has to be a PIC shared object.")
+	endif ()
+	if (OPTION_BUILD_SHARED_LIBS)
+		message(FATAL_ERROR "OPTION_STATICALLY_LINK and OPTION_BUILD_SHARED_LIBS are mutually "
+				"exclusive: there is no way to link a .so into a -static executable.")
 	endif ()
 	if (OPTION_TARGET_MESSAGING)
 		message(WARNING "OPTION_STATICALLY_LINK with messaging on: libcurl's name resolution needs "

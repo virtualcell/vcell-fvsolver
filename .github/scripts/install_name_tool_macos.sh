@@ -8,7 +8,7 @@ shopt -s -o nounset
 for exe in `ls *_x64`
 do
     echo "fixing paths in ${exe}"
-    for libpath in `otool -L ${exe} | grep "/" | grep -v "System" | awk '{print $1}'`
+    for libpath in `otool -L ${exe} | grep "/" | grep -v "System" | grep -v "/usr/lib/" | awk '{print $1}'`
     do
 		libfilename=${libpath##*/}
 		echo install_name_tool -change $libpath @executable_path/$libfilename  $exe
@@ -29,7 +29,7 @@ do
 	echo install_name_tool -id "@loader_path/$libfilename"  $libfilename
     install_name_tool -id "@loader_path/$libfilename"  $libfilename
   	
-	for dependentlibpath in `otool -L ${libfilename} | grep "/" | grep -v "System" | awk '{print $1}'`
+	for dependentlibpath in `otool -L ${libfilename} | grep "/" | grep -v "System" | grep -v "/usr/lib/" | awk '{print $1}'`
 	do
 		dependentlibfilename=${dependentlibpath##*/}
 		#
