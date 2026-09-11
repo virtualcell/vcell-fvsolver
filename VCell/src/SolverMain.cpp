@@ -19,9 +19,9 @@ using namespace std;
 #include <../include/VCELL/FVSolver.h>
 #include <sys/stat.h>
 #include <../include/VCELL/SimTool.h>
-#include <../../VCellMessaging/include/VCELL/SimulationMessaging.h>
-#include <../../VCellMessaging/include/VCELL/GitDescribe.h>
-#include <../../ExpressionParser/Exception.h>
+#include <VCELL/SimulationMessaging.h>
+#include <VCELL/GitDescribe.h>
+#include <Exception.h>
 #include <../../bridgeVCellSmoldyn/vcellhybrid.h>
 
 
@@ -65,11 +65,6 @@ int solve(const std::string& inputFilename, const std::string& vcgFilename, cons
 
 	bool bSimZip = true;
 	int taskID = 0;
-
-	if (SimulationMessaging::getInstVar() == nullptr)
-	{
-		SimulationMessaging::create();
-	}
 
 	FVSolver* fvSolver = nullptr;
 	SimTool* sim_tool = nullptr;

@@ -57,7 +57,6 @@ int runSmoldyn(int argc, char *argv[]) {
     try {
         simSetThrowing(10);
         simSetLogging(stdout, slogger);
-        SimulationMessaging::create();
 
         //clear the errormesage
         memset(errorMsg, 0, errMsgLen * sizeof(char));
@@ -158,16 +157,16 @@ int runSmoldyn(int argc, char *argv[]) {
             fflush(stderr);
             if (tflag || !sim->graphss || sim->graphss->graphics == 0) {
                 er = smolsimulate(sim);
-                WorkerEvent *we;
                 endsimulate(sim, er);
                 if (er <= 1) {
-                    we = new WorkerEvent(JOB_COMPLETED, 1.0, sim->time);
+                    SimulationMessaging::getInstVar()->setWorkerEvent(
+                        JobEvent::JOB_COMPLETED, 1.0, sim->time);
                 } else {
                     const double completeRatio = sim->time / sim->tmax;
                     const std::string warn = warnMessage();
-                    we = new WorkerEvent(JOB_COMPLETED, completeRatio, sim->time, warn.c_str());
+                    SimulationMessaging::getInstVar()->setWorkerEvent(
+                        JobEvent::JOB_COMPLETED, completeRatio, sim->time, warn.c_str());
                 }
-                SimulationMessaging::getInstVar()->setWorkerEvent(we);
             } else {
                 smolsimulategl(sim);
             }
@@ -186,19 +185,15 @@ int runSmoldyn(int argc, char *argv[]) {
         exitCode = 1;
     }
 
-    if (SimulationMessaging::getInstVar() == NULL) {
+    if (!SimulationMessaging::getInstVar()->isStopRequested()) {
         if (exitCode != 0) {
-            simLog(sim, 10, "%s\n", errorMsg);
-        }
-    } else if (!SimulationMessaging::getInstVar()->isStopRequested()) {
-        if (exitCode != 0) {
-            SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_FAILURE, errorMsg));
+            SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_FAILURE, errorMsg);
         }
 #ifdef USE_MESSAGING
 		SimulationMessaging::getInstVar()->waitUntilFinished();
 #endif
     }
-    delete SimulationMessaging::getInstVar();
+    SimulationMessaging::cleanupInstanceVar();
 
     return exitCode;
 }

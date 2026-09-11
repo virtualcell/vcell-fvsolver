@@ -1,5 +1,9 @@
 #include <iostream>
 #include <sstream>
+// The 2.0 VCELL/SimulationMessaging.h no longer does `using namespace std;`
+// (nor pulls in <memory.h>), so the names it used to leak into every
+// translation unit are now declared explicitly.
+#include <cstring>
 
 #include "smoldyn.h"
 #include <VCELL/SimulationMessaging.h>
@@ -15,7 +19,6 @@ namespace {
 
 VCellSmoldynOutput* vcellSmoldynOutput = NULL;
 enum CMDcode cmdVCellPrintProgress(simptr sim, cmdptr cmd, char *line2) {
-	SimulationMessaging::create();
 	if(line2 && !strcmp(line2,"cmdtype")) {
 		return CMDobserve;
 	}
@@ -24,7 +27,7 @@ enum CMDcode cmdVCellPrintProgress(simptr sim, cmdptr cmd, char *line2) {
 	double duration = difftime(currentTime,lastTime) ;
 	if (duration >= reportIntervalSeconds)
 	{
-		SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_PROGRESS, progress, sim->time));
+		SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_PROGRESS, progress, sim->time);
 		lastTime = currentTime;
 	}
 	//fprintf(stdout, "[[[progress:%lg%%]]]",  progress * 100.0);
@@ -134,13 +137,13 @@ int loadJMS(simptr sim,ParseFilePtr *pfpptr,char *line2,char *erstr) {
 				char* vcellUser = new char[128];
 				int simKey, jobIndex;
 				sscanf(line2, "%s%s%s%s%s%s%d%d", jmsBroker, jmsUser, jmsPwd, jmsQueue, jmsTopic, vcellUser, &simKey, &jobIndex);
-				SimulationMessaging::create(jmsBroker, jmsUser, jmsPwd, jmsQueue, jmsTopic, vcellUser, simKey, jobIndex, vcellhybrid::getTaskId( ));
-				SimulationMessaging::getInstVar()->start(); // start the thread
+				SimulationMessaging::getInstVar()->initialize_curl_messaging(
+					false, jmsBroker, vcellUser, simKey, jobIndex, vcellhybrid::getTaskId( ));
 			}
 #endif
 		}
 	}
-	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, "setting up simulation"));
+	SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_STARTING, "setting up simulation");
 	return 0;
 
 failure:		// failure

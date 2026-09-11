@@ -1,21 +1,47 @@
 #pragma once
 
+#include <cstdlib>
+#include <string>
+
+// Locations of the files the gtest suite reads and writes.
+//
+// These used to be `constexpr` absolute paths baked in at configure time, which
+// meant vcell_test only ever ran on the machine that built it. They are
+// resolved at run time now, against a root that defaults to the configuring
+// source tree but can be overridden with the VCELL_TEST_RESOURCES environment
+// variable -- point that at a copy of VCell/tests/testFiles and the suite runs
+// anywhere, which is what make-test-bundle.sh does.
+//
+// The root must be WRITABLE: the FV and Smoldyn tests write their output
+// underneath it.
 namespace testResourceLocations {
 
+    inline std::string root() {
+        const char* override_root = std::getenv("VCELL_TEST_RESOURCES");
+        if (override_root != nullptr && *override_root != '\0') {
+            return override_root;
+        }
+        return "@TEST_RESOURCES_ROOT@";
+    }
+
+    inline std::string at(const char* relative) {
+        return root() + "/" + relative;
+    }
+
     // FV Solver File Locations
-    static constexpr auto EXAMPLE_FUNCTIONS = "@EXAMPLE_FUNCTIONS@";
-    static constexpr auto EXAMPLE_FV_INPUT = "@EXAMPLE_FV_INPUT@";
-    static constexpr auto EXAMPLE_VCG = "@EXAMPLE_VCG@";
-    static constexpr auto EXAMPLE_SIM_TASK_XML = "@EXAMPLE_SIM_TASK_XML@";
-    static constexpr auto EXAMPLE_OUTPUT_DIR_1 = "@EXAMPLE_OUTPUT_DIR_1@";
-    static constexpr auto EXAMPLE_OUTPUT_DIR_2 = "@EXAMPLE_OUTPUT_DIR_2@";
+    inline std::string EXAMPLE_FUNCTIONS()     { return at("input/FVSolver/SimID_11538992_0_.functions"); }
+    inline std::string EXAMPLE_FV_INPUT()      { return at("input/FVSolver/SimID_11538992_0_.fvinput"); }
+    inline std::string EXAMPLE_VCG()           { return at("input/FVSolver/SimID_11538992_0_.vcg"); }
+    inline std::string EXAMPLE_SIM_TASK_XML()  { return at("input/FVSolver/SimID_11538992_0__0.simtask.xml"); }
+    inline std::string EXAMPLE_OUTPUT_DIR_1()  { return at("output/FVSolver/test_output_1"); }
+    inline std::string EXAMPLE_OUTPUT_DIR_2()  { return at("output/FVSolver/test_output_2"); }
     // Smoldyn File Locations
-    static constexpr auto EXAMPLE_SMOLDYN_XML = "@EXAMPLE_SMOLDYN_XML@";
-    static constexpr auto EXAMPLE_SMOLDYN_FUNCTIONS = "@EXAMPLE_SMOLDYN_FUNCTIONS@";
-    static constexpr auto EXAMPLE_SMOLDYN_MESH = "@EXAMPLE_SMOLDYN_MESH@";
-    static constexpr auto EXAMPLE_SMOLDYN_INPUT = "@EXAMPLE_SMOLDYN_INPUT@";
-    static constexpr auto EXAMPLE_SMOLDYN_SUBDOMAINS = "@EXAMPLE_SMOLDYN_SUBDOMAINS@";
+    inline std::string EXAMPLE_SMOLDYN_XML()        { return at("input/Smoldyn/input.xml"); }
+    inline std::string EXAMPLE_SMOLDYN_FUNCTIONS()  { return at("input/Smoldyn/input.functions"); }
+    inline std::string EXAMPLE_SMOLDYN_MESH()       { return at("input/Smoldyn/input.mesh"); }
+    inline std::string EXAMPLE_SMOLDYN_INPUT()      { return at("input/Smoldyn/input.smoldynInput"); }
+    inline std::string EXAMPLE_SMOLDYN_SUBDOMAINS() { return at("input/Smoldyn/input.subdomains"); }
     // Custom C Hashtable File Locations
-    static constexpr auto EXAMPLE_SAMPLE_HASH_TEST_INPUT = "@EXAMPLE_SAMPLE_HASH_TEST_INPUT@";
+    inline std::string EXAMPLE_SAMPLE_HASH_TEST_INPUT() { return at("input/CustomCHashtableTest/sampleInput.txt"); }
 
 }

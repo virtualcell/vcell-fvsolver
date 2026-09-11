@@ -378,7 +378,7 @@ void VCellSmoldynOutput::write() {	//for each save time interval
 	}
 
 	double progress = (smoldynSim->time - smoldynSim->tmin) / (smoldynSim->tmax - smoldynSim->tmin);
-	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_DATA, progress, smoldynSim->time));
+	SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_DATA, progress, smoldynSim->time);
 }
 
 void VCellSmoldynOutput::clearLog() {

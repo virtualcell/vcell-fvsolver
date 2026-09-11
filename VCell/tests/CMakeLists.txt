@@ -27,22 +27,12 @@ set(SRC_FILES
 
 #####
 # Build Testing File Locations Dynamically
-## FV Solver File Locations
-get_filename_component(EXAMPLE_FUNCTIONS testFiles/input/FVSolver/SimID_11538992_0_.functions ABSOLUTE)
-get_filename_component(EXAMPLE_FV_INPUT testFiles/input/FVSolver/SimID_11538992_0_.fvinput ABSOLUTE)
-get_filename_component(EXAMPLE_VCG testFiles/input/FVSolver/SimID_11538992_0_.vcg ABSOLUTE)
-get_filename_component(EXAMPLE_SIM_TASK_XML testFiles/input/FVSolver/SimID_11538992_0__0.simtask.xml ABSOLUTE)
-get_filename_component(EXAMPLE_OUTPUT_DIR_1 testFiles/output/FVSolver/test_output_1 ABSOLUTE)
-get_filename_component(EXAMPLE_OUTPUT_DIR_2 testFiles/output/FVSolver/test_output_2 ABSOLUTE)
-## Smoldyn File Locations
-get_filename_component(EXAMPLE_SMOLDYN_XML testFiles/input/Smoldyn/input.xml ABSOLUTE)
-get_filename_component(EXAMPLE_SMOLDYN_FUNCTIONS testFiles/input/Smoldyn/input.functions ABSOLUTE)
-get_filename_component(EXAMPLE_SMOLDYN_MESH testFiles/input/Smoldyn/input.mesh ABSOLUTE)
-get_filename_component(EXAMPLE_SMOLDYN_INPUT testFiles/input/Smoldyn/input.smoldynInput ABSOLUTE)
-get_filename_component(EXAMPLE_SMOLDYN_SUBDOMAINS testFiles/input/Smoldyn/input.subdomains ABSOLUTE)
-## Custom C Hashtable File Locations
-get_filename_component(EXAMPLE_SAMPLE_HASH_TEST_INPUT testFiles/input/CustomCHashtableTest/sampleInput.txt ABSOLUTE)
-## Dynamically build header for tests to use
+#
+# Only the ROOT is baked in; testResourceLocations.h composes the individual
+# paths from it at run time and honours $VCELL_TEST_RESOURCES as an override,
+# so vcell_test can run against a relocated copy of testFiles/ on a machine
+# that has no source tree (see make-test-bundle.sh).
+get_filename_component(TEST_RESOURCES_ROOT testFiles ABSOLUTE)
 configure_file(testFiles/input/testResourceLocations.h.in testFiles/input/testResourceLocations.h @ONLY)
 #####
 

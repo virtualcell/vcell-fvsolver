@@ -1,0 +1,35 @@
+# Fully static Linux build of FiniteVolume_x64 / smoldyn_x64.
+#
+# Toolchain is GCC/gfortran, NOT the clang/flang combination the CI profiles
+# use. That is deliberate: `-static` has to resolve a Fortran runtime, a C++
+# runtime and libc from static archives in one link, and the GCC toolchain is
+# the only one that ships all three (libgfortran.a, libstdc++.a, libc.a) on a
+# stock distribution. A clang/libc++/flang static link additionally needs
+# libc++.a, libc++abi.a, libunwind.a and flang's runtime archives, which most
+# distributions do not package.
+#
+# compiler.version is only a package-ID input for the Conan dependencies here;
+# build-static-linux.sh overrides it with the GCC actually on PATH so the
+# prebuilt dependencies match the compiler doing the final link.
+[settings]
+os=Linux
+arch=armv8
+build_type=Release
+compiler=gcc
+compiler.version=13
+compiler.libcxx=libstdc++11
+compiler.cppstd=20
+
+[options]
+# Every dependency must be a static archive; a single .so here would put a
+# NEEDED entry back into the executable and defeat the point.
+*:shared=False
+*:fPIC=True
+
+[conf]
+tools.cmake.cmaketoolchain:generator=Ninja
+
+[buildenv]
+CC=gcc
+CXX=g++
+FC=gfortran

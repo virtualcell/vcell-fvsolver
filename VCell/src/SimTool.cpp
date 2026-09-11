@@ -14,6 +14,13 @@
 using std::stringstream;
 using std::cout;
 using std::endl;
+// The 2.0 VCELL/SimulationMessaging.h no longer does `using namespace std;`
+// (nor pulls in <memory.h>), so the names it used to leak into every
+// translation unit are now declared explicitly.
+#include <cstring>
+using std::runtime_error;
+using std::ostringstream;
+namespace filesystem = std::filesystem;
 
 #include <VCELL/SimTypes.h>
 #include <VCELL/SimTool.h>
@@ -628,7 +635,7 @@ void SimTool::updateLog(double progress, double time, int iteration)
 
 	}
 
-	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_DATA, progress, time));
+	SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_DATA, progress, time);
 }
 
 int SimTool::getZipCount(const filesystem::path& zipFileName) {
@@ -705,7 +712,10 @@ void SimTool::clearLog(){
 		zipFileName = this->bSimZip ? tokens[2] : "";
 		time = std::stod(tokens[this->bSimZip ? 3 : 2]);
 
-		char simFileNameCharArray[simFileName.size()];
+		// +1 for the terminator strcpy() writes: sized at size() this overflowed
+		// the array by one byte on every iteration, which _FORTIFY_SOURCE traps
+		// as a stack buffer overflow and aborts the run.
+		char simFileNameCharArray[simFileName.size() + 1];
 		strcpy(simFileNameCharArray, simFileName.c_str());
 		char *dotSim = strstr(simFileNameCharArray, SIM_FILE_EXT);
 		if (!dotSim) continue;
@@ -822,7 +832,7 @@ void SimTool::start1() {
 
 	std::string message;
 	message.append("simulation [").append(baseSimName.string()).append("] started");
-	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, message.c_str()));
+	SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_STARTING, message.c_str());
 
 	//
     // destroy any partial results from unfinished iterations
@@ -859,7 +869,7 @@ void SimTool::start1() {
 		updateLog(0.0, 0.0, 0);
 	} else {
 		// simulation continues from existing results, send data message
-		SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_DATA, percentile, simStartTime));
+		SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_DATA, percentile, simStartTime);
 	}
 
     //
@@ -910,7 +920,7 @@ void SimTool::start1() {
 			percentile = (simulation->getTime_sec(this) - simStartTime)/(simEndTime - simStartTime);
 			if (percentile - lastSentPercentile >= increment) {
 				std::cout << "SimTool.start1() sending JOB_PROGRESS to SimulationMessaging: percentile=" << percentile << ", time=" << simulation->getTime_sec(this) << std::endl;
-				SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_PROGRESS, percentile, simulation->getTime_sec(this)));
+				SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_PROGRESS, percentile, simulation->getTime_sec(this));
 				lastSentPercentile = percentile;
 				oldTime = currentTime;
 			}
@@ -941,8 +951,8 @@ void SimTool::start1() {
 		return;
 	}
 
-	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_PROGRESS, 1.0, simulation->getTime_sec(this)));
-	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_COMPLETED, percentile, simulation->getTime_sec(this)));
+	SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_PROGRESS, 1.0, simulation->getTime_sec(this));
+	SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_COMPLETED, percentile, simulation->getTime_sec(this));
 
 	showSummary(stdout);
 }

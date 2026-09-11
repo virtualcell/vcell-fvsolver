@@ -15,14 +15,16 @@
 #include <Exception.h>
 #include <vcellhybrid.h>
 
+// The 2.0 VCELL/SimulationMessaging.h no longer does `using namespace std;`
+// (nor pulls in <memory.h>), so the names it used to leak into every
+// translation unit are now declared explicitly.
+#include <cstring>
+using std::invalid_argument;
+
 void vcellExit(int returnCode, std::string& errorMsg) {
-	if (SimulationMessaging::getInstVar() == 0) {
+	if (!SimulationMessaging::getInstVar()->isStopRequested()) {
 		if (returnCode != 0) {
-			std::cerr << errorMsg << std::endl;
-		}
-	} else if (!SimulationMessaging::getInstVar()->isStopRequested()) {
-		if (returnCode != 0) {
-			SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_FAILURE, errorMsg.c_str()));
+			SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_FAILURE, errorMsg.c_str());
 		}
 #ifdef USE_MESSAGING
 		SimulationMessaging::getInstVar()->waitUntilFinished();

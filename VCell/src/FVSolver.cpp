@@ -9,6 +9,11 @@ using std::ifstream;
 using std::istringstream;
 using std::stringstream;
 using std::endl;
+// The 2.0 VCELL/SimulationMessaging.h no longer does `using namespace std;`
+// (nor pulls in <memory.h>), so the names it used to leak into every
+// translation unit are now declared explicitly.
+using std::runtime_error;
+using std::to_string;
 
 
 #include <Expression.h>
@@ -72,14 +77,9 @@ JOB_INDEX 0
 JMS_PARAM_END
 */
 void FVSolver::loadJMSInfo(istream& ifsInput, int taskID) {
-	char *broker = new char[256];
-	char *smqusername = new char[256];
-	char *password = new char[256];
-	char *qname = new char[256];
-	char *tname = new char[256];
-	char *vcusername = new char[256];
+	string broker, smqusername, password, qname, tname, vcusername;
 	string nextToken, line;
-	int simKey, jobIndex;
+	int simKey = 0, jobIndex = 0;
 
 	while (!ifsInput.eof()) {
 		getline(ifsInput, line);
@@ -95,20 +95,14 @@ void FVSolver::loadJMSInfo(istream& ifsInput, int taskID) {
 		}
 
 		if (nextToken == "JMS_BROKER") {
-			memset(broker, 0, 256 * sizeof(char));
 			lineInput >> broker;
 		} else if (nextToken == "JMS_USER") {
-			memset(smqusername, 0, 256 * sizeof(char));
-			memset(password, 0, 256 * sizeof(char));
 			lineInput >> smqusername >> password;
 		} else if (nextToken == "JMS_QUEUE") {
-			memset(qname, 0, 256 * sizeof(char));
 			lineInput >> qname;
 		} else if (nextToken == "JMS_TOPIC") {
-			memset(tname, 0, 256 * sizeof(char));
 			lineInput >> tname;
 		} else if (nextToken == "VCELL_USER") {
-			memset(vcusername, 0, 256 * sizeof(char));
 			lineInput >> vcusername;
 		} else if (nextToken == "SIMULATION_KEY") {
 			lineInput >> simKey;
@@ -119,12 +113,9 @@ void FVSolver::loadJMSInfo(istream& ifsInput, int taskID) {
 
 #ifdef USE_MESSAGING
 	if (taskID >= 0) {
-		SimulationMessaging::create(broker, smqusername, password, qname, tname, vcusername, simKey, jobIndex, taskID);
-	} else {
-		SimulationMessaging::create();
+		SimulationMessaging::getInstVar()->initialize_curl_messaging(
+			false, broker.c_str(), vcusername.c_str(), simKey, jobIndex, taskID);
 	}
-#else
-	SimulationMessaging::create();
 #endif
 }
 
@@ -1149,10 +1140,10 @@ void FVSolver::loadMeshFromVcg(VCellModel* model, istream& vcgInput) {
 		throw std::runtime_error("Model has to be initialized before mesh initialization");
 	}
 
-	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, "initializing mesh"));
+	SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_STARTING, "initializing mesh");
 	mesh = new CartesianMesh();
 	mesh->initialize(model, vcgInput);
-	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, "mesh initialized"));
+	SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_STARTING, "mesh initialized");
 }
 
 /*
@@ -1403,10 +1394,6 @@ SimTool* FVSolver::createSimTool(istream& ifsInput, istream& vcgInput, int taskI
 {
 	SimTool* simTool = new SimTool();
 
-	if (taskID < 0) { // no messaging
-		SimulationMessaging::create();
-	}
-
 	string meshfile;
 	string nextToken, line;
 
@@ -1422,10 +1409,7 @@ SimTool* FVSolver::createSimTool(istream& ifsInput, istream& vcgInput, int taskI
 
 		if (nextToken == "JMS_PARAM_BEGIN") {
 			loadJMSInfo(ifsInput, taskID);
-#ifdef USE_MESSAGING
-			SimulationMessaging::getInstVar()->start(); // start the thread
-#endif
-			SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, "preprocessing started"));
+			SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_STARTING, "preprocessing started");
 
 		} else if (nextToken == "SIMULATION_PARAM_BEGIN") {
 			loadSimulationParameters(simTool, ifsInput);
@@ -1538,7 +1522,7 @@ FVSolver::FVSolver(const char* outdir) {
 }
 
 FVSolver::~FVSolver() {
-	delete SimulationMessaging::getInstVar();
+	SimulationMessaging::cleanupInstanceVar();
 	// delete simulation;
 	// delete model;
 	delete mesh;
@@ -1552,7 +1536,7 @@ void FVSolver::solve(SimTool* simTool, bool bLoadFinal, double* paramValues)
 	}
 	simTool->setLoadFinal(bLoadFinal);
 
-	SimulationMessaging::getInstVar()->setWorkerEvent(new WorkerEvent(JOB_STARTING, "preprocessing finished"));
+	SimulationMessaging::getInstVar()->setWorkerEvent(JobEvent::JOB_STARTING, "preprocessing finished");
 
 	simTool->start();
 }

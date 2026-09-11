@@ -6,12 +6,12 @@
 #include <filesystem>
 #include <gtest/gtest.h>
 #include "ComplexDataStructures/Hashtable.h"
-#include "../build/VCell/tests/testFiles/input/testResourceLocations.h" // provides testResourceLocations
+#include "testFiles/input/testResourceLocations.h" // provides testResourceLocations
 
 class CHashtableTest : public testing::Test {
     public:
         void SetUp() override {
-            std::filesystem::path inputFile = testResourceLocations::EXAMPLE_SAMPLE_HASH_TEST_INPUT;
+            std::filesystem::path inputFile = testResourceLocations::EXAMPLE_SAMPLE_HASH_TEST_INPUT();
             ASSERT_TRUE(std::filesystem::exists(inputFile)) << "Relevant input doesn't exist; have path names changed?\n";
             this->inputStream.open(inputFile.string());
             ASSERT_TRUE(this->inputStream.is_open()) << "Unable to open file\n";

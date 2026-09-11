@@ -6,7 +6,21 @@ import posixpath
 import subprocess
 import sys
 from pathlib import Path
-import h5py
+
+# CMake registers this test with the literal command `python3`, so it runs
+# against whichever interpreter is first on PATH when ctest runs -- which is
+# often not the one h5py was installed into. A bare ModuleNotFoundError here
+# looks like a solver failure, so say what is actually wrong.
+try:
+    import h5py
+except ImportError:
+    sys.exit(
+        f"smoke.py needs h5py and numpy, and {sys.executable} does not have them.\n"
+        "This is a test-environment problem, not a solver failure.\n"
+        "\n"
+        "    python3 -m venv .venv && .venv/bin/pip install h5py numpy\n"
+        "    source .venv/bin/activate      # then re-run ctest\n"
+    )
 
 def compare_hdf5_structure(file1: Path, file2: Path) -> bool:
     def compare_groups(group1, group2):

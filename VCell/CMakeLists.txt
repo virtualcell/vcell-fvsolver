@@ -217,7 +217,7 @@ add_library(pcgwrapper STATIC ${PCGWRAPPER_SRC_FILES})
 target_link_libraries(pcgwrapper PCGPack blas)
 
 add_library(vcell STATIC ${SRC_FILES} ${HEADER_FILES})
-target_link_libraries(vcell pcgwrapper sundials ExpressionParser smoldyn_static vcellsmoldynbridge ${HDF5_LIBRARIES} qhull vcellmessaging vcellziputils ${ZLIB_LIBRARIES})
+target_link_libraries(vcell pcgwrapper sundials vcellexpressionparser smoldyn_static vcellsmoldynbridge ${HDF5_LIBRARIES} qhull vcellmessaging vcellziputils ${ZLIB_LIBRARIES})
 target_include_directories(vcell PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   ${HDF5_INCLUDE_DIRS}

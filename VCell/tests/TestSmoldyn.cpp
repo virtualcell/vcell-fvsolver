@@ -9,14 +9,14 @@
 #include <vcellhybrid.h>
 
 #include "smoldynfuncs.h"
-#include "../build/VCell/tests/testFiles/input/testResourceLocations.h" // provides testResourceLocations
+#include "testFiles/input/testResourceLocations.h" // provides testResourceLocations
 
 TEST(SmoldynTest, ExerciseSmoldyn) {
 	// When running as a CTest, we can get carry over from previous set variables, including hybrid-mode.
 	// This call should prevent such bleed-over
 	vcellhybrid::resetHybrid();
 	std::string first_arg{"ignored"};
-	std::string second_arg{testResourceLocations::EXAMPLE_SMOLDYN_INPUT};
+	std::string second_arg{testResourceLocations::EXAMPLE_SMOLDYN_INPUT()};
 	// Allocate zero-initialized memory
 	char* first_arg_ptr = static_cast<char*>(std::calloc(first_arg.size() + 1, sizeof(char)));
 	char* second_arg_ptr = static_cast<char*>(std::calloc(second_arg.size() + 1, sizeof(char)));

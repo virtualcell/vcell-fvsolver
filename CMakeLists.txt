@@ -5,7 +5,9 @@
 ##############################################
 cmake_minimum_required(VERSION 3.22)
 
-set(CMAKE_CXX_STANDARD 17)
+# C++20 is required by the vcell-expressionparser and vcell-messaging submodules,
+# which both use std::format.
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(OPTION_TARGET_PYTHON_BINDING "build Python bindings" OFF)
@@ -19,6 +21,7 @@ option(OPTION_USE_OPENGL "Build with OpenGL support" OFF)
 option(OPTION_USE_ZLIB "Build with Zlib support" ON)
 option(OPTION_USE_LIBTIFF "Build with LibTiff support" OFF)
 option(OPTION_USE_ICONV "Build with Libiconv support" OFF)
+option(OPTION_STATICALLY_LINK "Fully static-link the standalone executables (libc included) so they run on any Linux distribution" OFF)
 
 # need to statically link everything for the python bindings and standalone solvers
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
@@ -53,7 +56,33 @@ else()
 	set(OPTION_VCELL ON)
 endif ()
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+if (OPTION_STATICALLY_LINK)
+	# A fully static binary is the only form of this solver that runs unchanged
+	# across Linux distributions: -static pulls libc, libstdc++/libc++, libm and
+	# the Fortran runtime into the executable, so nothing is resolved against the
+	# host's glibc at load time. Safe here only because messaging is off and the
+	# solver never calls into NSS (getaddrinfo/getpwnam), the one part of glibc
+	# that still needs dlopen when statically linked.
+	if (APPLE)
+		message(FATAL_ERROR "OPTION_STATICALLY_LINK is Linux-only; macOS ships no static libSystem.")
+	endif ()
+	if (OPTION_TARGET_PYTHON_BINDING)
+		message(FATAL_ERROR "OPTION_STATICALLY_LINK cannot be combined with OPTION_TARGET_PYTHON_BINDING; "
+				"a Python extension module has to be a PIC shared object.")
+	endif ()
+	if (OPTION_TARGET_MESSAGING)
+		message(WARNING "OPTION_STATICALLY_LINK with messaging on: libcurl's name resolution needs "
+				"glibc's NSS plugins, which a static glibc can only dlopen from the host. "
+				"Expect resolver failures on hosts whose glibc differs from the build machine's.")
+	endif ()
+	# PIE and -static are mutually exclusive here. CMP0083 (NEW since the 3.22
+	# minimum above) makes CMake add -pie for executables whenever
+	# CMAKE_POSITION_INDEPENDENT_CODE is set, which would fight -static.
+	set(CMAKE_POSITION_INDEPENDENT_CODE OFF)
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -no-pie")
+else ()
+	set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif ()
 
 set(OPTION_USE_OPENGL OFF CACHE BOOL "")
 
@@ -233,13 +262,13 @@ if (OPTION_TARGET_TESTS)
 	set(LIBZIPPP_BUILD_TESTS ON)
 endif ()
 
-add_subdirectory(VCellMessaging)
+add_subdirectory(vcell-messaging)
 
 add_subdirectory(VCellZipUtils)
 
 add_subdirectory(libzippp)
 
-add_subdirectory(ExpressionParser)
+add_subdirectory(vcell-expressionparser)
 
 add_subdirectory(sundials)
 
