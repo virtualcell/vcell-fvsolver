@@ -39,7 +39,7 @@ ctest -VV                                                # runs gtest suite + sm
 
 macOS prerequisites: `brew install hdf5 libzip libaec flang`, plus an up-to-date Command Line Tools install whose SDKs include the SDK matching your macOS major version (Homebrew flang's driver looks for `/Library/Developer/CommandLineTools/SDKs/MacOSX<N>.sdk` and the linker fails with `ld: library 'System' not found` if it's missing — `sudo rm -rf /Library/Developer/CommandLineTools && xcode-select --install` to refresh).
 
-`Dockerfile` is the canonical reference for an Ubuntu 24.04 build (LLVM 21 + Conan 2.26 + Ninja). `.github/workflows/cd.yml` is the canonical reference for macOS / Windows / Linux CI builds and for which CMake flags are passed in each environment.
+`Dockerfile` is the Linux release build: manylinux_2_28 with gcc-toolset-14 (gcc/g++/gfortran), Conan 2 dependencies from `docker/conan/` (static, including libcurl for messaging), `OPTION_TARGET_MESSAGING=ON`, then a slim runtime image (see `SOLVER-RELEASE.md`). `.github/workflows/cd.yml` is the canonical reference for the macOS / Windows (LLVM clang + flang) and Ubuntu CI builds and for which CMake flags are passed in each environment; `.github/workflows/container.yml` builds the Linux archives, image and SIF.
 
 ### Python wheel / bindings
 

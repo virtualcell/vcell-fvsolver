@@ -5,7 +5,7 @@ on:
   pull_request:
   push:
     branches:
-      - master
+      - main
   release:
     types:
       - published
@@ -15,8 +15,43 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+# Release assets (SOLVER-RELEASE.md): on a published release this workflow builds every platform and
+# attaches linux64.tgz, linux64arm.tgz (container.yml), mac64.tgz (universal), win64.zip and
+# SHA256SUMS to the release, and container.yml publishes the image and SIF. Pull requests build and
+# smoke-test the same assets without publishing anything.
+
 jobs:
+  Version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [ "${{ github.event_name }}" = release ]; then
+            version="${TAG#v}"
+            if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::release tag '$TAG' is not vX.Y.Z"; exit 1
+            fi
+          else
+            version="0.0.0-dev.${GITHUB_SHA::7}"
+          fi
+          echo "version=$version" | tee -a "$GITHUB_OUTPUT"
+
+  Container:
+    needs: Version
+    uses: ./.github/workflows/container.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      version: ${{ needs.Version.outputs.version }}
+      publish: ${{ github.event_name == 'release' }}
+
   MacOS:
+    needs: Version
     name:
       Build Native Executables and Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
     strategy:
@@ -84,7 +119,8 @@ jobs:
             -DOPTION_TARGET_SMOLDYN_SOLVER=ON \
             -DOPTION_TARGET_FV_SOLVER=ON \
             -DOPTION_TARGET_DOCS=ON \
-            -DOPTION_TARGET_TESTS=ON
+            -DOPTION_TARGET_TESTS=ON \
+            -DVCELL_VERSION_STRING=${{ needs.Version.outputs.version }}
           cmake --build . --config Release
 
       - name: Fix MacOS shared object paths
@@ -98,7 +134,8 @@ jobs:
           chmod u+w,+x *
           tar czvf ../upload/mac64_bad_paths.tgz .
           ../../.github/scripts/install_name_tool_macos.sh
-          tar czvf ../upload/fvsolver_mac64.tgz --dereference .
+          # the release archive carries the solvers and their dylibs only (no test binaries)
+          tar czvf ../upload/fvsolver_mac64.tgz --dereference FiniteVolume_x64 smoldyn_x64 *.dylib
 
       - name: Test MacOS
         run: |
@@ -148,18 +185,19 @@ jobs:
           path: ./wheelhouse/*.whl
 
       - name: Setup tmate session
-        if: ${{ failure() }}
+        if: failure() && github.event_name == 'workflow_dispatch'
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
 
   WindowsOS:
+    needs: Version
     name:
       Build Native Executables and Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
     strategy:
       fail-fast: false
       matrix:
-        #platform: [ windows-latest, windows-11-arm ]
+        # windows-11-arm was dropped: its build never worked and VCell ships no Windows-ARM solvers
         platform: [ windows-latest ]
         python:
           - std_version: "3.10"
@@ -180,13 +218,6 @@ jobs:
         shell: bash
         run: |
           echo "CONAN_PROFILE_NAME=Windows-AMD64_profile.txt" >> $GITHUB_ENV
-          echo "CONAN_ENV_PATH=${{ github.workspace }}/build/conan_toolchain.cmake" | sed 's/\\/\//g' >> $GITHUB_ENV
-
-      - name: Pre-install Configuration <ARM64>
-        if: matrix.platform == 'windows-11-arm'
-        shell: bash
-        run: |
-          echo "CONAN_PROFILE_NAME=Windows-ARM64_profile.txt" >> $GITHUB_ENV
           echo "CONAN_ENV_PATH=${{ github.workspace }}/build/conan_toolchain.cmake" | sed 's/\\/\//g' >> $GITHUB_ENV
 
       - name: Install Build Environment (Part 1 - MSVC toolset)
@@ -226,6 +257,7 @@ jobs:
         shell: powershell
         run: |
           Copy-Item (Join-Path "conan-profiles\CI-CD" "${{ env.CONAN_PROFILE_NAME }}") (Join-Path $env:CONAN_HOME "profiles\default")
+          Copy-Item "docker\conan\global.conf" (Join-Path $env:CONAN_HOME "global.conf")
           conan install . --output-folder build --build=missing -o include_messaging=False
           icacls (Join-Path $PWD "build") /grant Everyone:F /T
 
@@ -234,7 +266,7 @@ jobs:
         run: |
           cd build
           . ./conanbuild.ps1
-          cmake -B . -S .. -G "Ninja"  -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" -DCMAKE_BUILD_TYPE=Release -DLIBZIPPP_CMAKE_CONFIG_MODE=ON -DOPTION_TARGET_PYTHON_BINDING=OFF -DOPTION_TARGET_MESSAGING=OFF -DOPTION_TARGET_SMOLDYN_SOLVER=ON -DOPTION_TARGET_FV_SOLVER=ON -DOPTION_TARGET_DOCS=OFF -DOPTION_TARGET_TESTS=ON
+          cmake -B . -S .. -G "Ninja"  -DCMAKE_TOOLCHAIN_FILE="conan_toolchain.cmake" -DCMAKE_BUILD_TYPE=Release -DLIBZIPPP_CMAKE_CONFIG_MODE=ON -DOPTION_TARGET_PYTHON_BINDING=OFF -DOPTION_TARGET_MESSAGING=OFF -DOPTION_TARGET_SMOLDYN_SOLVER=ON -DOPTION_TARGET_FV_SOLVER=ON -DOPTION_TARGET_DOCS=OFF -DOPTION_TARGET_TESTS=ON -DVCELL_VERSION_STRING="${{ needs.Version.outputs.version }}"
           cmake --build . --config Release
 
       - name: Test Windows
@@ -260,47 +292,23 @@ jobs:
           ls *.dll | awk '{print $1}' | xargs -I '{}' ldd '{}' | grep '=> /' | grep -v build | grep -iv windows | awk '{print $3}' | xargs -I '{}' cp -vn '{}' . || true
           ls *.dll | awk '{print $1}' | xargs -I '{}' ldd '{}' | grep '=> /' | grep -v build | grep -iv windows | awk '{print $3}' | xargs -I '{}' cp -vn '{}' . || true
           chmod u+w,+x *
-          zip ../upload/fvsolver_win64.zip ./*
+          # the release archive: the solvers, their DLLs, LICENSE and VERSION (no test binaries)
+          mkdir ../win64
+          cp -v FiniteVolume_x64.exe smoldyn_x64.exe ../win64/
+          cp -v *.dll ../win64/ 2>/dev/null || true
+          cp -v ../../LICENSE ../win64/
+          echo "${{ needs.Version.outputs.version }}" > ../win64/VERSION
+          (cd ../win64 && zip ../upload/win64.zip ./*)
+          unzip -l ../upload/win64.zip
           cd ../..
-          # fi
 
       - name: Upload Windows Binaries <x86_64>
         if: matrix.platform == 'windows-latest' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v7
         with:
-          name: fvsolver_win64.zip
-          path: build/upload/fvsolver_win64.zip
-
-      - name: Upload Windows Binaries <ARM64>
-        if: matrix.platform == 'windows-11-arm' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
-        uses: actions/upload-artifact@v7
-        with:
-          name: fvsolver_win64.zip
-          path: build/upload/fvsolver_win_arm64.zip
-
-      - name: Modify Archive Name <x86_64>
-        if: matrix.platform == 'windows-latest' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
-        run: |
-          mv build/upload/fvsolver_win64.zip build/upload/win64.zip
-
-      - name: Modify Archive Name <ARM64>
-        if: matrix.platform == 'windows-11-arm' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
-        run: |
-          mv build/upload/fvsolver_win_arm64.zip build/upload/win64arm.zip
-
-      - name: Attach Windows Binaries to Release <x86_64>
-        uses: softprops/action-gh-release@v3
-        if: matrix.platform == 'windows-latest' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
-        with:
-          files: |
-            build/upload/win64.zip
-
-      - name: Attach Linux Binaries to Release <ARM64>
-        uses: softprops/action-gh-release@v3
-        if: matrix.platform == 'windows-11-arm' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
-        with:
-          files: |
-            build/upload/win64arm.zip
+          name: win64.zip
+          path: build/upload/win64.zip
+          if-no-files-found: error
 
       - name: Set up Python ${{ matrix.python.std_version  }}
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
@@ -330,7 +338,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
       - name: Setup tmate session
-        if: ${{ failure() }}
+        if: failure() && github.event_name == 'workflow_dispatch'
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
@@ -386,6 +394,7 @@ jobs:
           mkdir -p ~/.conan2/profiles/
           touch ~/.conan2/profiles/default # if we don't make a file first, cp thinks its a folder that doesn't exist
           cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} ~/.conan2/profiles/default
+          cp docker/conan/global.conf ~/.conan2/global.conf
 
           # LLVM Install (need version 21+ for flang)
           wget https://apt.llvm.org/llvm.sh
@@ -440,57 +449,6 @@ jobs:
           echo "------ running smoldyn_x64 ------"
           ./bin/smoldyn_x64 || true
 
-      - name: Handle shared object paths for Linux native build
-        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
-        shell: bash
-        run: |
-          mkdir build/upload
-          cd build/bin
-          ls *_x64   | awk '{print $1}' | xargs -I '{}' ldd '{}' | grep "=> /" | grep -v "build" | awk '{print $3}' | xargs -I '{}' cp -vn '{}' . || true
-          ls *.so    | awk '{print $1}' | xargs -I '{}' ldd '{}' | grep "=> /" | grep -v "build" | awk '{print $3}' | xargs -I '{}' cp -vn '{}' . || true
-          ls *.so    | awk '{print $1}' | xargs -I '{}' ldd '{}' | grep "=> /" | grep -v "build" | awk '{print $3}' | xargs -I '{}' cp -vn '{}' . || true
-          chmod u+w,+x *
-          tar czvf ../upload/fvsolver_linux64.tgz --dereference .
-          cd ../..
-
-      - name: Upload Linux Binaries <x86_64>
-        if: matrix.platform == 'ubuntu-latest' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
-        uses: actions/upload-artifact@v7
-        with:
-          name: fvsolver_linux64.tgz
-          path: build/upload/fvsolver_linux64.tgz
-
-      - name: Upload Linux Binaries <ARM64>
-        if: matrix.platform == 'ubuntu-24.04-arm' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
-        uses: actions/upload-artifact@v7
-        with:
-          name: fvsolver_linux_arm64.tgz
-          path: build/upload/fvsolver_linux64.tgz
-
-      - name: Modify Archive Name <x86_64>
-        if: matrix.platform == 'ubuntu-latest' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
-        run: |
-          mv build/upload/fvsolver_linux64.tgz build/upload/linux64.tgz
-
-      - name: Modify Archive Name <ARM64>
-        if: matrix.platform == 'ubuntu-24.04-arm' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
-        run: |
-          mv build/upload/fvsolver_linux64.tgz build/upload/linux64arm.tgz
-
-      - name: Attach Linux Binaries to Release <x86_64>
-        uses: softprops/action-gh-release@v3
-        if: matrix.platform == 'ubuntu-latest' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
-        with:
-          files: |
-            build/upload/linux64.tgz
-
-      - name: Attach Linux Binaries to Release <ARM64>
-        uses: softprops/action-gh-release@v3
-        if: matrix.platform == 'ubuntu-24.04-arm' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
-        with:
-          files: |
-            build/upload/linux64arm.tgz
-
       - name: Login to GitHub Container Registry
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         uses: docker/login-action@v3
@@ -523,6 +481,7 @@ jobs:
             python3 -m pip install conan
             mkdir -p /root/.conan2/profiles/
             cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} /root/.conan2/profiles/default
+            cp docker/conan/global.conf /root/.conan2/global.conf
             conan install . --output-folder /project/build --build=missing
             echo "source /project/build/conanbuild.sh" >> ~/.profile
             echo "source /project/build/conanbuild.sh" >> ~/.bashrc
@@ -552,6 +511,7 @@ jobs:
             python3 -m pip install conan
             mkdir -p /root/.conan2/profiles/
             cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} /root/.conan2/profiles/default
+            cp docker/conan/global.conf /root/.conan2/global.conf
             conan install . --output-folder /project/build --build=missing
             echo "source /project/build/conanbuild.sh" >> ~/.profile
             echo "source /project/build/conanbuild.sh" >> ~/.bashrc
@@ -565,18 +525,18 @@ jobs:
           path: ./wheelhouse/*.whl
 
       - name: Setup tmate session
-        if: ${{ failure() }}
+        if: failure() && github.event_name == 'workflow_dispatch'
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
 
   UniversalMacBindings:
-    needs: MacOS
-    runs-on: macos-latest
+    needs: [Version, MacOS]
+    runs-on: macos-15
     if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
     steps:
-      - name: Go to workspace
-        run: cd ${{ github.workspace }}
+      - name: Checkout (LICENSE and the smoke-test inputs)
+        uses: actions/checkout@v6
 
       - name: Download Intel MacOS binaries
         uses: actions/download-artifact@v8
@@ -584,88 +544,130 @@ jobs:
           name: fvsolver_macos_x86_64.tgz
           path: fvsolver_amd64_artifact
 
-      - name: Unpack x86 into subfolder
-        run: |
-          mkdir MAC_X86_64
-          mv fvsolver_amd64_artifact/fvsolver_mac64.tgz .
-          tar xzvf fvsolver_mac64.tgz -C MAC_X86_64
-          rm fvsolver_mac64.tgz
-
       - name: Download ARM MacOS binaries
         uses: actions/download-artifact@v8
         with:
           name: fvsolver_macos_arm64.tgz
           path: fvsolver_aarch64_artifact
 
-      - name: Unpack arm into subfolder
-        run: |
-          mkdir MAC_AARCH64
-          mv fvsolver_aarch64_artifact/fvsolver_mac64.tgz .
-          tar xzvf fvsolver_mac64.tgz -C MAC_AARCH64
-          rm fvsolver_mac64.tgz
-
-      - name: Combine halves, and tar
+      - name: Combine halves into universal binaries
         shell: bash
         run: |
-          mkdir universal
-
-          # Get list of files in each folder
-          files1=($(ls -1 "MAC_X86_64" 2>/dev/null))
-          files2=($(ls -1 "MAC_AARCH64" 2>/dev/null))
-
-          # Process files from folder1
-          for file in "${files1[@]}"; do
-              if [ -f "MAC_AARCH64/$file" ]; then
-                  # File exists in both folders - use lipo
-                  echo "Creating universal binary: $file"
-                  lipo -create "MAC_X86_64/$file" "MAC_AARCH64/$file" -output "universal/$file"
-              else
-                  # File only in folder1 - move it
-                  echo "Moving architecture-specific file: $file"
-                  cp "MAC_X86_64/$file" "universal/$file"
-              fi
+          set -euo pipefail
+          mkdir MAC_X86_64 MAC_AARCH64 universal
+          tar xzf fvsolver_amd64_artifact/fvsolver_mac64.tgz -C MAC_X86_64
+          tar xzf fvsolver_aarch64_artifact/fvsolver_mac64.tgz -C MAC_AARCH64
+          # every file must exist for both architectures: a single-arch dylib would fail to load
+          # on the other one
+          if ! diff <(ls MAC_X86_64) <(ls MAC_AARCH64); then
+            echo "::error::the x86_64 and arm64 builds bundle different files"; exit 1
+          fi
+          for file in $(ls MAC_X86_64); do
+            lipo -create "MAC_X86_64/$file" "MAC_AARCH64/$file" -output "universal/$file"
           done
+          cp LICENSE universal/LICENSE
+          echo "${{ needs.Version.outputs.version }}" > universal/VERSION
 
-          # Process files only in folder2
-          for file in "${files2[@]}"; do
-              if [ ! -f "MAC_X86_64/$file" ]; then
-                  echo "Moving architecture-specific file: $file"
-                  cp "MAC_AARCH64/$file" "universal/$file"
-              fi
-          done
-          
-          # change dir and tar up
-          cd universal
-          tar czfv fvsolver_mac64.tgz --dereference .
-
-      - name: Upload universal binaries
-        uses: actions/upload-artifact@v7
-        if: github.event_name == 'release' && github.event.action == 'published'
-        with:
-          name: fvsolver_macos_universal.tgz
-          path: ${{ github.workspace }}/universal/fvsolver_mac64.tgz
-
-      - name: Rename MacOS Native Binaries for Release
-        if: github.event_name == 'release' && github.event.action == 'published'
+      - name: Check load paths, ad-hoc sign, verify
+        shell: bash
+        working-directory: universal
         run: |
-          mv ${{ github.workspace }}/universal/fvsolver_mac64.tgz ${{ github.workspace }}/universal/mac64.tgz
+          set -euo pipefail
+          for f in FiniteVolume_x64 smoldyn_x64 *.dylib; do
+            test "$(lipo -archs "$f")" = "x86_64 arm64" || { echo "::error::$f is $(lipo -archs "$f")"; exit 1; }
+            # only system libraries by absolute path; everything else through @executable_path/@loader_path/@rpath
+            if otool -L "$f" | tail -n +2 | awk '{print $1}' | grep -vE '^(/usr/lib/|/System/Library/|@executable_path/|@loader_path/|@rpath/)'; then
+              echo "::error::$f refers to a library outside the archive"; exit 1
+            fi
+            # lipo and install_name_tool leave the files unsigned, and arm64 kills unsigned code
+            codesign --force --sign - "$f"
+            codesign --verify --verbose "$f"
+          done
+          ls -l
 
-      - name: Attach MacOS Native Binaries to Release
-        uses: softprops/action-gh-release@v3
-        if: github.event_name == 'release' && github.event.action == 'published'
+      - name: Smoke test the universal binaries (arm64)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m pip install --break-system-packages numpy
+          ./universal/FiniteVolume_x64 | head -1
+          work="$RUNNER_TEMP/mac"; mkdir -p "$work/fv"
+          base=SimID_1585623750_0_
+          cp "VCell/tests/smoke/$base.vcg" "$work/fv/"
+          sed "s#@BASE_FILE_NAME@#$work/fv/$base#" "VCell/tests/smoke/$base.fvinput.in" > "$work/fv/$base.fvinput"
+          ./universal/FiniteVolume_x64 "$work/fv/$base.fvinput"
+          mkdir -p "$work/ref" && cp "VCell/tests/smoke/${base}00.zip.expected" "$work/ref/${base}00.zip"
+          python3 docker/smoke/simdata.py compare "$work/fv" "$base" "$work/ref" 1e-6
+          mkdir -p "$work/smoldyn" && cp VCell/tests/testFiles/input/Smoldyn/input.* "$work/smoldyn/"
+          ./universal/smoldyn_x64 "$work/smoldyn/input.smoldynInput" > "$work/smoldyn/stdout.txt"
+          python3 docker/smoke/simdata.py compare "$work/smoldyn" SimID_1371782956_0_ docker/smoke/reference/smoldyn-summary.json 0.25
+
+      - name: Pack mac64.tgz
+        run: |
+          set -euo pipefail
+          tar -C universal -czf mac64.tgz .
+          tar -tzvf mac64.tgz
+
+      - name: Upload mac64.tgz
+        uses: actions/upload-artifact@v7
         with:
-          files: |
-            ${{ github.workspace }}/universal/mac64.tgz
+          name: mac64.tgz
+          path: mac64.tgz
+          if-no-files-found: error
 
       - name: Setup tmate session
-        if: ${{ failure() }}
+        if: failure() && github.event_name == 'workflow_dispatch'
         uses: mxschmitt/action-tmate@v3
         with:
           limit-access-to-actor: true
 
+  Release-assets:
+    name: Attach release assets and SHA256SUMS
+    needs: [Version, Container, UniversalMacBindings, WindowsOS]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: assets
+          pattern: "{linux64.tgz,linux64arm.tgz,mac64.tgz,win64.zip}"
+          merge-multiple: true
+
+      - name: SHA256SUMS
+        working-directory: assets
+        run: |
+          set -euo pipefail
+          ls -l
+          for a in linux64.tgz linux64arm.tgz mac64.tgz win64.zip; do test -s "$a"; done
+          sha256sum linux64.tgz linux64arm.tgz mac64.tgz win64.zip > SHA256SUMS
+          cat SHA256SUMS
+          # each archive's VERSION is the release version
+          for a in linux64.tgz linux64arm.tgz mac64.tgz; do
+            test "$(tar -xzOf "$a" ./VERSION)" = "${{ needs.Version.outputs.version }}"
+          done
+          test "$(unzip -p win64.zip VERSION | tr -d '\r')" = "${{ needs.Version.outputs.version }}"
+
+      - uses: actions/upload-artifact@v7
+        if: github.event_name != 'release'
+        with:
+          name: release-assets
+          path: assets/*
+
+      - name: Attach to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        working-directory: assets
+        run: |
+          gh release upload "$TAG" linux64.tgz linux64arm.tgz mac64.tgz win64.zip SHA256SUMS \
+            --repo "${{ github.repository }}" --clobber
+
   publish-to-pypi:
     name: Publish to PyPI
-    needs: [WindowsOS, UniversalMacBindings, GNULinux]
+    needs: [WindowsOS, UniversalMacBindings, GNULinux, Release-assets]
     runs-on: ubuntu-latest
     if: github.event_name == 'release' && github.event.action == 'published'
     environment: pypi
@@ -700,6 +702,6 @@ jobs:
 
       - name: Setup tmate session for PyPI upload failure
         uses: mxschmitt/action-tmate@v3
-        if: ${{ failure() }}
+        if: failure() && github.event_name == 'workflow_dispatch'
         with:
           limit-access-to-actor: true

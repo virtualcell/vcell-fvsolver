@@ -1,0 +1,33 @@
+# Dependencies of the Linux release build (docker/Dockerfile). The same set as the top-level
+# conanfile.txt, plus libcurl for VCell messaging (-tid), and minus libaec: HDF5 is built without
+# szip here, and libaec's upstream (gitlab.dkrz.de) rate-limits CI downloads.
+[requires]
+hdf5/[~1.14.5]
+libzip/[~1.11.3]
+zlib/[~1.2.11]
+libcurl/[>=8.10 <9]
+
+[options]
+*:shared=False
+hdf5/*:with_zlib=True
+hdf5/*:szip_support=None
+libzip/*:crypto=False
+libzip/*:with_bzip2=False
+libzip/*:with_lzma=False
+libzip/*:with_zstd=False
+# The status messages go to the broker's plain-HTTP REST port; no TLS, no extra protocols.
+libcurl/*:with_ssl=False
+libcurl/*:with_zlib=True
+libcurl/*:with_libpsl=False
+libcurl/*:with_nghttp2=False
+libcurl/*:with_libidn=False
+libcurl/*:with_brotli=False
+libcurl/*:with_zstd=False
+
+[tool_requires]
+cmake/[~3.31.6]
+ninja/[~1.12.1]
+
+[generators]
+CMakeDeps
+CMakeToolchain

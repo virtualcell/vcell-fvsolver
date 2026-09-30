@@ -16,11 +16,21 @@ and as a component in the Virtual Cell Python API [virtualcell/pyvcell](https://
 ## The Virtual Cell Project
 The Virtual Cell is a modeling and simulation framework for computational biology.  For details see http://vcell.org and http://github.com/virtualcell.
 
-## Docker container
-the vcell-fvsolver is available as a docker container at ghcr.io/virtualcell/vcell-fvsolver.
+## Releases, Docker image and SIF
+Each release `vX.Y.Z` carries `linux64.tgz`, `linux64arm.tgz`, `mac64.tgz` (universal), `win64.zip` and
+`SHA256SUMS`, each with `FiniteVolume_x64` and `smoldyn_x64` at the archive root. The solvers are also
+published as the multi-arch image `ghcr.io/virtualcell/vcell-fvsolver:X.Y.Z` and, for VCell's cluster, the SIF
+`oras://ghcr.io/virtualcell/vcell-fvsolver_singularity:X.Y.Z`:
 
-## Standalone executables
-FiniteVolume executable can be build on Windows, MacOS, and Linux (see .github/workflows/cd.yml for details). The executables are available in the release section of this repository.
+```bash
+docker run --rm ghcr.io/virtualcell/vcell-fvsolver:latest            # version and executables
+docker run --rm -v "$PWD:/simdata" ghcr.io/virtualcell/vcell-fvsolver:latest \
+    FiniteVolume_x64 /simdata/SimID_1_0_.fvinput
+```
+
+See [SOLVER-RELEASE.md](SOLVER-RELEASE.md) for the release contract: asset layout, the entrypoint, messaging
+(`-tid`), and the CI smoke test. Builds: `.github/workflows/cd.yml` (macOS, Windows, wheels) and
+`.github/workflows/container.yml` (Linux archives, image and SIF, from the top-level `Dockerfile`).
 
 ## Python API - pyvcell_fvsolver
 The Python API for the VCell Finite Volume solver is a low level wrapper which 

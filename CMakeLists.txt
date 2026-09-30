@@ -151,6 +151,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/libzippp/cmake/"
 
 include(GetGitRevisionDescription)
 git_describe(GIT_DESCRIBE ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR)
+# Release builds made without a .git directory (the container build) pass the version in.
+set(VCELL_VERSION_STRING "" CACHE STRING "Version reported by the executables (overrides git describe)")
+if (VCELL_VERSION_STRING)
+	set(GIT_DESCRIBE "${VCELL_VERSION_STRING}")
+endif()
 
 # help CMake find libzip
 if (APPLE)
