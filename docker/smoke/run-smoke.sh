@@ -4,7 +4,9 @@
 # status messages posted to a broker. Reproduces committed reference outputs:
 #
 #   FiniteVolume_x64  VCell/tests/smoke  (2-D SUNDIALS PDE, 3 time points) -- compared element-wise
-#                     against SimID_1585623750_0_00.zip.expected, which is 0.9.7's output
+#                     against SimID_1585623750_0_00.zip.expected, which is 0.9.7's output; and
+#                     VCell/tests/testFiles/input/FVSolver (3-D FV solver, 2 membranes) -- compared
+#                     against docker/smoke/reference/fv3d-summary.json (0.9.7's per-variable statistics)
 #   smoldyn_x64       VCell/tests/testFiles/input/Smoldyn (3-D membrane A<->B, 201 time points) --
 #                     compared against docker/smoke/reference/smoldyn-summary.json (0.9.7's totals)
 #
@@ -77,6 +79,16 @@ EOF
 ls -l "$work/fv"
 cp "$repo/VCell/tests/smoke/${base}00.zip.expected" "$work/ref/${base}00.zip"
 "$py" "$here/simdata.py" compare "$work/fv" "$base" "$work/ref" "$fv_rtol"
+
+step "FiniteVolume_x64, 3-D FV_SOLVER with membranes (VCell/tests/testFiles/input/FVSolver)"
+base3=SimID_11538992_0_
+mkdir -p "$work/fv3d"
+cp "$repo/VCell/tests/testFiles/input/FVSolver/$base3.vcg" "$work/fv3d/"
+sed "s#^BASE_FILE_NAME .*#BASE_FILE_NAME /simdata/fv3d/$base3#" \
+    "$repo/VCell/tests/testFiles/input/FVSolver/$base3.fvinput" > "$work/fv3d/$base3.fvinput"
+"${runner[@]}" FiniteVolume_x64 "/simdata/fv3d/$base3.fvinput" > "$work/fv3d/stdout.txt"
+tail -3 "$work/fv3d/stdout.txt"
+"$py" "$here/simdata.py" compare "$work/fv3d" "$base3" "$here/reference/fv3d-summary.json" "$fv_rtol"
 
 step "the broker received JOB_STARTING (999) and JOB_COMPLETED (1003) for task 0"
 sleep 1

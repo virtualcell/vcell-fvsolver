@@ -9,8 +9,9 @@ doubles each descriptor points at.
     simdata.py summary <output-dir> <base-name>             print a JSON summary
     simdata.py compare <output-dir> <base-name> <reference>  compare against a reference
         reference = another output directory (full, element-wise comparison) or a summary
-        JSON written by `summary` (per-variable totals; compared by their time means, for
-        stochastic solvers)
+        JSON written by `summary`: with "mode": "deterministic", every statistic (sum, sum of
+        squares, min, max per variable and time point) is compared; otherwise (stochastic
+        solvers) the per-variable totals are compared by their time means
 
 Only the standard library and NumPy are needed.
 """
@@ -61,11 +62,39 @@ def read_run(outdir: Path, base: str) -> list[dict[str, np.ndarray]]:
 
 
 def summary(run: list[dict[str, np.ndarray]]) -> dict:
+    """Per variable and time point: sum, sum of squares, min and max."""
     names = sorted(run[0])
+    stats = {"sum": np.sum, "sumsq": lambda x: np.sum(x * x), "min": np.min, "max": np.max}
     return {
         "timepoints": len(run),
-        "variables": {v: {"sum": [float(t[v].sum()) for t in run], "size": int(run[0][v].size)} for v in names},
+        "variables": {
+            v: {"size": int(run[0][v].size), **{k: [float(f(t[v])) for t in run] for k, f in stats.items()}}
+            for v in names
+        },
     }
+
+
+def compare_stats(s: dict, ref: dict, rtol: float) -> list[str]:
+    """Deterministic comparison against a summary: every statistic at every time point within
+    rtol of the reference, relative to that statistic's largest magnitude over time."""
+    errs = []
+    if s["timepoints"] != ref["timepoints"]:
+        return [f"timepoints differ: {s['timepoints']} vs {ref['timepoints']}"]
+    worst = 0.0
+    for v, r in ref["variables"].items():
+        if v not in s["variables"]:
+            errs.append(f"missing variable {v}")
+            continue
+        for k in ("sum", "sumsq", "min", "max"):
+            x, y = np.array(s["variables"][v][k]), np.array(r[k])
+            scale = max(float(np.max(np.abs(y))), 1e-300)
+            rel = float(np.max(np.abs(x - y))) / scale
+            worst = max(worst, rel)
+            if rel > rtol:
+                errs.append(f"{v} {k}: relative diff {rel:.3e}")
+    print(f"statistics comparison: {len(ref['variables'])} variables x {ref['timepoints']} time points, "
+          f"max relative diff {worst:.3e} (tolerance {rtol})")
+    return errs
 
 
 def compare_full(a: list, b: list, rtol: float, atol: float) -> list[str]:
@@ -81,11 +110,11 @@ def compare_full(a: list, b: list, rtol: float, atol: float) -> list[str]:
             x, y = ta[v], tb[v]
             if x.shape != y.shape:
                 errs.append(f"t[{i}] {v}: shape {x.shape} vs {y.shape}")
-            elif not np.allclose(x, y, rtol=rtol, atol=atol):
-                errs.append(f"t[{i}] {v}: max |diff| {np.max(np.abs(x - y)):.3e}")
             else:
-                scale = max(np.max(np.abs(y)), 1e-300)
-                worst = max(worst, float(np.max(np.abs(x - y)) / scale))
+                scale = max(float(np.max(np.abs(y))), 1e-300)
+                worst = max(worst, float(np.max(np.abs(x - y))) / scale)
+                if not np.allclose(x, y, rtol=rtol, atol=atol):
+                    errs.append(f"t[{i}] {v}: max |diff| {np.max(np.abs(x - y)):.3e}")
     print(f"full comparison: {len(a)} time points, max relative diff {worst:.3e}")
     return errs
 
@@ -135,7 +164,11 @@ def main(argv: list[str]) -> int:
         if ref.is_dir():
             errs = compare_full(run, read_run(ref, argv[2]), rtol=rtol, atol=rtol * 1e-3)
         else:
-            errs = compare_summary(summary(run), json.loads(ref.read_text()), rtol=rtol)
+            r = json.loads(ref.read_text())
+            if r.get("mode") == "deterministic":
+                errs = compare_stats(summary(run), r, rtol=rtol)
+            else:
+                errs = compare_summary(summary(run), r, rtol=rtol)
         for e in errs:
             print("MISMATCH:", e)
         print("OK" if not errs else f"FAILED ({len(errs)} mismatches)")
