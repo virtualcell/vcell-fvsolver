@@ -65,6 +65,9 @@ jobs:
           platforms: linux/${{ matrix.arch }}
           build-args: VERSION=${{ inputs.version }}
           outputs: type=local,dest=dist
+          # no provenance.json in the archive root
+          provenance: false
+          sbom: false
           cache-from: type=gha,scope=linux-${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=linux-${{ matrix.arch }}
 
@@ -77,8 +80,10 @@ jobs:
           if ls dist | grep -E '^(libc|libm|libpthread|libdl|librt)\.so|^ld-linux'; then
             echo "::error::glibc bundled in the archive"; exit 1
           fi
+          test ! -e dist/provenance.json
+          chmod 0755 dist
           mkdir -p upload
-          tar -C dist -czf "upload/${{ matrix.archive }}" .
+          tar -C dist --owner=0 --group=0 --numeric-owner -czf "upload/${{ matrix.archive }}" .
           tar -tzvf "upload/${{ matrix.archive }}"
 
       - uses: actions/upload-artifact@v7
