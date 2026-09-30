@@ -9,9 +9,8 @@
 #                      base with that same archive on PATH and the standard VCell solver entrypoint:
 #                        docker run --rm -v "$PWD:/simdata" vcell-fvsolver FiniteVolume_x64 /simdata/x.fvinput
 #
-# -ffp-contract=off: no fused multiply-add. x86-64 (no -march) never fuses; gcc and clang do by default
-# on aarch64, and that changes FiniteVolume results (membrane areas, then the fluxes through them)
-# against the 0.9.7 reference.
+# The top-level CMakeLists.txt turns off fused multiply-add contraction (-ffp-contract=off), so the
+# aarch64 build reproduces the x86_64 one -- and 0.9.7 -- bit for bit.
 #
 # Built with VCell messaging ON: FiniteVolume_x64 accepts the trailing `-tid <n>` that VCell's
 # SlurmProxy appends and posts its status to the broker named in the .fvinput JMS block.
@@ -65,8 +64,7 @@ RUN source build/conanbuild.sh \
       -DCURL_ROOT=/opt/curl -DCMAKE_PREFIX_PATH=/opt/curl \
       -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
-      -DCMAKE_C_FLAGS="-ffp-contract=off" -DCMAKE_CXX_FLAGS="-ffp-contract=off" \
-      -DCMAKE_Fortran_FLAGS="-fallow-argument-mismatch -ffp-contract=off" \
+      -DCMAKE_Fortran_FLAGS="-fallow-argument-mismatch" \
       -DCMAKE_EXE_LINKER_FLAGS="-static-libstdc++ -static-libgcc" \
       -DLIBZIPPP_CMAKE_CONFIG_MODE=ON \
       -DOPTION_TARGET_PYTHON_BINDING=OFF \

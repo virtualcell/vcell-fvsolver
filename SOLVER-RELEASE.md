@@ -73,10 +73,18 @@ The solvers write their results next to the input; FiniteVolume stages each `.si
   (`docker/smoke/broker.py`): the output must match `VCell/tests/smoke/SimID_1585623750_0_00.zip.expected`
   element-wise (relative 1e-6) — that file is identical to the 0.9.7 image's output — and the broker must
   receive `JOB_STARTING` and `JOB_COMPLETED` for task 0;
+- `FiniteVolume_x64 /simdata/fv3d/SimID_11538992_0_.fvinput` (the 3-D FV-solver fixture, two membranes):
+  sum, sum of squares, min and max of every variable at every time point must match
+  `docker/smoke/reference/fv3d-summary.json` (0.9.7's output) within 1e-6 relative;
 - `smoldyn_x64 /simdata/smoldyn/input.smoldynInput -tid 0`: per-variable totals must match
   `docker/smoke/reference/smoldyn-summary.json` (0.9.7's output) in their time mean (within 25%), and the
-  molecule total (A + B = 5) must be conserved at every one of the 201 time points. Smoldyn's own Mersenne
-  twister makes a run deterministic for a given binary: the x86_64 build reproduces 0.9.7's trajectory
-  exactly, while aarch64 (different floating-point rounding) follows a different, statistically equivalent one.
+  molecule total (A + B = 5) must be conserved at every one of the 201 time points. (Smoldyn's own Mersenne
+  twister makes a run deterministic for a given binary; today every build reproduces 0.9.7's trajectory
+  exactly, but the check is statistical so that a compiler change does not break it.)
 
-The macOS universal binaries run the same two comparisons natively in `cd.yml`.
+The macOS universal binaries run the same three comparisons natively (arm64) in `cd.yml`.
+
+All builds are compiled with `-ffp-contract=off` (top-level `CMakeLists.txt`): compilers fuse
+multiply-adds by default on arm64, which moved the 3-D fixture's membrane areas by 5e-5 and its
+concentrations by up to 2% against the x86_64 builds and 0.9.7. Without fusion the arm64 builds match
+0.9.7 bit for bit.

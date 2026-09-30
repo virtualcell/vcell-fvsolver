@@ -194,6 +194,14 @@ endif()
 
 add_definitions(-DFORTRAN_UNDERSCORE)
 
+# No fused multiply-add contraction: gcc and clang fuse by default on arm64 (never on x86-64 without
+# -march), which changes FiniteVolume results -- membrane areas, then the fluxes through them --
+# by up to a few percent against the x86-64 builds and the 0.9.7 reference. Off, arm64 reproduces
+# them bit for bit.
+if (NOT WIN32)
+	add_compile_options(-ffp-contract=off)
+endif()
+
 #############################################
 # installation directories
 #############################################

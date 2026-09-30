@@ -604,6 +604,12 @@ jobs:
           ./universal/FiniteVolume_x64 "$work/fv/$base.fvinput"
           mkdir -p "$work/ref" && cp "VCell/tests/smoke/${base}00.zip.expected" "$work/ref/${base}00.zip"
           python3 docker/smoke/simdata.py compare "$work/fv" "$base" "$work/ref" 1e-6
+          base3=SimID_11538992_0_
+          mkdir -p "$work/fv3d" && cp "VCell/tests/testFiles/input/FVSolver/$base3.vcg" "$work/fv3d/"
+          sed "s#^BASE_FILE_NAME .*#BASE_FILE_NAME $work/fv3d/$base3#" \
+            "VCell/tests/testFiles/input/FVSolver/$base3.fvinput" > "$work/fv3d/$base3.fvinput"
+          ./universal/FiniteVolume_x64 "$work/fv3d/$base3.fvinput" > "$work/fv3d/stdout.txt"
+          python3 docker/smoke/simdata.py compare "$work/fv3d" "$base3" docker/smoke/reference/fv3d-summary.json 1e-6
           mkdir -p "$work/smoldyn" && cp VCell/tests/testFiles/input/Smoldyn/input.* "$work/smoldyn/"
           ./universal/smoldyn_x64 "$work/smoldyn/input.smoldynInput" > "$work/smoldyn/stdout.txt"
           python3 docker/smoke/simdata.py compare "$work/smoldyn" SimID_1371782956_0_ docker/smoke/reference/smoldyn-summary.json 0.25
