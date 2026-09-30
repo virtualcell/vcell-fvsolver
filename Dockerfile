@@ -21,7 +21,7 @@ FROM quay.io/pypa/manylinux_2_28_x86_64 AS manylinux-amd64
 FROM quay.io/pypa/manylinux_2_28_aarch64 AS manylinux-arm64
 
 # ---------------------------------------------------------------------------------------------
-# build: gcc-toolset-14 (gcc, g++, gfortran), static conan dependencies, the test suite
+# build: gcc-toolset-14 (gcc, g++, gfortran), static dependencies (conan + libcurl), the test suite
 # ---------------------------------------------------------------------------------------------
 FROM manylinux-${TARGETARCH} AS build
 ARG VERSION=0.0.0-dev
@@ -30,6 +30,23 @@ SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 ENV PATH=/opt/python/cp312-cp312/bin:${PATH}
 RUN python -m pip install --no-cache-dir conan==2.26.2 h5py numpy \
  && conan profile detect --force > /dev/null
+
+# libcurl for VCell messaging: static, HTTP only (the broker's REST port is plain HTTP), no TLS.
+ARG CURL_VERSION=8.16.0
+ARG CURL_SHA256=40c8cddbcb6cc6251c03dea423a472a6cea4037be654ba5cf5dec6eb2d22ff1d
+RUN curl -sSfL "https://curl.se/download/curl-${CURL_VERSION}.tar.xz" -o /tmp/curl.tar.xz \
+ && echo "${CURL_SHA256}  /tmp/curl.tar.xz" | sha256sum -c - \
+ && tar -C /tmp -xJf /tmp/curl.tar.xz \
+ && cmake -S "/tmp/curl-${CURL_VERSION}" -B /tmp/curl-build \
+      -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/opt/curl -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON -DBUILD_CURL_EXE=OFF -DBUILD_TESTING=OFF \
+      -DBUILD_LIBCURL_DOCS=OFF -DBUILD_MISC_DOCS=OFF -DENABLE_CURL_MANUAL=OFF \
+      -DHTTP_ONLY=ON -DCURL_ENABLE_SSL=OFF -DCURL_USE_LIBPSL=OFF -DCURL_USE_LIBSSH2=OFF \
+      -DUSE_LIBIDN2=OFF -DUSE_NGHTTP2=OFF -DCURL_ZLIB=OFF -DCURL_BROTLI=OFF -DCURL_ZSTD=OFF \
+      -DENABLE_ARES=OFF \
+ && cmake --build /tmp/curl-build -j"$(nproc)" \
+ && cmake --install /tmp/curl-build \
+ && rm -rf /tmp/curl*
 
 COPY docker/conan /vcellroot/docker/conan
 WORKDIR /vcellroot
@@ -41,6 +58,7 @@ COPY . /vcellroot
 RUN source build/conanbuild.sh \
  && cmake -S . -B build -G Ninja \
       -DCMAKE_TOOLCHAIN_FILE="$PWD/build/conan_toolchain.cmake" \
+      -DCURL_ROOT=/opt/curl -DCMAKE_PREFIX_PATH=/opt/curl \
       -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran \
       -DCMAKE_Fortran_FLAGS="-fallow-argument-mismatch" \
