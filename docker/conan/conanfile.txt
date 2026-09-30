@@ -10,7 +10,6 @@ libcurl/[>=8.10 <9]
 [options]
 *:shared=False
 hdf5/*:with_zlib=True
-hdf5/*:szip_support=None
 libzip/*:crypto=False
 libzip/*:with_bzip2=False
 libzip/*:with_lzma=False
