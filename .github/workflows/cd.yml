@@ -11,6 +11,11 @@ on:
       - published
 
 
+# a newer push to a pull request supersedes the running build
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -576,7 +581,8 @@ jobs:
           for f in FiniteVolume_x64 smoldyn_x64 *.dylib; do
             test "$(lipo -archs "$f")" = "x86_64 arm64" || { echo "::error::$f is $(lipo -archs "$f")"; exit 1; }
             # only system libraries by absolute path; everything else through @executable_path/@loader_path/@rpath
-            if otool -L "$f" | tail -n +2 | awk '{print $1}' | grep -vE '^(/usr/lib/|/System/Library/|@executable_path/|@loader_path/|@rpath/)'; then
+            # (otool -L prints a "<file> (architecture ...):" header per slice; skip those)
+            if otool -L "$f" | grep -v ':$' | awk '{print $1}' | grep -vE '^(/usr/lib/|/System/Library/|@executable_path/|@loader_path/|@rpath/)'; then
               echo "::error::$f refers to a library outside the archive"; exit 1
             fi
             # lipo and install_name_tool leave the files unsigned, and arm64 kills unsigned code
