@@ -54,8 +54,12 @@ while :; do
     [ "$added" = 0 ] && break
 done
 
+# $ORIGIN rpath on every file that needs a bundled library (DT_RUNPATH is not transitive, so each
+# bundled library that needs another one gets its own). Files that need only glibc stay untouched.
 for f in "$dest"/*; do
-    patchelf --set-rpath '$ORIGIN' "$f"
+    if ldd "$f" | awk '/=>/ {print $1}' | while read -r name; do is_system_lib "${name##*/}" || echo x; done | grep -q x; then
+        patchelf --set-rpath '$ORIGIN' "$f"
+    fi
 done
 
 install -m 0644 "$here/../LICENSE" "$dest/LICENSE"
