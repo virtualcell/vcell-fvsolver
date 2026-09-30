@@ -19,10 +19,11 @@ option(OPTION_USE_OPENGL "Build with OpenGL support" OFF)
 option(OPTION_USE_ZLIB "Build with Zlib support" ON)
 option(OPTION_USE_LIBTIFF "Build with LibTiff support" OFF)
 option(OPTION_USE_ICONV "Build with Libiconv support" OFF)
+option(OPTION_BUILD_SHARED_LIBS "Enable Build Shared Libs mode" OFF)
 
 # need to statically link everything for the python bindings and standalone solvers
 set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-set(BUILD_SHARED_LIBS OFF)
+set(BUILD_SHARED_LIBS ${OPTION_BUILD_SHARED_LIBS})
 
 # If there's a toolchain defined in the env, let's get it early
 if(DEFINED ENV{CMAKE_TOOLCHAIN_FILE})
@@ -128,7 +129,8 @@ elseif (LINUX)
 		set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -m32")
 	endif()
 	
-	if (LINUX_64bit_BINARIES) 
+	# -m64 is an x86 flag: gcc rejects it on aarch64 (clang tolerates it)
+	if (LINUX_64bit_BINARIES AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
 		set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64")
 		set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m64")
 		set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -m64")
@@ -150,6 +152,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/libzippp/cmake/"
 
 include(GetGitRevisionDescription)
 git_describe(GIT_DESCRIBE ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR)
+# Release builds made without a .git directory (the container build) pass the version in.
+set(VCELL_VERSION_STRING "" CACHE STRING "Version reported by the executables (overrides git describe)")
+if (VCELL_VERSION_STRING)
+	set(GIT_DESCRIBE "${VCELL_VERSION_STRING}")
+endif()
 
 # help CMake find libzip
 if (APPLE)
@@ -186,6 +193,14 @@ if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 endif()
 
 add_definitions(-DFORTRAN_UNDERSCORE)
+
+# No fused multiply-add contraction: gcc and clang fuse by default on arm64 (never on x86-64 without
+# -march), which changes FiniteVolume results -- membrane areas, then the fluxes through them --
+# by up to a few percent against the x86-64 builds and the 0.9.7 reference. Off, arm64 reproduces
+# them bit for bit.
+if (NOT WIN32)
+	add_compile_options(-ffp-contract=off)
+endif()
 
 #############################################
 # installation directories

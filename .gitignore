@@ -39,3 +39,4 @@ VCell/tests/testFiles/input/Smoldyn/*.zip
 VCell/tests/testFiles/input/Smoldyn/*.log
 VCell/tests/testFiles/input/Smoldyn/*.hdf5
 VCell/tests/testFiles/input/Smoldyn/*.smoldynOutput
+__pycache__/

@@ -22,3 +22,8 @@ cmake-build-*/
 # Local History for Visual Studio Code
 .history/
 
+
+# local build trees and outputs (the container build makes its own)
+build*/
+cmake-build*/
+dist/

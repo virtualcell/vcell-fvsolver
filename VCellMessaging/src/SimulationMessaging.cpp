@@ -55,6 +55,9 @@ SimulationMessaging::SimulationMessaging(){
 #ifdef USE_MESSAGING
 SimulationMessaging::SimulationMessaging(const char* broker, const char* smqusername, const char* passwd, const char*qname,
 		const char* tname, const char* vcusername, int simKey, int jobIndex, int taskID, int ttl_low, int ttl_high){
+	// Left uninitialized, a garbage `true` makes vcellExit() skip waitUntilFinished(), so the solver
+	// can exit before the messaging thread has posted JOB_COMPLETED to the broker.
+	this->bStopRequested = false;
 	m_broker = const_cast<char *>(broker);
 	m_smqusername = const_cast<char *>( smqusername );
 	m_password =  const_cast<char *>(passwd );
