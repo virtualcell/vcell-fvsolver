@@ -596,7 +596,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m pip install --break-system-packages numpy
-          ./universal/FiniteVolume_x64 | head -1
+          (./universal/FiniteVolume_x64 || true) | head -1   # no arguments: prints the version, exits 1
           work="$RUNNER_TEMP/mac"; mkdir -p "$work/fv"
           base=SimID_1585623750_0_
           cp "VCell/tests/smoke/$base.vcg" "$work/fv/"
