@@ -74,6 +74,6 @@ The solvers write their results next to the input; FiniteVolume stages each `.si
   element-wise (relative 1e-6) — that file is identical to the 0.9.7 image's output — and the broker must
   receive `JOB_STARTING` and `JOB_COMPLETED` for task 0;
 - `smoldyn_x64 /simdata/smoldyn/input.smoldynInput -tid 0`: per-variable totals must match
-  `docker/smoke/reference/smoldyn-summary.json` (0.9.7's output) in their time mean.
+X
 
 The macOS universal binaries run the same two comparisons natively in `cd.yml`.

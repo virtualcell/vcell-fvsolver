@@ -110,6 +110,17 @@ def compare_summary(s: dict, ref: dict, rtol: float) -> list[str]:
         print(f"{v}: time-mean total {mx:.6g} vs reference {my:.6g} (relative diff {rel:.3e}, tolerance {rtol}); {same}")
         if rel > rtol:
             errs.append(f"{v}: time-mean total differs by {rel:.3e}")
+    # When the reference conserves the sum over all variables (e.g. molecules moving between
+    # states), the run must conserve the same total at every time point.
+    names = [v for v in ref["variables"] if v in s["variables"]]
+    if names and not errs:
+        ref_total = np.sum([ref["variables"][v]["sum"] for v in names], axis=0)
+        if np.allclose(ref_total, ref_total[0]):
+            total = np.sum([s["variables"][v]["sum"] for v in names], axis=0)
+            ok = np.allclose(total, ref_total[0])
+            print(f"conserved total {ref_total[0]:g}: {'held at every time point' if ok else 'VIOLATED'}")
+            if not ok:
+                errs.append(f"total over {names} not conserved: {total.min():g}..{total.max():g}")
     return errs
 
 
