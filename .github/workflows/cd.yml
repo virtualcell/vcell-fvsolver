@@ -687,10 +687,13 @@ jobs:
       id-token: write
 
     steps:
-      - name: Download all artifacts (wheels and executables)
+      - name: Download the wheel artifacts
         uses: actions/download-artifact@v8
         with:
           path: dist_temp/
+          # wheels only: downloading everything also matches buildx's .dockerbuild records, which
+          # fail to download and failed v0.10.6's upload
+          pattern: pyvcell-fv-*
 
       - name: Install Python
         uses: actions/setup-python@v6
