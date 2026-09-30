@@ -74,6 +74,9 @@ The solvers write their results next to the input; FiniteVolume stages each `.si
   element-wise (relative 1e-6) — that file is identical to the 0.9.7 image's output — and the broker must
   receive `JOB_STARTING` and `JOB_COMPLETED` for task 0;
 - `smoldyn_x64 /simdata/smoldyn/input.smoldynInput -tid 0`: per-variable totals must match
-X
+  `docker/smoke/reference/smoldyn-summary.json` (0.9.7's output) in their time mean (within 25%), and the
+  molecule total (A + B = 5) must be conserved at every one of the 201 time points. Smoldyn's own Mersenne
+  twister makes a run deterministic for a given binary: the x86_64 build reproduces 0.9.7's trajectory
+  exactly, while aarch64 (different floating-point rounding) follows a different, statistically equivalent one.
 
 The macOS universal binaries run the same two comparisons natively in `cd.yml`.
