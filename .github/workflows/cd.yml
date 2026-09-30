@@ -67,7 +67,7 @@ jobs:
           brew install libzip
           /opt/homebrew/bin/python3 -m pip install numpy h5py --break-system-packages
 
-      - name: Build Macos
+      - name: Build MacOS
         run: |
           platform=macos
           echo "working dir is $PWD"
@@ -87,7 +87,20 @@ jobs:
             -DOPTION_TARGET_TESTS=ON
           cmake --build . --config Release
 
-      - name: Test Macos
+      - name: Fix MacOS shared object paths
+        shell: bash
+        run: |
+          mkdir build/upload
+          cd build/bin
+          ls *_x64   | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | grep -v "/usr/lib/" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
+          ls *.dylib | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | grep -v "/usr/lib/" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
+          ls *.dylib | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | grep -v "/usr/lib/" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
+          chmod u+w,+x *
+          tar czvf ../upload/mac64_bad_paths.tgz .
+          ../../.github/scripts/install_name_tool_macos.sh
+          tar czvf ../upload/fvsolver_mac64.tgz --dereference .
+
+      - name: Test MacOS
         run: |
           platform=macos
           echo "working dir is $PWD"
@@ -102,28 +115,14 @@ jobs:
           echo "------ running smoldyn_x64 ------"
           ./bin/smoldyn_x64 || true
 
-      - name: Fix Macos shared object paths
-        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
-        shell: bash
-        run: |
-          mkdir build/upload
-          cd build/bin
-          ls *_x64   | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
-          ls *.dylib | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
-          ls *.dylib | awk '{print $1}' | xargs -I '{}' otool -L '{}' | grep ")" | grep -v "build" | grep -v "System" | awk '{print $1}' | xargs -I '{}' cp -vn '{}' . || true
-          chmod u+w,+x *
-          tar czvf ../upload/mac64_bad_paths.tgz .
-          ../../.github/scripts/install_name_tool_macos.sh
-          tar czvf ../upload/fvsolver_mac64.tgz --dereference .
-
-      - name: Upload Macos Native Binaries <x86_64>
+      - name: Upload MacOS Native Binaries <x86_64>
         if: matrix.platform == 'macos-15-intel' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v7
         with:
           name: fvsolver_macos_x86_64.tgz
           path: build/upload/fvsolver_mac64.tgz
 
-      - name: Upload Macos Native Binaries <ARM64>
+      - name: Upload MacOS Native Binaries <ARM64>
         if: matrix.platform == 'macos-15' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v7
         with:
@@ -279,6 +278,30 @@ jobs:
           name: fvsolver_win64.zip
           path: build/upload/fvsolver_win_arm64.zip
 
+      - name: Modify Archive Name <x86_64>
+        if: matrix.platform == 'windows-latest' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
+        run: |
+          mv build/upload/fvsolver_win64.zip build/upload/win64.zip
+
+      - name: Modify Archive Name <ARM64>
+        if: matrix.platform == 'windows-11-arm' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
+        run: |
+          mv build/upload/fvsolver_win_arm64.zip build/upload/win64arm.zip
+
+      - name: Attach Windows Binaries to Release <x86_64>
+        uses: softprops/action-gh-release@v3
+        if: matrix.platform == 'windows-latest' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
+        with:
+          files: |
+            build/upload/win64.zip
+
+      - name: Attach Linux Binaries to Release <ARM64>
+        uses: softprops/action-gh-release@v3
+        if: matrix.platform == 'windows-11-arm' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
+        with:
+          files: |
+            build/upload/win64arm.zip
+
       - name: Set up Python ${{ matrix.python.std_version  }}
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         uses: actions/setup-python@v4
@@ -430,19 +453,43 @@ jobs:
           tar czvf ../upload/fvsolver_linux64.tgz --dereference .
           cd ../..
 
-      - name: Upload Linux binaries <x86_64>
+      - name: Upload Linux Binaries <x86_64>
         if: matrix.platform == 'ubuntu-latest' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v7
         with:
           name: fvsolver_linux64.tgz
           path: build/upload/fvsolver_linux64.tgz
 
-      - name: Upload Linux binaries <ARM64>
+      - name: Upload Linux Binaries <ARM64>
         if: matrix.platform == 'ubuntu-24.04-arm' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v7
         with:
           name: fvsolver_linux_arm64.tgz
           path: build/upload/fvsolver_linux64.tgz
+
+      - name: Modify Archive Name <x86_64>
+        if: matrix.platform == 'ubuntu-latest' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
+        run: |
+          mv build/upload/fvsolver_linux64.tgz build/upload/linux64.tgz
+
+      - name: Modify Archive Name <ARM64>
+        if: matrix.platform == 'ubuntu-24.04-arm' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
+        run: |
+          mv build/upload/fvsolver_linux64.tgz build/upload/linux64arm.tgz
+
+      - name: Attach Linux Binaries to Release <x86_64>
+        uses: softprops/action-gh-release@v3
+        if: matrix.platform == 'ubuntu-latest' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
+        with:
+          files: |
+            build/upload/linux64.tgz
+
+      - name: Attach Linux Binaries to Release <ARM64>
+        uses: softprops/action-gh-release@v3
+        if: matrix.platform == 'ubuntu-24.04-arm' && matrix.python.std_version == '3.12' && github.event_name == 'release' && github.event.action == 'published'
+        with:
+          files: |
+            build/upload/linux64arm.tgz
 
       - name: Login to GitHub Container Registry
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
@@ -459,7 +506,7 @@ jobs:
           CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
           CIBW_SKIP: "*musllinux*"
           CIBW_ARCHS_LINUX: "native"
-          CIBW_MANYLINUX_X86_64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_34_amd64:latest'
+          CIBW_MANYLINUX_X86_64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_28_x86_64:0.1.3'
           CIBW_REPAIR_WHEEL_COMMAND: 'LD_LIBRARY_PATH=/usr/local/lib/x86_64-unknown-linux-gnu:$LD_LIBRARY_PATH auditwheel repair --disable-isa-ext-check {wheel} -w {dest_dir}'
           CIBW_CONFIG_SETTINGS_LINUX: >-
             cmake.args=-DCMAKE_TOOLCHAIN_FILE=/project/build/conan_toolchain.cmake
@@ -473,14 +520,6 @@ jobs:
           CIBW_ENVIRONMENT_LINUX: CC="clang" CXX="clang++" FC="flang"
           CIBW_BEFORE_BUILD: |
             echo $PWD
-            ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
-            ln -sf /usr/local/bin/clang   /usr/local/bin/cc
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/g++
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/c++
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/cpp
-            ln -sf /usr/local/bin/flang   /usr/local/bin/gfortran
-            dnf install perl -y
-            rm -rf /opt/rh/*
             python3 -m pip install conan
             mkdir -p /root/.conan2/profiles/
             cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} /root/.conan2/profiles/default
@@ -496,7 +535,7 @@ jobs:
           CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
           CIBW_SKIP: "*musllinux*"
           CIBW_ARCHS_LINUX: "native"
-          CIBW_MANYLINUX_AARCH64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_34_aarch64:latest'
+          CIBW_MANYLINUX_AARCH64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_28_aarch64:0.1.3'
           CIBW_REPAIR_WHEEL_COMMAND: 'LD_LIBRARY_PATH=/usr/local/lib/aarch64-unknown-linux-gnu:$LD_LIBRARY_PATH auditwheel repair --disable-isa-ext-check {wheel} -w {dest_dir}'
           CIBW_CONFIG_SETTINGS_LINUX: >-
             cmake.args=-DCMAKE_TOOLCHAIN_FILE=/project/build/conan_toolchain.cmake
@@ -510,14 +549,6 @@ jobs:
           CIBW_ENVIRONMENT_LINUX: CC="clang" CXX="clang++" FC="flang"
           CIBW_BEFORE_BUILD: |
             echo $PWD
-            ln -sf /usr/local/bin/clang   /usr/local/bin/gcc
-            ln -sf /usr/local/bin/clang   /usr/local/bin/cc
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/g++
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/c++
-            ln -sf /usr/local/bin/clang++ /usr/local/bin/cpp
-            ln -sf /usr/local/bin/flang   /usr/local/bin/gfortran
-            dnf install perl -y
-            rm -rf /opt/rh/*
             python3 -m pip install conan
             mkdir -p /root/.conan2/profiles/
             cp conan-profiles/CI-CD/${{ env.CONAN_PROFILE_NAME }} /root/.conan2/profiles/default
@@ -547,7 +578,7 @@ jobs:
       - name: Go to workspace
         run: cd ${{ github.workspace }}
 
-      - name: Download Intel Macos binaries
+      - name: Download Intel MacOS binaries
         uses: actions/download-artifact@v8
         with:
           name: fvsolver_macos_x86_64.tgz
@@ -560,7 +591,7 @@ jobs:
           tar xzvf fvsolver_mac64.tgz -C MAC_X86_64
           rm fvsolver_mac64.tgz
 
-      - name: Download ARM Macos binaries
+      - name: Download ARM MacOS binaries
         uses: actions/download-artifact@v8
         with:
           name: fvsolver_macos_arm64.tgz
@@ -609,9 +640,22 @@ jobs:
 
       - name: Upload universal binaries
         uses: actions/upload-artifact@v7
+        if: github.event_name == 'release' && github.event.action == 'published'
         with:
           name: fvsolver_macos_universal.tgz
           path: ${{ github.workspace }}/universal/fvsolver_mac64.tgz
+
+      - name: Rename MacOS Native Binaries for Release
+        if: github.event_name == 'release' && github.event.action == 'published'
+        run: |
+          mv ${{ github.workspace }}/universal/fvsolver_mac64.tgz ${{ github.workspace }}/universal/mac64.tgz
+
+      - name: Attach MacOS Native Binaries to Release
+        uses: softprops/action-gh-release@v3
+        if: github.event_name == 'release' && github.event.action == 'published'
+        with:
+          files: |
+            ${{ github.workspace }}/universal/mac64.tgz
 
       - name: Setup tmate session
         if: ${{ failure() }}

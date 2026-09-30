@@ -12,6 +12,7 @@ compiler.runtime_version=v144
 tools.cmake.cmaketoolchain:generator=Ninja
 tools.cmake.cmaketoolchain:extra_variables={"CMAKE_FIND_PACKAGE_PREFER_CONFIG": "ON"}
 tools.env.virtualenv:powershell=pwsh
+tools.microsoft.msbuild:vs_version=18
 tools.build:cflags=["-w"]
 tools.build:cxxflags=["-w"]
 
