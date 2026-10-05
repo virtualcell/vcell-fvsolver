@@ -1,13 +1,17 @@
-#include <pybind11/pybind11.h>
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/string.h>
 
 #include <VCELL/SolverMain.h>
 
 #define STRINGIFY(x) #x
 #define MACRO_STRINGIFY(x) STRINGIFY(x)
 
-namespace py = pybind11;
+namespace nb = nanobind;
 
-PYBIND11_MODULE(_core, m) {
+// Built against the Python stable ABI (abi3, Python >= 3.12): one wheel per platform serves every
+// later CPython. nanobind translates std::runtime_error and std::invalid_argument thrown by solve()
+// into RuntimeError and ValueError carrying the C++ message.
+NB_MODULE(_core, m) {
     m.doc() = R"pbdoc(
         VCell FiniteVolume solver
         -------------------------
@@ -32,7 +36,7 @@ PYBIND11_MODULE(_core, m) {
 
         The inputFilename expects a .fvinput file, the outputDir will be created as needed.
     )pbdoc",
-        py::arg("fvInputFilename"), py::arg("vcgInputFilename"), py::arg("outputDir"));
+        nb::arg("fvInputFilename"), nb::arg("vcgInputFilename"), nb::arg("outputDir"));
 
 #ifdef VERSION_INFO
     m.attr("__version__") = MACRO_STRINGIFY(VERSION_INFO);
