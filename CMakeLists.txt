@@ -154,6 +154,11 @@ include(GetGitRevisionDescription)
 git_describe(GIT_DESCRIBE ALLOW_LOOKING_ABOVE_CMAKE_SOURCE_DIR)
 # Release builds made without a .git directory (the container build) pass the version in.
 set(VCELL_VERSION_STRING "" CACHE STRING "Version reported by the executables (overrides git describe)")
+# A wheel build (scikit-build-core) has no usable git checkout, so git describe fails
+# ("<tag>-128-NOTFOUND"); report the wheel's own version, as the release archives do.
+if (NOT VCELL_VERSION_STRING AND DEFINED SKBUILD_PROJECT_VERSION)
+	set(VCELL_VERSION_STRING "${SKBUILD_PROJECT_VERSION}")
+endif()
 if (VCELL_VERSION_STRING)
 	set(GIT_DESCRIBE "${VCELL_VERSION_STRING}")
 endif()

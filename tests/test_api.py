@@ -3,6 +3,7 @@
 The extension is built against the Python stable ABI (nanobind STABLE_ABI, abi3 for Python >= 3.12), so these
 checks run unchanged on every CPython the one wheel installs into.
 """
+import importlib.metadata
 import re
 
 import pytest
@@ -22,6 +23,12 @@ def test_version():
     assert fv.__version__ == "dev" or re.fullmatch(r"\d+\.\d+\.\d+.*", fv.__version__)
     assert isinstance(fv.version(), str)
     assert fv.version()
+
+
+def test_version_names_the_installed_package():
+    # a wheel build has no usable git checkout; version() reported "<tag>-128-NOTFOUND" through 0.11.0
+    assert "NOTFOUND" not in fv.version()
+    assert f"Finite Volume version {importlib.metadata.version('pyvcell-fvsolver')} " in fv.version()
 
 
 def test_docstrings():
