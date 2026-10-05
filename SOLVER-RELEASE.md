@@ -5,7 +5,7 @@ This repository meets the release contract every VCell solver repository follows
 
 ## Cutting a release
 
-1. Bump `version` in `pyproject.toml` to `X.Y.Z` on `main` (the Python wheels publish to PyPI under it).
+1. Bump `version` in `pyproject.toml` to `X.Y.Z` on `main` (the Python wheels, one `cp312-abi3` wheel per platform, publish to PyPI under it).
 2. Publish a GitHub release whose tag is `vX.Y.Z`, targeting `main`
    (`gh release create vX.Y.Z --target main --title ... --notes ...`).
 3. `cd.yml` runs on the published release: it builds every platform, runs the smoke tests, attaches the
