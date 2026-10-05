@@ -58,22 +58,11 @@ jobs:
   MacOS:
     needs: Version
     name:
-      Build Native Executables and Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
+      Build Native Executables and Python Wheel on ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         platform: [ macos-15-intel, macos-15 ]
-        python:
-          - std_version: "3.10"
-            cibw_version: "cp310-"
-          - std_version: "3.11"
-            cibw_version: "cp311-"
-          - std_version: "3.12"
-            cibw_version: "cp312-"
-          - std_version: "3.13"
-            cibw_version: "cp313-"
-          - std_version: "3.14"
-            cibw_version: "cp314-"
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -158,14 +147,14 @@ jobs:
           ./bin/smoldyn_x64 || true
 
       - name: Upload MacOS Native Binaries <x86_64>
-        if: matrix.platform == 'macos-15-intel' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
+        if: matrix.platform == 'macos-15-intel' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v7
         with:
           name: fvsolver_macos_x86_64.tgz
           path: build/upload/fvsolver_mac64.tgz
 
       - name: Upload MacOS Native Binaries <ARM64>
-        if: matrix.platform == 'macos-15' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
+        if: matrix.platform == 'macos-15' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v7
         with:
           name: fvsolver_macos_arm64.tgz
@@ -176,17 +165,26 @@ jobs:
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         env:
           MACOSX_DEPLOYMENT_TARGET: 15.0
-          CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
+          CIBW_BUILD: "cp312-*"   # one abi3 wheel (cp312-abi3) serves Python >= 3.12
           CIBW_ARCHES: "native"
           CIBW_CONFIG_SETTINGS: >-
             cmake.args=-DOPTION_TARGET_PYTHON_BINDING=ON
             
 
+      - name: Set up uv (abi3 wheel tests)
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        uses: astral-sh/setup-uv@v6
+
+      - name: Check the wheel is abi3 and test it on Python 3.12 and 3.14
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        shell: bash
+        run: .github/scripts/test_abi3_wheel.sh
+
       - name: Upload Python Wheel
         uses: actions/upload-artifact@v7
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         with:
-          name: pyvcell-fv-${{ matrix.platform }}-${{ matrix.python.cibw_version }}-cibw-wheels
+          name: pyvcell-fv-${{ matrix.platform }}-cp312-abi3-wheel
           path: ./wheelhouse/*.whl
 
       - name: Setup tmate session
@@ -198,23 +196,12 @@ jobs:
   WindowsOS:
     needs: Version
     name:
-      Build Native Executables and Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
+      Build Native Executables and Python Wheel on ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         # windows-11-arm was dropped: its build never worked and VCell ships no Windows-ARM solvers
         platform: [ windows-latest ]
-        python:
-          - std_version: "3.10"
-            cibw_version: "cp310-"
-          - std_version: "3.11"
-            cibw_version: "cp311-"
-          - std_version: "3.12"
-            cibw_version: "cp312-"
-          - std_version: "3.13"
-            cibw_version: "cp313-"
-          - std_version: "3.14"
-            cibw_version: "cp314-"
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -308,18 +295,18 @@ jobs:
           cd ../..
 
       - name: Upload Windows Binaries <x86_64>
-        if: matrix.platform == 'windows-latest' && matrix.python.std_version == '3.12' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
+        if: matrix.platform == 'windows-latest' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         uses: actions/upload-artifact@v7
         with:
           name: win64.zip
           path: build/upload/win64.zip
           if-no-files-found: error
 
-      - name: Set up Python ${{ matrix.python.std_version  }}
+      - name: Set up Python 3.12 (the abi3 wheel's floor)
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python.std_version }}
+          python-version: "3.12"
 
       - name: Build Wheels (Windows)
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
@@ -335,11 +322,20 @@ jobs:
           python3 -m pip install build h5py
           python3 -m build --wheel -o ./wheelhouse -C cmake.define.LIBZIPPP_CMAKE_CONFIG_MODE=ON -C cmake.define.OPTION_TARGET_PYTHON_BINDING=ON -C cmake.define.OPTION_TARGET_MESSAGING=OFF -C cmake.define.OPTION_TARGET_SMOLDYN_SOLVER=ON -C cmake.define.OPTION_TARGET_FV_SOLVER=ON -C cmake.define.OPTION_TARGET_DOCS=OFF -C cmake.define.OPTION_TARGET_TESTS=ON
 
+      - name: Set up uv (abi3 wheel tests)
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        uses: astral-sh/setup-uv@v6
+
+      - name: Check the wheel is abi3 and test it on Python 3.12 and 3.14
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        shell: bash
+        run: .github/scripts/test_abi3_wheel.sh
+
       - name: Upload Python Wheel
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         uses: actions/upload-artifact@v7
         with:
-          name: pyvcell-fv-${{ matrix.platform }}-${{ matrix.python.cibw_version }}-cibw-wheels
+          name: pyvcell-fv-${{ matrix.platform }}-cp312-abi3-wheel
           path: ./wheelhouse/*.whl
 
       - name: Setup tmate session
@@ -350,22 +346,11 @@ jobs:
 
   GNULinux:
     name:
-      Build Native Executables and Python Wheels on ${{ matrix.platform }} (for ${{ matrix.python.std_version }})
+      Build Native Executables and Python Wheel on ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         platform: [ubuntu-latest, ubuntu-24.04-arm]
-        python:
-          - std_version: "3.10"
-            cibw_version: "cp310-"
-          - std_version: "3.11"
-            cibw_version: "cp311-"
-          - std_version: "3.12"
-            cibw_version: "cp312-"
-          - std_version: "3.13"
-            cibw_version: "cp313-"
-          - std_version: "3.14"
-            cibw_version: "cp314-"
     runs-on: ${{ matrix.platform }}
 
     steps:
@@ -466,7 +451,7 @@ jobs:
         uses: pypa/cibuildwheel@v3.4.0
         if: matrix.platform == 'ubuntu-latest' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         env:
-          CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
+          CIBW_BUILD: "cp312-*"   # one abi3 wheel (cp312-abi3) serves Python >= 3.12
           CIBW_SKIP: "*musllinux*"
           CIBW_ARCHS_LINUX: "native"
           CIBW_MANYLINUX_X86_64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_28_x86_64:0.1.3'
@@ -496,7 +481,7 @@ jobs:
         uses: pypa/cibuildwheel@v3.4.0
         if: matrix.platform == 'ubuntu-24.04-arm' && (github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published'))
         env:
-          CIBW_BUILD: "${{ matrix.python.cibw_version }}*"
+          CIBW_BUILD: "cp312-*"   # one abi3 wheel (cp312-abi3) serves Python >= 3.12
           CIBW_SKIP: "*musllinux*"
           CIBW_ARCHS_LINUX: "native"
           CIBW_MANYLINUX_AARCH64_IMAGE: 'ghcr.io/virtualcell/fvsolver_manylinux_2_28_aarch64:0.1.3'
@@ -522,11 +507,20 @@ jobs:
             echo "source /project/build/conanbuild.sh" >> ~/.bashrc
             source /project/build/conanbuild.sh
 
+      - name: Set up uv (abi3 wheel tests)
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        uses: astral-sh/setup-uv@v6
+
+      - name: Check the wheel is abi3 and test it on Python 3.12 and 3.14
+        if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
+        shell: bash
+        run: .github/scripts/test_abi3_wheel.sh
+
       - name: Upload Python Wheel
         if: github.event_name == 'pull_request' || (github.event_name == 'release' && github.event.action == 'published')
         uses: actions/upload-artifact@v7
         with:
-          name: pyvcell-fv-${{ matrix.platform }}-${{ matrix.python.cibw_version }}-cibw-wheels
+          name: pyvcell-fv-${{ matrix.platform }}-cp312-abi3-wheel
           path: ./wheelhouse/*.whl
 
       - name: Setup tmate session
