@@ -552,6 +552,16 @@ void SimTool::updateLog(double progress, double time, int iteration)
 		
 		simulation->writeData(simFileName.c_str(), bSimFileCompress);
 
+		// hybrid runs: the molecules' positions at this output time, when VCell asked for particle files.
+		// Named as VCell reads them (SimulationData.createCanonicalSmoldynOutputFileName): <base>_<NNN>.smoldynOutput,
+		// NNN = this output's 1-based index in the log.
+		if (smoldynSim != nullptr && vcellhybrid::savesParticlePositions()) {
+			std::stringstream particleOutputName;
+			particleOutputName << baseFileName.string() << "_" << std::setfill('0') << std::setw(3) << (simFileCount + 1)
+				<< ".smoldynOutput";
+			vcellhybrid::writeParticlePositions(smoldynSim, particleOutputName.str());
+		}
+
 		std::string logFileName = baseFileName.string();
 		logFileName.append(LOG_FILE_EXT);
 
