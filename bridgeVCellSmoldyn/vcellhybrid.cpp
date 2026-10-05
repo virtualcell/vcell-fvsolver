@@ -9,6 +9,8 @@
 #include "smoldynfuncs.h"
 #include "vcellhybrid.h"
 #include <string.h>
+#include <stdio.h>
+#include <stdexcept>
 #include <string>
 using std::string;
 
@@ -21,6 +23,37 @@ using namespace std;
 #include "VCellSmoldynOutput.h"
 
 extern VCellSmoldynOutput* vcellSmoldynOutput;
+
+/**
+ * Disable the particle-file commands VCell writes for "save particle files" (incrementfile and listmols on a
+ * *.smoldynOutput file) and report whether there were any. Their Smoldyn-step clock does not match the PDE's
+ * output times when Smoldyn takes larger steps than the PDE; SimTool writes the files at the output times.
+ */
+static bool disableParticleFileCommands(queue_c q) {
+	bool found = false;
+	if (q == NULL || q->n <= 0) {
+		return false;
+	}
+	for (int i = q->f; i != q->b; i = (i + 1) % q->n) {
+		cmdptr cmd = (cmdptr) q->x[i];
+		if (cmd == NULL || cmd->str == NULL) {
+			continue;
+		}
+		char word[STRCHAR], file[STRCHAR];
+		if (sscanf(cmd->str, "%s %s", word, file) != 2) {
+			continue;
+		}
+		size_t len = strlen(file);
+		const char* ext = ".smoldynOutput";
+		bool smoldynOutput = len >= strlen(ext) && strcmp(file + len - strlen(ext), ext) == 0;
+		if (smoldynOutput && (strcmp(word, "listmols") == 0 || strcmp(word, "incrementfile") == 0)) {
+			cmd->str[0] = '\0';  // an empty command line is a no-op (docommand)
+			found = true;
+		}
+	}
+	return found;
+}
+
 simptr vcellhybrid::smoldynInit(SimTool* simTool, string& fileName) {
 	LoggingCallback=NULL;
 	ThrowThreshold=10;
@@ -39,6 +72,11 @@ simptr vcellhybrid::smoldynInit(SimTool* simTool, string& fileName) {
 	int er;
 
 	er=simInitAndLoad(root,fname,&sim,flags,new VCellValueProviderFactory(simTool), new VCellMesh(simTool));
+	if (sim != NULL && sim->cmds != NULL) {
+		bool inQueue = disableParticleFileCommands(((cmdssptr)sim->cmds)->cmd);
+		bool inIntQueue = disableParticleFileCommands(((cmdssptr)sim->cmds)->cmdi);
+		bSaveParticlePositions = inQueue || inIntQueue;
+	}
 	er=simUpdateAndDisplay(sim);
 	er=scmdopenfiles((cmdssptr)sim->cmds,1);
 	
@@ -112,5 +150,34 @@ void vcellhybrid::smoldynEnd(simptr sim) {
 	simfree(sim);
 }
 
+void vcellhybrid::writeParticlePositions(simptr sim, const std::string& fileName) {
+	FILE* fp = fopen(fileName.c_str(), "w");
+	if (fp == NULL) {
+		throw std::runtime_error("cannot open particle file " + fileName + " for writing");
+	}
+	char state[STRCHAR];
+	molssptr mols = sim->mols;
+	if (mols != NULL) {
+		for (int ll = 0; ll < mols->nlist; ll++) {
+			for (int m = 0; m < mols->nl[ll]; m++) {
+				moleculeptr mptr = mols->live[ll][m];
+				if (mptr->ident <= 0) {
+					continue;
+				}
+				double pos[3] = {0, 0, 0};
+				for (int d = 0; d < sim->dim && d < 3; d++) {
+					pos[d] = mptr->pos[d];
+				}
+				fprintf(fp, "%s(%s) %.9g %.9g %.9g\n", mols->spname[mptr->ident], molms2string(mptr->mstate, state),
+						pos[0], pos[1], pos[2]);
+			}
+		}
+	}
+	if (fclose(fp) != 0) {
+		throw std::runtime_error("failed to write particle file " + fileName);
+	}
+}
+
 bool vcellhybrid::bHybrid = false;
 int vcellhybrid::taskID = -1;
+bool vcellhybrid::bSaveParticlePositions = false;
