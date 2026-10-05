@@ -283,6 +283,16 @@ if (OPTION_TARGET_PYTHON_BINDING)
 
 	nanobind_add_module(_core STABLE_ABI NB_STATIC src/main.cpp)
 	target_link_libraries(_core PRIVATE vcell)
+	# Under the limited API (Py_LIMITED_API >= 3.11) Python.h no longer includes <stdio.h>, and nanobind's
+	# headers call fprintf(stderr, ...) relying on a transitive include that LLVM's libc++ on Linux (the
+	# manylinux wheel builds) does not provide: "use of undeclared identifier 'stderr'". Include it up front.
+	if (NOT MSVC)
+		foreach(nb_target _core nanobind-static-abi3)
+			if (TARGET ${nb_target})
+				target_compile_options(${nb_target} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:SHELL:-include cstdio>")
+			endif()
+		endforeach()
+	endif()
 	# This is passing in the version as a define just as an example
 	target_compile_definitions(_core PRIVATE VERSION_INFO=${PROJECT_VERSION})
 
