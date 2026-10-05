@@ -271,18 +271,28 @@ add_subdirectory(PCGPack)
 add_subdirectory(qhull)
 
 if (OPTION_TARGET_PYTHON_BINDING)
-	# Find the module development requirements (requires FindPython from 3.17 or
-	# scikit-build-core's built-in backport)
-	find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
-	find_package(pybind11 CONFIG QUIET)
-	if(NOT pybind11_FOUND)
-		message(STATUS "System pybind11 not found, using bundled version")
-		add_subdirectory(extern/pybind11)
-	endif()
+	# The extension targets the Python stable ABI (abi3, Python >= 3.12): scikit-build-core sets
+	# SKBUILD_SABI_COMPONENT to Development.SABIModule when pyproject.toml's wheel.py-api is cp312.
+	find_package(Python 3.12 REQUIRED COMPONENTS Interpreter Development.Module ${SKBUILD_SABI_COMPONENT})
+	# nanobind comes from the build requirements; ask it where its CMake config lives in case the
+	# build environment's site-packages is not on CMAKE_PREFIX_PATH (e.g. under a Conan toolchain)
+	execute_process(
+			COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+			OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE nanobind_ROOT)
+	find_package(nanobind CONFIG REQUIRED)
 
-	# Add a library using FindPython's tooling (pybind11 also provides a helper like this)
-	python_add_library(_core MODULE src/main.cpp WITH_SOABI)
-	target_link_libraries(_core PRIVATE vcell pybind11::headers)
+	nanobind_add_module(_core STABLE_ABI NB_STATIC src/main.cpp)
+	target_link_libraries(_core PRIVATE vcell)
+	# Under the limited API (Py_LIMITED_API >= 3.11) Python.h no longer includes <stdio.h>, and nanobind's
+	# headers call fprintf(stderr, ...) relying on a transitive include that LLVM's libc++ on Linux (the
+	# manylinux wheel builds) does not provide: "use of undeclared identifier 'stderr'". Include it up front.
+	if (NOT MSVC)
+		foreach(nb_target _core nanobind-static-abi3)
+			if (TARGET ${nb_target})
+				target_compile_options(${nb_target} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:SHELL:-include cstdio>")
+			endif()
+		endforeach()
+	endif()
 	# This is passing in the version as a define just as an example
 	target_compile_definitions(_core PRIVATE VERSION_INFO=${PROJECT_VERSION})
 

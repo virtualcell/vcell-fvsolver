@@ -40,3 +40,15 @@ and generates the output files (.log, .zip, .mesh, .meshmetrics, .hdf5).  The
 results in the context of the original model.
 
 This package is intended to be used by the Virtual Cell Python API [virtualcell/pyvcell](https://github.com/virtualcell/pyvcell) (coming soon).
+
+`pyvcell_fvsolver` requires **Python >= 3.12**. The extension is built with [nanobind](https://github.com/wjakob/nanobind)
+against the Python stable ABI, so each release ships **one `cp312-abi3` wheel per platform** (macOS arm64 and
+x86_64, manylinux_2_28 x86_64 and aarch64, Windows x86_64) that installs on CPython 3.12 and every later
+version. CI tests each wheel on 3.12 and 3.14 and checks it with `abi3audit`.
+
+## Changes
+
+- **Unreleased:** the Python binding moved from pybind11 to nanobind with the stable ABI (abi3). Python >= 3.12
+  is required (3.10 and 3.11 are dropped); the 25 per-version wheels become one `cp312-abi3` wheel per
+  platform. The Python API (`solve`, `version`, `__version__`) and its exceptions are unchanged. The release
+  archives (`linux64.tgz`, `linux64arm.tgz`, `mac64.tgz`, `win64.zip`) are unchanged.

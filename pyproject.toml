@@ -1,5 +1,5 @@
 [build-system]
-requires = ["scikit-build-core>=0.3.3", "pybind11", "setuptools", "wheel"]
+requires = ["scikit-build-core>=0.10", "nanobind>=2.4"]
 build-backend = "scikit_build_core.build"
 
 
@@ -11,15 +11,14 @@ readme = "README.md"
 authors = [
     { name = "Jim Schaff", email = "schaff@uchc.edu" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
 ]
 
 [project.optional-dependencies]
@@ -28,6 +27,8 @@ test = ["pytest"]
 
 [tool.scikit-build]
 wheel.expand-macos-universal-tags = true
+# one wheel per platform, tagged cp312-abi3: the extension uses only the stable ABI (nanobind STABLE_ABI)
+wheel.py-api = "cp312"
 
 [tool.cibuildwheel.linux.environment]
 CC  = "clang"
@@ -47,6 +48,8 @@ testpaths = ["tests"]
 
 
 [tool.cibuildwheel]
+# the abi3 wheel built for cp312 serves 3.12 and every later CPython (cd.yml tests it on 3.12 and 3.14)
+build = "cp312-*"
 test-command = "pytest {project}/tests"
 test-extras = ["test"]
 test-skip = ["*universal2:arm64"]

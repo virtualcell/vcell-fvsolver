@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `vcell-fvsolver` is the Virtual Cell finite-volume reaction–diffusion–advection PDE solver. It is a C++17/C/Fortran codebase that ships in two forms from a single CMake build:
 
 - **Standalone executables** `FiniteVolume_x64` and `smoldyn_x64` (consumed by the VCell modeling app).
-- **Python wheel `pyvcell_fvsolver`** (built via scikit-build-core / pybind11), which exposes `version()` and `solve(fvInputFilename, vcgInputFilename, outputDir)` from `src/main.cpp`. Inputs are VCell `.fvinput` + `.vcg` files; outputs are `.log`, `.zip`, `.mesh`, `.meshmetrics`, `.hdf5`.
+- **Python wheel `pyvcell_fvsolver`** (built via scikit-build-core / nanobind against the Python stable ABI: one `cp312-abi3` wheel per platform, Python >= 3.12), which exposes `version()` and `solve(fvInputFilename, vcgInputFilename, outputDir)` from `src/main.cpp`. Inputs are VCell `.fvinput` + `.vcg` files; outputs are `.log`, `.zip`, `.mesh`, `.meshmetrics`, `.hdf5`.
 
 Top-level `CMakeLists.txt` has a hard switch between these two modes via `OPTION_TARGET_PYTHON_BINDING`. When that option is ON it forces several other options (messaging, docs, libtiff, iconv) off and pulls the project name/version from the scikit-build environment — pure CMake invocations must pass `-DOPTION_TARGET_PYTHON_BINDING=OFF` to build the executables.
 
@@ -15,7 +15,7 @@ Top-level `CMakeLists.txt` has a hard switch between these two modes via `OPTION
 
 Both build modes need a Fortran compiler (flang ≥ 21 in CI), a C/C++ compiler (clang), CMake ≥ 3.22, and Conan 2 to provide hdf5, libaec, libzip, zlib (see `conanfile.txt`). On macOS, libzip/libaec come from Homebrew rather than Conan and CMake calls `brew --prefix` directly.
 
-The submodules (`extern/pybind11`, `libzippp`) must be initialized: clone with `--recurse-submodules` or run `git submodule update --init --recursive`.
+The `libzippp` submodule must be initialized: clone with `--recurse-submodules` or run `git submodule update --init --recursive`.
 
 ### Native executables (Linux/macOS)
 
@@ -86,7 +86,7 @@ The top-level CMake adds subdirectories in this order, which encodes the depende
 5. **`bridgeVCellSmoldyn`** — adapters that let the FV solver and Smoldyn share a mesh/value source (`SimpleMesh`/`VCellMesh`, `SimpleValueProvider`/`VCellValueProvider`) and that emit Smoldyn output through the FV `DataGenerator`/HDF5 pipeline. Builds the `vcellsmoldynbridge` static lib and the `smoldyn_x64` executable.
 6. **`VCell`** — the FV solver core. Builds the `vcell` static lib (everything else links against it) and the `FiniteVolume_x64` executable from `VCell/src/FiniteVolume.cpp`.
 
-When the Python target is on, `src/main.cpp` is built into the `_core` pybind11 extension that links against `vcell` and is installed into `pyvcell_fvsolver/`.
+When the Python target is on, `src/main.cpp` is built into the `_core` nanobind extension (`nanobind_add_module(_core STABLE_ABI NB_STATIC ...)`, tagged `cp312-abi3` through `wheel.py-api` in `pyproject.toml`) that links against `vcell` and is installed into `pyvcell_fvsolver/`.
 
 ### VCell solver core (`VCell/src` + `VCell/include/VCELL`)
 
