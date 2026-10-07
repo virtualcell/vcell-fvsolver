@@ -9,6 +9,7 @@
 #include "SmoldynDataGenerator.h"
 #include <VCELL/DataSet.h>
 
+#include <sstream>
 #include <string>
 #include <vector>
 using std::string;
@@ -46,6 +47,15 @@ public:
 	void setSimTool(SimTool* st) {
 		this->simTool = st;
 	}
+
+	// Input of the vcellWriteOutput and vcellDataProcess command blocks, collected until each block's
+	// "end" line. This is per-run state: kept in function-level statics, it survived into the next
+	// solve in the same process, whose output was then never set up (vcell-fvsolver#23).
+	bool outputInputParsed = false;
+	std::stringstream outputInput;
+	bool dataProcessInputParsed = false;
+	std::stringstream dataProcessInput;
+	string dataProcName;
 private:
 	
 	void clearLog();
