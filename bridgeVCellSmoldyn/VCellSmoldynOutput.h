@@ -86,6 +86,7 @@ private:
 	vector<SmoldynDataGenerator*> dataGeneratorList;
 	SimTool* simTool;
 	
+	bool isInSameCompartment(double *pos1, double* pos2);
 	double distance2(double* pos1, double* pos2);
 
 	friend class SmoldynHdf5Writer;

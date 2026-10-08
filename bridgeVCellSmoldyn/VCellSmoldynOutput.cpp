@@ -3,6 +3,7 @@
  * All rights reserved.
  */
 #include "VCellSmoldynOutput.h"
+#include "smoldynfuncs.h"	// posincompart, for isInSameCompartment
 
 #include <VCELL/SimulationMessaging.h>
 #include <SimCommand.h>
@@ -415,6 +416,21 @@ void VCellSmoldynOutput::clearLog() {
 	remove(hdf5FileName);
 }
 
+// Restored from 1edb0892d836 (2011-10-18); disabled for performance in 742e6d7ae.
+bool VCellSmoldynOutput::isInSameCompartment(double *pos1, double* pos2) {
+	for(int cl=0;cl<smoldynSim->cmptss->ncmpt;cl++) {
+		int in1=posincompart(smoldynSim,pos1,smoldynSim->cmptss->cmptlist[cl]);
+		int in2=posincompart(smoldynSim,pos2,smoldynSim->cmptss->cmptlist[cl]);
+		if (in1 == 1 && in2 == 1) {
+			return true;
+		}
+		if (in1 == 1 || in2 == 1) {
+			return false;
+		}
+	}
+	return false;
+}
+
 double VCellSmoldynOutput::distance2(double* pos1, double* pos2) {
 	if (dimension == 1) {
 		return (pos1[0] - pos2[0]) * (pos1[0] - pos2[0]);
@@ -462,13 +478,13 @@ void VCellSmoldynOutput::computeHistogram() {
 				double* coord = mptr->pos;
 				int i = 0, j = 0, k = 0;
 				i = (int)((coord[0] - origin[0])/dx + 0.5);
-				center[0] = i * dx;
+				center[0] = origin[0] + i * dx;
 				if (dimension > 1) {
 					j = (int)((coord[1] - origin[1])/dy + 0.5);
-					center[1] = j * dy;
+					center[1] = origin[1] + j * dy;
 					if (dimension > 2) {
 						k = (int)((coord[2] - origin[2])/dz + 0.5);
-						center[2] = k * dy;
+						center[2] = origin[2] + k * dz;
 					}
 				}
 
@@ -476,7 +492,7 @@ void VCellSmoldynOutput::computeHistogram() {
 				// not in the same compartment, try to find the nearest neighbor
 				// in the same compartment, if not found, keep it in the wrong
 				// compartment
-				/*if (!isInSameCompartment(coord, center)) {
+				if (!isInSameCompartment(coord, center)) {
 					bool bFound = false;
 					double distance = 1e9;
 					if (i > 0) {
@@ -544,7 +560,7 @@ void VCellSmoldynOutput::computeHistogram() {
 						}
 					}
 
-				}*/
+				}
 				volVarOutputData[varIndex][volIndex] ++;
 			}
 		}
