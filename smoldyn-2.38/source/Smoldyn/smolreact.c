@@ -2415,6 +2415,95 @@ int doreact(simptr sim,rxnptr rxn,moleculeptr mptr1,moleculeptr mptr2,int ll1,in
 	return 0; }
 
 
+#ifdef OPTION_VCELL
+/* zeroreactcmptmesh: field-dependent 0th-order creation in a compartment, one Poisson draw
+ per mesh node (VCell spatial hybrid).
+
+ Each node's cell is clipped to the domain: boundary nodes of the node-centred mesh own half,
+ quarter or eighth cells, the same region randomPosInMesh places molecules in. Using the full
+ cell volume there overproduced creation by sum(full)/sum(clipped) (vcell-fvsolver#24).
+
+ Every cell that may overlap the compartment draws Poisson(rate*dt*cell) molecules uniformly
+ in the cell, and the posincompart test keeps only those inside the compartment. That thinning
+ makes the count exactly Poisson(rate*dt*|cell & compartment|). Drawing only in cells whose
+ centre is inside skipped cells that straddle a curved membrane with their centre outside, and
+ creation fell short there (vcell-fvsolver#26). A cell overlaps the compartment only if its own
+ centre or a neighbouring node (face, edge or corner) is inside, so other cells are skipped.
+
+ The rate is evaluated at the node when the node is inside the compartment. For a straddling
+ cell whose node is outside, the field there belongs to another region, so the rate is taken
+ from the nearest neighbouring node inside the compartment. */
+static int zeroreactcmptmesh(simptr sim,rxnptr rxn) {
+	AbstractMesh* mesh=sim->mesh;
+	panelptr pnl=NULL;
+	double delta[3],lo[3],hi[3];
+	int n[3],d;
+
+	mesh->getDeltaXYZ(delta);
+	mesh->getNumXYZ(n);
+	for(d=0;d<3;d++) {
+		if(d<sim->dim) { lo[d]=sim->wlist[2*d]->pos; hi[d]=sim->wlist[2*d+1]->pos; }
+		else { lo[d]=hi[d]=0; n[d]=1; }}
+	int totalNumMesh=n[0]*n[1]*n[2];
+
+	// Compartment membership of every node. Boundary nodes lie exactly on the domain walls,
+	// where posincompart is ambiguous, so test the node nudged just inside the domain.
+	char* inside=(char*) malloc(totalNumMesh*sizeof(char));
+	if(!inside) return 1;
+	for(int i=0;i<totalNumMesh;i++) {
+		double testPos[3];
+		mesh->getCenterCoordinates(i,testPos);
+		for(d=0;d<sim->dim;d++) {
+			double eps=1e-9*(hi[d]-lo[d]);
+			testPos[d]=fmin(fmax(testPos[d],lo[d]+eps),hi[d]-eps); }
+		inside[i]=posincompart(sim,testPos,rxn->cmpt)?1:0; }
+
+	for(int k=0;k<n[2];k++)
+		for(int j=0;j<n[1];j++)
+			for(int i=0;i<n[0];i++) {
+				int volIndex=i+n[0]*(j+n[1]*k);
+				double centerPos[3];
+				mesh->getCenterCoordinates(volIndex,centerPos);
+
+				// Where to evaluate the rate: this node, or the nearest neighbour inside.
+				int rateIndex=-1;
+				if(inside[volIndex]) rateIndex=volIndex;
+				else {
+					double best=1e300;
+					for(int dk=-1;dk<=1;dk++)
+						for(int dj=-1;dj<=1;dj++)
+							for(int di=-1;di<=1;di++) {
+								int ii=i+di,jj=j+dj,kk=k+dk;
+								if(ii<0||ii>=n[0]||jj<0||jj>=n[1]||kk<0||kk>=n[2]) continue;
+								int nb=ii+n[0]*(jj+n[1]*kk);
+								if(nb==volIndex||!inside[nb]) continue;
+								double dist=di*di*delta[0]*delta[0]+dj*dj*delta[1]*delta[1]+dk*dk*delta[2]*delta[2];
+								if(dist<best) { best=dist; rateIndex=nb; }}}
+				if(rateIndex<0) continue;									// cell cannot overlap the compartment
+
+				double ratePos[3];
+				mesh->getCenterCoordinates(rateIndex,ratePos);
+				double rate=evaluateVolRnxRate(sim,rxn,ratePos);
+
+				double cellv=1.0;
+				for(d=0;d<sim->dim;d++) {
+					double a=fmax(lo[d],centerPos[d]-0.5*delta[d]);
+					double b=fmin(hi[d],centerPos[d]+0.5*delta[d]);
+					cellv*=(b>a)?(b-a):0.0; }
+				for(d=sim->dim;d<3;d++) cellv*=delta[d];
+
+				int nmol=poisrandD(rate*sim->dt*cellv);
+				for(int count=0;count<nmol;count++) {
+					double pos[3];
+					randomPosInMesh(sim,centerPos,pos);						// uniform in the clipped cell
+					if(posincompart(sim,pos,rxn->cmpt))						// thinning to cell & compartment
+						if(doreact(sim,rxn,NULL,NULL,-1,-1,-1,-1,pos,pnl)) { free(inside); return 1; }}
+				sim->eventcount[ETrxn0]+=nmol; }
+
+	free(inside);
+	return 0; }
+#endif
+
 /* zeroreact */
 int zeroreact(simptr sim) {
 	int i,r,nmol;
@@ -2432,34 +2521,7 @@ int zeroreact(simptr sim) {
 #ifdef OPTION_VCELL
 		if(rxn->rateValueProvider != NULL) {
 			if(rxn->cmpt) {
-				AbstractMesh* mesh = sim->mesh;
-				double delta[3];
-				mesh->getDeltaXYZ(delta);
-				int n[3];
-				mesh->getNumXYZ(n);
-				double meshv = delta[0]*delta[1]*delta[2];
-				int totalNumMesh = n[0]*n[1]*n[2];			
-			
-				for(i=0; i<totalNumMesh; i++) {
-					int volIndex = i;
-					double centerPos[3];
-					mesh->getCenterCoordinates(volIndex, centerPos);
-					if (posincompart(sim, centerPos, rxn->cmpt)) {
-					   // go through each mesh elements to see if it is in the compartments that the reaction happens
-						double rate =  evaluateVolRnxRate(sim, rxn, centerPos);
-						double prob = rate * sim->dt * meshv;	
-						nmol=poisrandD(prob);
-						int count = 0;
-						//put generated molecules in the same mesh
-						double pos[3];
-						while(count < nmol) {
-							count++;
-							randomPosInMesh(sim,centerPos, pos); //the generated position saved in pos
-							//since we are using vcell mesh, we double check the pos in compartment
-							if(posincompart(sim,pos,rxn->cmpt)) {
-								//count++;
-								if(doreact(sim,rxn,NULL,NULL,-1,-1,-1,-1,pos,pnl)) return 1; }}
-						sim->eventcount[ETrxn0]+=nmol; }}}
+				if(zeroreactcmptmesh(sim,rxn)) return 1; }
 			else if(rxn->srf) {
 				int numOfSuf = sim->srfss->nsrf;
 				surfaceptr * surfaces = sim->srfss->srflist;
