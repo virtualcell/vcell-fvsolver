@@ -37,8 +37,6 @@ enum CMDcode cmdVCellPrintProgress(simptr sim, cmdptr cmd, char *line2) {
 using std::stringstream;
 using std::endl;
 enum CMDcode cmdVCellWriteOutput(simptr sim, cmdptr cmd, char *line2) {
-	static stringstream vcellOutputInput;
-	static bool firstTime = true;
 	if(line2 && !strcmp(line2,"cmdtype")) {
 		return CMDobserve;
 	}
@@ -50,15 +48,15 @@ enum CMDcode cmdVCellWriteOutput(simptr sim, cmdptr cmd, char *line2) {
 	ss >> token;
 	if (token == "begin") {
 	} else if (token == "end") {
-		if (firstTime) {
-			string input = vcellOutputInput.str();
+		if (!vcellSmoldynOutput->outputInputParsed) {
+			string input = vcellSmoldynOutput->outputInput.str();
 			vcellSmoldynOutput->parseInput(input);
-			firstTime = false;
+			vcellSmoldynOutput->outputInputParsed = true;
 		}
 		vcellSmoldynOutput->write();
 	} else {
-		if (firstTime) {
-			vcellOutputInput << line2 << endl;
+		if (!vcellSmoldynOutput->outputInputParsed) {
+			vcellSmoldynOutput->outputInput << line2 << endl;
 		}
 	}	
 
@@ -66,27 +64,25 @@ enum CMDcode cmdVCellWriteOutput(simptr sim, cmdptr cmd, char *line2) {
 }
 
 enum CMDcode cmdVCellDataProcess(simptr sim,cmdptr cmd,char *line2) {
-	static bool dataProcessFirstTime = true;
-	static stringstream dataProcessInput;
-	static string dataProcName;
 	if(line2 && !strcmp(line2,"cmdtype")) {
 		return CMDobserve;
 	}	
-	if (dataProcessFirstTime) {
+	vcellSmoldynOutput = VCellSmoldynOutput::updateVCellSmoldynOutput(vcellSmoldynOutput, sim);
+	VCellSmoldynOutput* out = vcellSmoldynOutput;
+	if (!out->dataProcessInputParsed) {
 		string token;
 		stringstream ss(line2);
 		ss >> token;
 		if (token == "begin") {
-			ss >> dataProcName;
+			ss >> out->dataProcName;
 		} else if (token == "end") {
 			if (!vcellhybrid::isHybrid( )) {
-				vcellSmoldynOutput = VCellSmoldynOutput::updateVCellSmoldynOutput(vcellSmoldynOutput, sim);
-				string input = dataProcessInput.str();
-				vcellSmoldynOutput->parseDataProcessingInput(dataProcName, input);
+				string input = out->dataProcessInput.str();
+				out->parseDataProcessingInput(out->dataProcName, input);
 			}
-			dataProcessFirstTime = false;
+			out->dataProcessInputParsed = true;
 		} else {
-			dataProcessInput << line2 << endl;
+			out->dataProcessInput << line2 << endl;
 		}
 	}
 	return CMDok;
