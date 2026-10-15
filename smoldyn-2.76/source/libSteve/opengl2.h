@@ -7,7 +7,7 @@ of the Gnu Lesser General Public License (LGPL). */
 #ifndef __opengl2_h
 #define __opengl2_h
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 extern "C" {
 #endif
 
@@ -100,7 +100,7 @@ void gl2PlotPts(float **data,int *ser,int nser,int npts,float **color,float *siz
 void gl2PlotPtsD(double **data,int *ser,int nser,int npts,double **color,double *size,char style);
 void gl2PlotSurf(float *xdata,float *ydata,float **zdata,int nx,int ny,int nz,char *style);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 }
 #endif
 

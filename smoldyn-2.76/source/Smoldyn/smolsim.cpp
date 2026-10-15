@@ -35,6 +35,7 @@
 #include "smoldynconfigure.h"
 
 #ifdef OPTION_VCELL
+	#include <sstream>
 	using std::stringstream;
 #endif
 

@@ -7,7 +7,7 @@ of the Gnu Lesser General Public License (LGPL). */
 #ifndef __Rn_h
 #define __Rn_h
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 extern "C" {
 #endif
 
@@ -90,7 +90,7 @@ float *correlateV(float *a,float *b,float *c,int na,int nb,int nc,int bz,float l
 int histogramV(float *a,float *h,float lo,float hi,int na,int nh);
 int histogramVdbl(double *a,double *h,double lo,double hi,int na,int nh);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 }
 #endif
 

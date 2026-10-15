@@ -7,7 +7,7 @@ of the Gnu Lesser General Public License (LGPL). */
 #ifndef __RnSparse_h
 #define __RnSparse_h
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 extern "C" {
 #endif
 
@@ -50,7 +50,7 @@ void sparseAddIdentityM(sparsematrix sprs,double factor);
 void sparseMultiplyScalarM(sparsematrix sprs,double scalar);
 void sparseBiCGSTAB(const sparsematrix sprs,const double *b,double *x,double tolerance);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 }
 #endif
 

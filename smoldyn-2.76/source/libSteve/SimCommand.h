@@ -6,7 +6,7 @@ of the Gnu Lesser General Public License (LGPL). */
 #ifndef __SimCommand_h__
 #define __SimCommand_h__
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 extern "C" {
 #endif
 
@@ -105,7 +105,7 @@ int scmdgetfptr(cmdssptr cmds,char *line2,int outstyle,FILE **fptrptr,int *datai
 int scmdfprintf(cmdssptr cmds,FILE *fptr,const char *format,...);
 void scmdflush(FILE *fptr);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 }
 #endif
 

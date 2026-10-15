@@ -6,7 +6,7 @@ of the Gnu Lesser General Public License (LGPL). */
 #ifndef __random2_h
 #define __random2_h
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 extern "C" {
 #endif
 
@@ -195,7 +195,7 @@ void randshuffletableI(int *a,int n);
 void randshuffletableV(void **a,int n);
 void showdist(int n,float low,float high,int bin);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 }
 #endif
 

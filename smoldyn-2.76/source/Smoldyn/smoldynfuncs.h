@@ -15,7 +15,7 @@
 extern void (*LoggingCallback)(simptr,int,const char*,...);
 #endif
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 extern "C" {
 #endif
 
@@ -541,6 +541,7 @@ int simreadstring(simptr sim,ParseFilePtr pfp,const char *word,char *line2);
 int loadsim(simptr sim,const char *fileroot,const char *filename,const char *flags);
 int simupdate(simptr sim);
 #ifdef OPTION_VCELL
+	int runSmoldyn(int, char **);
 	int simInitAndLoad(const char *fileroot,const char *filename,simptr *smptr,const char *flags, ValueProviderFactory* valueProviderFactory, AbstractMesh* mesh);
 #else
 	int simInitAndLoad(const char *fileroot,const char *filename,simptr *smptr,const char *flags,const char *logfile);
@@ -560,7 +561,7 @@ double evaluateMemRnxRate(simptr sim, rxnptr reaction, double* pos, char* panelN
 double evaluateSurfActionRate(simptr sim, surfactionptr actdetails,enum MolecState ms, double* pos, char* panelName);
 int randomPosInMesh(simptr sim, double* centerPos,  double* pos);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 }
 #endif
 

@@ -13,3 +13,37 @@ build artefacts `libSteve/testcode`, `libSteve/testcode.dSYM`, `Smoldyn/libsmold
 VCell modifications are local to this repository and are made in commits after the import
 commit, so `git diff <import commit> -- smoldyn-2.76` shows all of them. `CMakeLists.txt` is
 VCell's own, not upstream's.
+
+## VCell modifications
+
+Upstream does not build or test its `OPTION_VCELL` configuration, so 2.76 needed these local
+changes for VCell:
+
+- `CMakeLists.txt`: VCell's own build of `smoldyn_static`. Every source is compiled as C++
+  (the VCell declarations in `smoldyn.h` are C++). Exports `VCELL_SMOLDYN_VERSION=276` and
+  `SMOLDYN_CXX_LINKAGE`, and sets a default `BNG2_PATH`.
+- `libSteve/{List,opengl2,random2,Rn,RnSparse,SimCommand}.h`, `Smoldyn/smoldynfuncs.h`: the
+  `extern "C"` blocks are skipped when `SMOLDYN_CXX_LINKAGE` is defined. With everything
+  compiled as C++, the other libSteve headers give C++ linkage, and a function's linkage would
+  otherwise depend on which header a translation unit reached first.
+- `Smoldyn/smoldyn.h`: with `OPTION_VCELL`, include the real libSteve headers before the
+  copies of their declarations that `smoldyn.h` carries. Those copies are stale
+  (`cmdsuperstruct` has a different layout, `STRCHAR` is 256 rather than 512), so a file that
+  included `smoldyn.h` first (e.g. the bridge) disagreed with Smoldyn about struct layouts.
+- `Smoldyn/smolcomparts.c`: close the `extern "C"` block around `zlib.h` (the brace was on the
+  `#include` line).
+- `Smoldyn/smolsim.cpp`, `smolreact.c`, `smolsurface.c`: include `<sstream>` for the VCell code.
+- `Smoldyn/smolsurface.c`: pass `index` to `surfsetrate` in the VCell constant-rate branch
+  (the signature gained it upstream).
+- `Smoldyn/smolfilament.c`: cast `calloc` results (needed as C++).
+- `Smoldyn/smoldynfuncs.h`: declare `runSmoldyn`.
+- `Smoldyn/smolreact.c`: VCell's mesh-based 0th-order creation (`zeroreactcmptmesh`,
+  vcell-fvsolver#24 and #26), carried over from the 2.38 tree with the new `posincompart`
+  argument.
+- Carried over from VCell's 2.38 tree: `Smoldyn/vcell_smoldyn.cpp` (the `smoldyn_x64` entry
+  point, updated for the new `simSetLogging` signature and with the includes it needs) and
+  `libSteve/ComplexDataStructures/` (unchanged; used by the gtest suite).
+
+Not yet carried over from VCell's 2.38 tree: the surface/panel name hashtables (`snametosrf`,
+`pnametopanel`) that replaced `stringfind` lookups in `smolsurface.c`, `smolcmd.c`, `smolsim.c`
+and `smolcomparts.c`. They only affect performance.

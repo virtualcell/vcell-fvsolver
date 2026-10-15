@@ -6,7 +6,7 @@ of the Gnu Lesser General Public License (LGPL). */
 #ifndef __list_h
 #define __list_h
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 extern "C" {
 #endif
 
@@ -74,7 +74,7 @@ void ListClearDD(listptrdd list);
 // List output
 void ListPrintDD(listptrdd list);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) && !defined(SMOLDYN_CXX_LINKAGE)
 }
 #endif
 
