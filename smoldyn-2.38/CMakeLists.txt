@@ -468,6 +468,8 @@ endif(OPTION_NSV)
 #	endif (NOT OPTION_VCELL)
 	add_library(smoldyn_static STATIC ${SRC_FILES} ${HEADER_FILES})
 	target_link_libraries(smoldyn_static vcellsmoldynbridge vcellmessaging)
+	# Lets bridgeVCellSmoldyn adapt to API differences between the vendored Smoldyn versions.
+	target_compile_definitions(smoldyn_static PUBLIC VCELL_SMOLDYN_VERSION=238)
 	target_include_directories(smoldyn_static PUBLIC 
 		${CMAKE_CURRENT_SOURCE_DIR}/source/lib
 		${CMAKE_CURRENT_SOURCE_DIR}/source/Smoldyn

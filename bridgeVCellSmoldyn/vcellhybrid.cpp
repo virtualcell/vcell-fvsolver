@@ -25,32 +25,49 @@ using namespace std;
 extern VCellSmoldynOutput* vcellSmoldynOutput;
 
 /**
- * Disable the particle-file commands VCell writes for "save particle files" (incrementfile and listmols on a
- * *.smoldynOutput file) and report whether there were any. Their Smoldyn-step clock does not match the PDE's
+ * Disable cmd if it is one of the particle-file commands VCell writes for "save particle files" (incrementfile and
+ * listmols on a *.smoldynOutput file), and report whether it was. Their Smoldyn-step clock does not match the PDE's
  * output times when Smoldyn takes larger steps than the PDE; SimTool writes the files at the output times.
  */
-static bool disableParticleFileCommands(queue_c q) {
-	bool found = false;
-	if (q == NULL || q->n <= 0) {
+static bool disableParticleFileCommand(cmdptr cmd) {
+	if (cmd == NULL || cmd->str == NULL) {
 		return false;
 	}
-	for (int i = q->f; i != q->b; i = (i + 1) % q->n) {
-		cmdptr cmd = (cmdptr) q->x[i];
-		if (cmd == NULL || cmd->str == NULL) {
+	char word[STRCHAR], file[STRCHAR];
+	if (sscanf(cmd->str, "%s %s", word, file) != 2) {
+		return false;
+	}
+	size_t len = strlen(file);
+	const char* ext = ".smoldynOutput";
+	bool smoldynOutput = len >= strlen(ext) && strcmp(file + len - strlen(ext), ext) == 0;
+	if (smoldynOutput && (strcmp(word, "listmols") == 0 || strcmp(word, "incrementfile") == 0)) {
+		cmd->str[0] = '\0';  // an empty command line is a no-op (docommand)
+		return true;
+	}
+	return false;
+}
+
+/**
+ * Disable the particle-file commands (see disableParticleFileCommand) and report whether there were any.
+ */
+static bool disableParticleFileCommands(cmdssptr cmds) {
+	bool found = false;
+#if VCELL_SMOLDYN_VERSION >= 276
+	// Smoldyn 2.76 keeps each command as a template in cmdlist and builds the run-time queues from copies of the
+	// templates when the simulation is set up, so the templates are what has to change.
+	for (int i = 0; i < cmds->ncmdlist; i++) {
+		found = disableParticleFileCommand(cmds->cmdlist[i]) || found;
+	}
+#else
+	for (auto q : {cmds->cmd, cmds->cmdi}) {
+		if (q == NULL || q->n <= 0) {
 			continue;
 		}
-		char word[STRCHAR], file[STRCHAR];
-		if (sscanf(cmd->str, "%s %s", word, file) != 2) {
-			continue;
-		}
-		size_t len = strlen(file);
-		const char* ext = ".smoldynOutput";
-		bool smoldynOutput = len >= strlen(ext) && strcmp(file + len - strlen(ext), ext) == 0;
-		if (smoldynOutput && (strcmp(word, "listmols") == 0 || strcmp(word, "incrementfile") == 0)) {
-			cmd->str[0] = '\0';  // an empty command line is a no-op (docommand)
-			found = true;
+		for (int i = q->f; i != q->b; i = (i + 1) % q->n) {
+			found = disableParticleFileCommand((cmdptr) q->x[i]) || found;
 		}
 	}
+#endif
 	return found;
 }
 
@@ -73,9 +90,7 @@ simptr vcellhybrid::smoldynInit(SimTool* simTool, string& fileName) {
 
 	er=simInitAndLoad(root,fname,&sim,flags,new VCellValueProviderFactory(simTool), new VCellMesh(simTool));
 	if (sim != NULL && sim->cmds != NULL) {
-		bool inQueue = disableParticleFileCommands(((cmdssptr)sim->cmds)->cmd);
-		bool inIntQueue = disableParticleFileCommands(((cmdssptr)sim->cmds)->cmdi);
-		bSaveParticlePositions = inQueue || inIntQueue;
+		bSaveParticlePositions = disableParticleFileCommands((cmdssptr)sim->cmds);
 	}
 	er=simUpdateAndDisplay(sim);
 	er=scmdopenfiles((cmdssptr)sim->cmds,1);
@@ -116,9 +131,8 @@ simptr vcellhybrid::smoldynInit(SimTool* simTool, string& fileName) {
 			enum MolecState ms,ms2;
 			enum PanelFace face;
 			int nspecies=sim->mols?sim->mols->nspecies:0;
-			HashtableIterator iter = surfacess->snametosrf->getIterator(surfacess->snametosrf);
-			while (iter.iter(&iter)) {
-				surfaceptr srf=(surfaceptr)iter.value;
+			for(int s=0; s<numSrfs; s++) {
+				surfaceptr srf=surfacess->srflist[s];
 				for(int i=0; i<nspecies; i++){
 					for(ms=(MolecState)0; ms<MSMAX; ms=(MolecState)(ms+1)){
 						for(face=(PanelFace)0; face<3; face=(PanelFace)(face+1)){

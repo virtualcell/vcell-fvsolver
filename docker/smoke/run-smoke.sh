@@ -8,7 +8,7 @@
 #                     VCell/tests/testFiles/input/FVSolver (3-D FV solver, 2 membranes) -- compared
 #                     against docker/smoke/reference/fv3d-summary.json (0.9.7's per-variable statistics)
 #   smoldyn_x64       VCell/tests/testFiles/input/Smoldyn (3-D membrane A<->B, 201 time points) --
-#                     compared against docker/smoke/reference/smoldyn-summary.json (0.9.7's totals)
+#                     compared against docker/smoke/reference/smoldyn-summary.json (Smoldyn 2.76's totals)
 #
 # usage: run-smoke.sh <workdir> <runner...>
 #   <workdir>  a fresh host directory; mounted by the runner as /simdata
@@ -19,7 +19,9 @@
 # Environment: PYTHON (with numpy) runs the comparisons (default python3); BROKER_HOST is the
 # address the container reaches this host's broker at (default 127.0.0.1: host networking);
 # FV_RTOL / SMOLDYN_RTOL loosen the comparisons; SKIP_ENTRYPOINT_CHECKS=1 skips the --help/exit-2
-# checks (for the legacy 0.9.7 image, which has no entrypoint).
+# checks (for the legacy 0.9.7 image, which has no entrypoint). The 0.9.7 image (Smoldyn 2.38) follows a
+# different Smoldyn trajectory; compare it against 0.9.7's totals, in git at
+# d789c29a:docker/smoke/reference/smoldyn-summary.json.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
