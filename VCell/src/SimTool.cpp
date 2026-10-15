@@ -715,12 +715,7 @@ void SimTool::clearLog(){
 		zipFileName = this->bSimZip ? tokens[2] : "";
 		time = std::stod(tokens[this->bSimZip ? 3 : 2]);
 
-		char simFileNameCharArray[simFileName.size()];
-		strcpy(simFileNameCharArray, simFileName.c_str());
-		char *dotSim = strstr(simFileNameCharArray, SIM_FILE_EXT);
-		if (!dotSim) continue;
-
-		*dotSim = '\0';
+		if (simFileName.find(SIM_FILE_EXT) == std::string::npos) continue;
 
 		buffer.append(this->baseFileName.string()).append(SIM_FILE_EXT);
 		remove(buffer.c_str());
