@@ -77,10 +77,15 @@ The solvers write their results next to the input; FiniteVolume stages each `.si
   sum, sum of squares, min and max of every variable at every time point must match
   `docker/smoke/reference/fv3d-summary.json` (0.9.7's output) within 1e-6 relative;
 - `smoldyn_x64 /simdata/smoldyn/input.smoldynInput -tid 0`: per-variable totals must match
-  `docker/smoke/reference/smoldyn-summary.json` (0.9.7's output) in their time mean (within 25%), and the
-  molecule total (A + B = 5) must be conserved at every one of the 201 time points. (Smoldyn's own Mersenne
-  twister makes a run deterministic for a given binary; today every build reproduces 0.9.7's trajectory
-  exactly, but the check is statistical so that a compiler change does not break it.)
+  `docker/smoke/reference/smoldyn-summary.json` (Smoldyn 2.76's output) in their time mean (within 25%), and
+  the molecule total (A + B = 5) must be conserved at every one of the 201 time points. (Smoldyn's own
+  Mersenne twister makes a run deterministic for a given binary; today every build reproduces the reference
+  trajectory exactly, but the check is statistical so that a compiler change does not break it.) The
+  reference was regenerated when Smoldyn moved from 2.38 to 2.76: the new version draws random numbers
+  differently, so the fixed seed gives another trajectory (A's time mean 2.02 rather than 0.9.7's 3.02, with
+  only 5 molecules), while over 10 seeds the two versions agree (A's time mean 2.66 ± 0.15 vs 2.65 ± 0.11).
+  A Smoldyn upgrade that changes how random numbers are drawn needs the reference regenerated the same way
+  (`docker/smoke/simdata.py summary`).
 
 The macOS universal binaries run the same three comparisons natively (arm64) in `cd.yml`.
 
