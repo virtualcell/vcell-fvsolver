@@ -269,7 +269,10 @@ endif()
 
 SET(HAVE_ZLIB TRUE)
 add_subdirectory(bridgeVCellSmoldyn)
-add_subdirectory(smoldyn-2.38)
+set(SMOLDYN_DIR smoldyn-2.76 CACHE STRING "Vendored Smoldyn source directory (smoldyn-2.76 or smoldyn-2.38)")
+set_property(CACHE SMOLDYN_DIR PROPERTY STRINGS smoldyn-2.76 smoldyn-2.38)
+message(STATUS "Smoldyn source directory: ${SMOLDYN_DIR}")
+add_subdirectory(${SMOLDYN_DIR})
 
 add_subdirectory(VCell)
 add_subdirectory(PCGPack)

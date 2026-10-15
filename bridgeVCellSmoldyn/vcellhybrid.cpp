@@ -29,7 +29,7 @@ extern VCellSmoldynOutput* vcellSmoldynOutput;
  * *.smoldynOutput file) and report whether there were any. Their Smoldyn-step clock does not match the PDE's
  * output times when Smoldyn takes larger steps than the PDE; SimTool writes the files at the output times.
  */
-static bool disableParticleFileCommands(queue_c q) {
+static bool disableParticleFileCommands(decltype(cmdssptr()->cmd) q) {
 	bool found = false;
 	if (q == NULL || q->n <= 0) {
 		return false;
@@ -116,9 +116,8 @@ simptr vcellhybrid::smoldynInit(SimTool* simTool, string& fileName) {
 			enum MolecState ms,ms2;
 			enum PanelFace face;
 			int nspecies=sim->mols?sim->mols->nspecies:0;
-			HashtableIterator iter = surfacess->snametosrf->getIterator(surfacess->snametosrf);
-			while (iter.iter(&iter)) {
-				surfaceptr srf=(surfaceptr)iter.value;
+			for(int s=0; s<numSrfs; s++) {
+				surfaceptr srf=surfacess->srflist[s];
 				for(int i=0; i<nspecies; i++){
 					for(ms=(MolecState)0; ms<MSMAX; ms=(MolecState)(ms+1)){
 						for(face=(PanelFace)0; face<3; face=(PanelFace)(face+1)){

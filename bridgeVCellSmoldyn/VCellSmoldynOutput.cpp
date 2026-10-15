@@ -195,13 +195,17 @@ void VCellSmoldynOutput::parseInput(string& input) {
 				}
 			} else if (variables[varCount]->type == VAR_MEMBRANE) {
 				surfacessptr srfss = smoldynSim->srfss;
-				Hashtable* nameToSurfaceptrMap = smoldynSim->srfss->snametosrf;
-				if (!nameToSurfaceptrMap->contains(nameToSurfaceptrMap, vardomain)) {
+				for(int s=0; s<srfss->nsrf; s++) {
+					if (!strcmp(srfss->snames[s], vardomain)) {
+						variables[varCount]->srf = srfss->srflist[s];
+						break;
+					}
+				}
+				if (variables[varCount]->srf == 0) {
 					stringstream ss;
 					ss << "found no surface for variable '" << variables[varCount]->name << "'";
 					throw ss.str();
 				}
-				variables[varCount]->srf = (surfaceptr)nameToSurfaceptrMap->getFrom(nameToSurfaceptrMap, vardomain);
 			}
 			varCount ++;
 		}
@@ -419,8 +423,13 @@ void VCellSmoldynOutput::clearLog() {
 // Restored from 1edb0892d836 (2011-10-18); disabled for performance in 742e6d7ae.
 bool VCellSmoldynOutput::isInSameCompartment(double *pos1, double* pos2) {
 	for(int cl=0;cl<smoldynSim->cmptss->ncmpt;cl++) {
+#if VCELL_SMOLDYN_VERSION >= 276
+		int in1=posincompart(smoldynSim,pos1,smoldynSim->cmptss->cmptlist[cl],0);
+		int in2=posincompart(smoldynSim,pos2,smoldynSim->cmptss->cmptlist[cl],0);
+#else
 		int in1=posincompart(smoldynSim,pos1,smoldynSim->cmptss->cmptlist[cl]);
 		int in2=posincompart(smoldynSim,pos2,smoldynSim->cmptss->cmptlist[cl]);
+#endif
 		if (in1 == 1 && in2 == 1) {
 			return true;
 		}
