@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <stdint.h>
 #include <float.h>
 #include "Geometry.h"
 #include "math2.h"
@@ -203,6 +204,36 @@ char *surfdm2string(enum DrawMode dm,char *string) {
 /******************************************************************************/
 
 
+/* surfnameindex. VCell: hash lookup that replaces stringfind on srfss->snames. Returns the
+index of the surface called name, or -1 if there is none. */
+int surfnameindex(surfacessptr srfss,const char *name) {
+	Hashtable *ht;
+
+	ht=srfss?srfss->snameindex:NULL;
+	if(!ht || !ht->contains(ht,name)) return -1;
+	return (int)(intptr_t)ht->getFrom(ht,name); }
+
+
+/* panelnameindex. VCell: hash lookup that replaces stringfind on srf->pname[ps]. Returns the
+index of the panel of shape ps called name, or -1 if there is none. */
+int panelnameindex(surfaceptr srf,enum PanelShape ps,const char *name) {
+	Hashtable *ht;
+
+	if(!srf || ps<0 || ps>=PSMAX) return -1;
+	ht=srf->pnameindex[ps];
+	if(!ht || !ht->contains(ht,name)) return -1;
+	return (int)(intptr_t)ht->getFrom(ht,name); }
+
+
+/* nameindexadd. VCell: records that name has the given index, creating the table if needed.
+An existing entry is kept, as stringfind returns the first match. Returns 0, or 1 if out of
+memory. */
+static int nameindexadd(Hashtable **htptr,const char *name,int index) {
+	if(!*htptr && !(*htptr=createNewHashtable())) return 1;
+	if((*htptr)->contains(*htptr,name)) return 0;
+	return (*htptr)->putIn(*htptr,name,(void*)(intptr_t)index)?0:1; }
+
+
 /* readsurfacename. */
 int readsurfacename(simptr sim,const char *str,enum PanelShape *psptr,int *pptr) {
 	char snm[STRCHAR],pnm[STRCHAR],*colon;
@@ -231,7 +262,7 @@ int readsurfacename(simptr sim,const char *str,enum PanelShape *psptr,int *pptr)
 		else																						// all:panel
 			p=-2; }
 	else {																						// specific surface
-		s=stringfind(sim->srfss->snames,sim->srfss->nsrf,snm);
+		s=surfnameindex(sim->srfss,snm);
 		if(s==-1)																				// unknown surface
 			s=-4;
 		else {
@@ -246,7 +277,7 @@ int readsurfacename(simptr sim,const char *str,enum PanelShape *psptr,int *pptr)
 				sscanf(pnm,"tri_%d_%d_%d",&p,&globalIndex,&memIndex); }
 			else {																				// surface:panel
 				for(ps=(enum PanelShape)0;p==-1 && ps<PSMAX;ps=(enum PanelShape)(ps+1))
-					p=stringfind(sim->srfss->srflist[s]->pname[ps],sim->srfss->srflist[s]->npanel[ps],pnm);
+					p=panelnameindex(sim->srfss->srflist[s],ps,pnm);
 				if(p==-1) {
 					ps=PSnone;
 					p=-3; }
@@ -462,7 +493,7 @@ double surfacearea2(simptr sim,int surface,enum PanelShape ps,char *pname,int *t
 
 	else if(surface>=0 && ps!=PSall && pname && strcmp(pname,"all")) {		// specific panel
 		srf=sim->srfss->srflist[surface];
-		panel=stringfind(srf->pname[ps],srf->npanel[ps],pname);
+		panel=panelnameindex(srf,ps,pname);
 		if(panel<0) {
 			area=0;
 			totpanel=0; }
@@ -482,7 +513,7 @@ double surfacearea2(simptr sim,int surface,enum PanelShape ps,char *pname,int *t
 			for(ps=(enum PanelShape)pslo;ps<(enum PanelShape)pshi;ps=(enum PanelShape)(ps+1)) {
 				srf=sim->srfss->srflist[s];
 				if(!pname || !strcmp(pname,"all")) {plo=0;phi=srf->npanel[ps];}
-				else if((panel=stringfind(srf->pname[ps],srf->npanel[ps],pname))<0) plo=phi=0;
+				else if((panel=panelnameindex(srf,ps,pname))<0) plo=phi=0;
 				else {plo=panel;phi=panel+1;}
 				for(p=plo;p<phi;p++) {
 					area+=surfacearea2(sim,s,ps,srf->pname[ps][p],NULL);
@@ -1088,6 +1119,7 @@ surfaceptr surfacealloc(surfaceptr srf,int oldmaxspecies,int maxspecies,int dim)
 		for(ps=(enum PanelShape)0;ps<PSMAX;ps=(enum PanelShape)(ps+1)) srf->npanel[ps]=0;
 		for(ps=(enum PanelShape)0;ps<PSMAX;ps=(enum PanelShape)(ps+1)) srf->pname[ps]=NULL;
 		for(ps=(enum PanelShape)0;ps<PSMAX;ps=(enum PanelShape)(ps+1)) srf->panels[ps]=NULL;
+		for(ps=(enum PanelShape)0;ps<PSMAX;ps=(enum PanelShape)(ps+1)) srf->pnameindex[ps]=NULL;
 		srf->port[PFfront]=NULL;
 		srf->port[PFback]=NULL;
 		srf->totarea=0;
@@ -1182,7 +1214,8 @@ void surfacefree(surfaceptr srf,int maxspecies) {
 			if(srf->panels[ps]) panelfree(srf->panels[ps][p]);
 			if(srf->pname[ps]) free(srf->pname[ps][p]); }
 		free(srf->pname[ps]);
-		free(srf->panels[ps]); }
+		free(srf->panels[ps]);
+		if(srf->pnameindex[ps]) srf->pnameindex[ps]->freeThis(srf->pnameindex[ps]); }
 
 	for(i=0;i<maxspecies;i++)
 		if(srf->actdetails[i]) {
@@ -1238,6 +1271,7 @@ surfacessptr surfacessalloc(surfacessptr srfss,int maxsurface,int maxspecies,int
 		srfss->neighdist=10*DBL_EPSILON;
 		srfss->snames=NULL;
 		srfss->srflist=NULL;
+		srfss->snameindex=NULL;
 		srfss->maxmollist=0;
 		srfss->nmollist=0;
 		srfss->srfmollist=NULL; }
@@ -1301,6 +1335,8 @@ void surfacessfree(surfacessptr srfss) {
 		for(s=0;s<srfss->maxsrf;s++)
 			free(srfss->snames[s]);
 		free(srfss->snames); }
+
+	if(srfss->snameindex) srfss->snameindex->freeThis(srfss->snameindex);
 
 	free(srfss);
 	return; }
@@ -2029,7 +2065,7 @@ surfaceptr surfaddsurface(simptr sim,const char *surfname) {
 		if(er) return NULL; }
 	srfss=sim->srfss;
 
-	s=stringfind(srfss->snames,srfss->nsrf,surfname);
+	s=surfnameindex(srfss,surfname);
 	if(s<0) {
 		if(srfss->nsrf==srfss->maxsrf) {
 			er=surfenablesurfaces(sim,srfss->nsrf*2+1);
@@ -2037,6 +2073,7 @@ surfaceptr surfaddsurface(simptr sim,const char *surfname) {
 		s=srfss->nsrf++;
 		strncpy(srfss->snames[s],surfname,STRCHAR-1);
 		srfss->snames[s][STRCHAR-1]='\0';
+		if(nameindexadd(&srfss->snameindex,srfss->snames[s],s)) return NULL;
 		srf=srfss->srflist[s];
 		surfsetcondition(srfss,SClists,0); }
 	else
@@ -2431,7 +2468,7 @@ int surfsetmaxpanel(surfaceptr srf,int dim,enum PanelShape ps,int maxpanel) {
 
 /* surfaddpanel */
 int surfaddpanel(surfaceptr srf,int dim,enum PanelShape ps,const char *string,double *params,const char *name) {
-	int p,ok,pdim,pt,d,axis01,axis12;
+	int p,ok,pdim,pt,d,axis01,axis12,newpanel;
 	panelptr pnl;
 	double point[8][3],front[3],lengthinv;
 	char ch;
@@ -2641,16 +2678,18 @@ int surfaddpanel(surfaceptr srf,int dim,enum PanelShape ps,const char *string,do
 			if(normalizeVD(front,3)<=0) return 8; }}
 
 	p=-1;
+	newpanel=0;
 	if(name && name[0]!='\0') {
 		for(ps2=(enum PanelShape)0;ps2<PSMAX && p==-1;ps2=(enum PanelShape)(ps2+1))
-			p=stringfind(srf->pname[ps2],srf->npanel[ps2],name);
+			p=panelnameindex(srf,ps2,name);
 		if(p!=-1 && (ps2-1)!=ps) return 9; }      // panel name was used before for a different shape
 
 	if(p==-1) {																	// new panel
 		if(srf->npanel[ps]==srf->maxpanel[ps]) {
 			ok=panelsalloc(srf,dim,srf->maxpanel[ps]*2+1,srf->srfss->maxspecies,ps);
 			if(!ok) return -1; }
-		p=srf->npanel[ps]++; }
+		p=srf->npanel[ps]++;
+		newpanel=1; }
 
 	pnl=srf->panels[ps][p];
 	for(pt=0;pt<pnl->npts;pt++)
@@ -2659,6 +2698,7 @@ int surfaddpanel(surfaceptr srf,int dim,enum PanelShape ps,const char *string,do
 	for(d=0;d<3;d++)
 		pnl->front[d]=pnl->oldfront[d]=front[d];
 	if(name && name[0]!='\0') strcpy(srf->pname[ps][p],name);
+	if(newpanel && nameindexadd(&srf->pnameindex[ps],srf->pname[ps][p],p)) return -1;
 
 	surfsetcondition(srf->srfss,SClists,0);
 	boxsetcondition(srf->srfss->sim->boxs,SCparams,0);
@@ -3578,7 +3618,7 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		CHECKS(itct==2,"format for jump: panel1 face1 -> panel2 face2");
 		ps=(enum PanelShape)0;
 		p=0;
-		while(ps<PSMAX && (p=stringfind(srf->pname[ps],srf->npanel[ps],nm))==-1) ps=(enum PanelShape)(ps + 1);
+		while(ps<PSMAX && (p=panelnameindex(srf,ps,nm))==-1) ps=(enum PanelShape)(ps + 1);
 		CHECKS(p>=0,"first panel name listed in jump is not recognized");
 		face=surfstring2face(facenm);
 		CHECKS(face<=PFback,"first face listed in jump needs to be 'front' or 'back'");
@@ -3591,7 +3631,7 @@ surfaceptr surfreadstring(simptr sim,ParseFilePtr pfp,surfaceptr srf,const char 
 		CHECKS(line2=strnword(line2,2),"format for jump: panel1 face1 -> panel2 face2");
 		itct=sscanf(line2,"%s %s",nm,facenm);
 		CHECKS(itct==2,"format for jump: panel1 face1 -> panel2 face2");
-		p2=stringfind(srf->pname[ps],srf->npanel[ps],nm);
+		p2=panelnameindex(srf,ps,nm);
 		CHECKS(p2>=0,"second panel name listed in jump is not recognized, or not same shape as first panel");
 		face2=surfstring2face(facenm);
 		CHECKS(face2<=PFback,"second face listed in jump needs to be 'front' or 'back'");

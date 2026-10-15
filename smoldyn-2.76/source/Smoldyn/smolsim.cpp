@@ -946,7 +946,7 @@ int simreadstring(simptr sim,ParseFilePtr pfp,const char *word,char *line2) {
 		CHECKS(itct==2,"surface_drift format: species(state) surface panel_shape values");
 		if(!strcmp(nm,"all")) s=-1;
 		else {
-			s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+			s=surfnameindex(sim->srfss,nm);
 			CHECKS(s>=0,"surface name in surface_drift is not recognized"); }
 		ps=surfstring2ps(shapenm);
 		CHECKS(ps!=PSnone,"in surface_drift, panel shape name not recognized");
@@ -973,7 +973,7 @@ int simreadstring(simptr sim,ParseFilePtr pfp,const char *word,char *line2) {
 		CHECKS(itct==2,"surface_drift_rule format: species(state) surface panel_shape values");
 		if(!strcmp(nm,"all")) s=-1;
 		else {
-			s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+			s=surfnameindex(sim->srfss,nm);
 			CHECKS(s>=0,"surface name in surface_drift_rule is not recognized"); }
 		ps=surfstring2ps(shapenm);
 		CHECKS(ps!=PSnone,"in surface_drift_rule, panel shape name not recognized");
@@ -1048,7 +1048,7 @@ int simreadstring(simptr sim,ParseFilePtr pfp,const char *word,char *line2) {
 		CHECKS(itct==3,"surface_mol format: nmol species(state) surface panel_shape panel_name [position]");
 		if(!strcmp(nm,"all")) s=-1;
 		else {
-			s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+			s=surfnameindex(sim->srfss,nm);
 			CHECKS(s>=0,"surface name in surface_mol is not recognized"); }
 		ps=surfstring2ps(shapenm);
 		CHECKS(ps!=PSnone,"in surface_mol, panel shape name not recognized");
@@ -1479,7 +1479,7 @@ int simreadstring(simptr sim,ParseFilePtr pfp,const char *word,char *line2) {
 		CHECKS(itct==2,"surface format: surface_name statement_name statement_text");
 		line2=strnword(line2,3);
 		CHECKS(line2,"surface format: surface_name statement_name statement_text");
-		s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+		s=surfnameindex(sim->srfss,nm);
 		CHECKS(s>=0,"surface is unrecognized");
 		srf=sim->srfss->srflist[s];
 		srf=surfreadstring(sim,pfp,srf,nm1,line2);

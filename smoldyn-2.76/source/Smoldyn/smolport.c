@@ -295,7 +295,7 @@ portptr portreadstring(simptr sim,ParseFilePtr pfp,portptr port,const char *word
 		CHECKS(port,"port name has to be entered before surface");
 		itct=sscanf(line2,"%s",nm);
 		CHECKS(itct==1,"error reading surface name");
-		s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+		s=surfnameindex(sim->srfss,nm);
 		CHECKS(s>=0,"surface '%s' not recognized",nm);
 		port=portaddport(sim,port->portname,sim->srfss->srflist[s],PFnone);
 		CHECKBUG(port,"SMOLDYN BUG adding surface to port");

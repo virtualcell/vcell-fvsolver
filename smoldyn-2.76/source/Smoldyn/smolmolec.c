@@ -2764,7 +2764,7 @@ int addsurfmol(simptr sim,int nmol,int ident,enum MolecState ms,double *pos,pane
 	if(pnl || (surface>=0 && ps!=PSall && pname && strcmp(pname,"all"))) {			// add to a specific panel
 		if(!pnl) {
 			srf=sim->srfss->srflist[surface];
-			panel=stringfind(srf->pname[ps],srf->npanel[ps],pname);
+			panel=panelnameindex(srf,ps,pname);
 			if(panel<0) return 2;
 			pnl=srf->panels[ps][panel]; }
 		for(m=0;m<nmol;m++) {
@@ -2807,7 +2807,7 @@ int addsurfmol(simptr sim,int nmol,int ident,enum MolecState ms,double *pos,pane
 			for(ps=(enum PanelShape)pslo;ps<(enum PanelShape)pshi;ps=(enum PanelShape)(ps+1)) {
 				srf=sim->srfss->srflist[s];
 				if(!pname || !strcmp(pname,"all")) {plo=0;phi=srf->npanel[ps];}
-				else if((panel=stringfind(srf->pname[ps],srf->npanel[ps],pname))<0) plo=phi=0;
+				else if((panel=panelnameindex(srf,ps,pname))<0) plo=phi=0;
 				else {plo=panel;phi=panel+1;}
 				for(p=plo;p<phi;p++) {
 					area+=surfacearea2(sim,s,ps,srf->pname[ps][p],NULL);

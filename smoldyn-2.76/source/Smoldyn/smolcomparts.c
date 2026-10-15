@@ -893,7 +893,7 @@ compartptr compartreadstring(simptr sim,ParseFilePtr pfp,compartptr cmpt,const c
 		CHECKS(sim->srfss,"surfaces need to be entered before compartment surfaces");
 		itct=sscanf(line2,"%s",nm);
 		CHECKS(itct==1,"error reading surface name");
-		s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+		s=surfnameindex(sim->srfss,nm);
 		CHECKS(s>=0,"surface name '%s' not recognized",nm);
 		er=compartaddsurf(cmpt,sim->srfss->srflist[s]);
 		CHECKS(er!=1,"out of memory adding surface to compartment");

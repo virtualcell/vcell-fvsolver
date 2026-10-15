@@ -2452,7 +2452,7 @@ int rxnparsereaction(simptr sim,const char *word,char *line2,char *errstr) {
 		itct=sscanf(line2,"%s",nm);
 		CHECKS(itct==1,"failed to read reaction surface");
 		CHECKS(sim->srfss,"no surfaces defined");
-		s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+		s=surfnameindex(sim->srfss,nm);
 		CHECKS(s>=0,"surface %s not recognized",nm);
 		srf=sim->srfss->srflist[s];
 		line2=strnword(line2,2);
@@ -2476,7 +2476,7 @@ int rxnparsereaction(simptr sim,const char *word,char *line2,char *errstr) {
 			itct=sscanf(chptr+1,"%s",nm);
 			CHECKS(itct==1,"failed to react surface name");
 			CHECKS(sim->srfss,"no surfaces defined");
-			s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+			s=surfnameindex(sim->srfss,nm);
 			CHECKS(s>=0,"surface %s not recognized",nm);
 			srf=sim->srfss->srflist[s];
 			line2=strnword(line2,2);

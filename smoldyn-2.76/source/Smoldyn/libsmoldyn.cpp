@@ -1519,7 +1519,7 @@ extern CSTRING int smolGetSurfaceIndex(simptr sim,const char *surface) {
 	LCHECK(surface,funcname,ECmissing,"missing surface");
 	LCHECK(sim->srfss && sim->srfss->nsrf,funcname,ECnonexist,"no surfaces defined");
 	LCHECK(strcmp(surface,"all"),funcname,ECall,"surface cannot be 'all'");
-	s=stringfind(sim->srfss->snames,sim->srfss->nsrf,surface);
+	s=surfnameindex(sim->srfss,surface);
 	LCHECK(s>=0,funcname,ECnonexist,"surface not found");
 	return s;
  failure:
@@ -1535,7 +1535,7 @@ extern CSTRING int smolGetSurfaceIndexNT(simptr sim,const char *surface) {
 	LCHECKNT(surface,funcname,ECmissing,"missing surface");
 	LCHECKNT(sim->srfss && sim->srfss->nsrf,funcname,ECnonexist,"no surfaces defined");
 	LCHECKNT(strcmp(surface,"all"),funcname,ECall,"surface cannot be 'all'");
-	s=stringfind(sim->srfss->snames,sim->srfss->nsrf,surface);
+	s=surfnameindex(sim->srfss,surface);
 	LCHECKNT(s>=0,funcname,ECnonexist,"surface not found");
 	return s;
  failure:
@@ -1748,11 +1748,11 @@ extern CSTRING int smolGetPanelIndex(simptr sim,const char *surface,enum PanelSh
 
 #if 0
 	for(ps=(enum PanelShape)0;ps<(enum PanelShape)PSMAX && p<0;ps=(enum PanelShape)(ps+1))
-		p=stringfind(srf->pname[ps],srf->npanel[ps],panel);
+		p=panelnameindex(srf,ps,panel);
 #else
         for(auto ips : AllPanels_arr) {
             int _ips = static_cast<int>(ips);
-            p        = stringfind(srf->pname[_ips], srf->npanel[_ips], panel);
+            p        = panelnameindex(srf,(enum PanelShape)_ips,panel);
             if(p >= 0) {
                 ps = ips;
                 break;
@@ -1783,11 +1783,11 @@ extern CSTRING int smolGetPanelIndexNT(simptr sim,const char *surface,enum Panel
 	p=-1;
 #if 0
 	for(ps=(enum PanelShape)0;ps<(enum PanelShape)PSMAX && p<0;ps=(enum PanelShape)(ps+1))
-		p=stringfind(srf->pname[ps],srf->npanel[ps],panel);
+		p=panelnameindex(srf,ps,panel);
 #else
     for(auto ips : AllPanels_arr) {
         int _ips = static_cast<int>(ips);
-        p        = stringfind(srf->pname[_ips], srf->npanel[_ips], panel);
+        p        = panelnameindex(srf,(enum PanelShape)_ips,panel);
         if(p >= 0) {
             ps = ips;
             break;

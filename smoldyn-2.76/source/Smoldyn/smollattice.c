@@ -846,7 +846,7 @@ latticeptr latticereadstring(simptr sim,ParseFilePtr pfp,latticeptr lattice,cons
 						er=latticeaddsurface(lattice,sim->srfss->srflist[i]);
 						CHECKS(er!=1,"out of memory adding surface to lattice"); }}
 				else {
-					s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+					s=surfnameindex(sim->srfss,nm);
 					CHECKS(s>=0,"surface '%s' not recognized",nm);
 					er=latticeaddsurface(lattice,sim->srfss->srflist[s]);
 					CHECKS(er!=1,"out of memory adding surface to lattice"); }

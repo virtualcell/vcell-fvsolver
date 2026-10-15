@@ -1565,7 +1565,7 @@ filamenttypeptr filtypeReadString(simptr sim,ParseFilePtr pfp,filamenttypeptr fi
 		itct=sscanf(line2,"%s",nm1);
 		CHECKS(itct==1,"branch_surface format: surface_name distance");
 		CHECKS(sim->srfss,"branch_surface requires that surfaces be defined first");
-		i1=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm1);
+		i1=surfnameindex(sim->srfss,nm1);
 		CHECKS(i1>=0,"branch_surface surface name not recognized (define the surface before the filament type)");
 		line2=strnword(line2,2);
 		CHECKS(line2,"branch_surface format: surface_name distance");
@@ -1593,7 +1593,7 @@ filamenttypeptr filtypeReadString(simptr sim,ParseFilePtr pfp,filamenttypeptr fi
 		itct=sscanf(line2,"%s",nm1);
 		CHECKS(itct==1,"confine_surface format: surface_name force_constant [front|back]");
 		CHECKS(sim->srfss,"confine_surface requires that surfaces be defined first");
-		i1=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm1);
+		i1=surfnameindex(sim->srfss,nm1);
 		CHECKS(i1>=0,"confine_surface surface name not recognized (define the surface before the filament type)");
 		line2=strnword(line2,2);
 		CHECKS(line2,"confine_surface format: surface_name force_constant [front|back]");

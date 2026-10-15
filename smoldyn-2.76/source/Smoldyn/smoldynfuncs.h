@@ -230,6 +230,8 @@ char *surfact2string(enum SrfAction act,char *string);
 
 // low level utilities
 int readsurfacename(simptr sim,const char *str,enum PanelShape *psptr,int *pptr);
+int surfnameindex(surfacessptr srfss,const char *name);
+int panelnameindex(surfaceptr srf,enum PanelShape ps,const char *name);
 double panelarea(panelptr pnl,int dim);
 double surfacearea(surfaceptr srf,int dim,int *totpanelptr);
 double surfacearea2(simptr sim,int surface,enum PanelShape ps,char *pname,int *totpanelptr);

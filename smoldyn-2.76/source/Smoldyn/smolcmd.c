@@ -982,7 +982,7 @@ double fnmolcountonsurf(void *voidsim,char *erstr,char *line2) {
 	line2+=comma+1;
 	itct=sscanf(line2,"%s",nm);
 	SFNCHECK(itct==1,"cannot read surface name");
-	s=stringfind(srfss->snames,srfss->nsrf,nm);
+	s=surfnameindex(srfss,nm);
 	SFNCHECK(s>=0,"surface name '%s' not recognized",nm);
 	srf=srfss->srflist[s];
 
@@ -1253,7 +1253,7 @@ enum CMDcode cmdmolcountonsurf(simptr sim,cmdptr cmd,char *line2) {
 	SCMDCHECK(line2,"missing argument");
 	itct=sscanf(line2,"%s",nm);
 	SCMDCHECK(itct==1,"cannot read argument");
-	s=stringfind(srfss->snames,srfss->nsrf,nm);
+	s=surfnameindex(srfss,nm);
 	SCMDCHECK(s>=0,"surface name '%s' not recognized",nm);
 	srf=srfss->srflist[s];
 	line2=strnword(line2,2);
@@ -2282,7 +2282,7 @@ enum CMDcode cmdlistmolssurf(simptr sim,cmdptr cmd,char *line2) {
 	if(!strcmp(sname,"all"))
 		srf=NULL;
 	else {
-		s=stringfind(srfss->snames,srfss->nsrf,sname);
+		s=surfnameindex(srfss,sname);
 		SCMDCHECK(s>=0,"surface name not recognized");
 		srf=srfss->srflist[s]; }
 	line2=strnword(line2,2);
@@ -3598,7 +3598,7 @@ enum CMDcode cmdkillmolinsphere(simptr sim,cmdptr cmd,char *line2) {
 	SCMDCHECK(itct==1,"cannot read surface name");
 	if(!strcmp(nm,"all")) s=-1;
 	else {
-		s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+		s=surfnameindex(sim->srfss,nm);
 		SCMDCHECK(s>=0,"surface not recognized"); }
 
 	if(i!=-4) {
@@ -3783,7 +3783,7 @@ enum CMDcode cmdfixmolcountonsurf(simptr sim,cmdptr cmd,char *line2) {
 	SCMDCHECK(itct==2 && !strmatherror(ErrString,1),"read failure. %s",ErrString);
 	SCMDCHECK(num>=0,"number cannot be negative");
 	SCMDCHECK(sim->srfss,"no surfaces defined");
-	s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+	s=surfnameindex(sim->srfss,nm);
 	SCMDCHECK(s>=0,"surface not recognized");
 	sptr=sim->srfss->srflist[s];
 
@@ -3835,7 +3835,7 @@ enum CMDcode cmdfixmolcountrangeonsurf(simptr sim,cmdptr cmd,char *line2) {
 	SCMDCHECK(itct==3 && !strmatherror(ErrString,1),"read failure. %s",ErrString);
 	SCMDCHECK(lownum>=0 && highnum>=0 && highnum>=lownum,"molecule numbers are out of bounds");
 	SCMDCHECK(sim->srfss,"no surfaces defined");
-	s=stringfind(sim->srfss->snames,sim->srfss->nsrf,nm);
+	s=surfnameindex(sim->srfss,nm);
 	SCMDCHECK(s>=0,"surface not recognized");
 	sptr=sim->srfss->srflist[s];
 

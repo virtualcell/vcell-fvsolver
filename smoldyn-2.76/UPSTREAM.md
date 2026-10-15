@@ -40,10 +40,12 @@ changes for VCell:
 - `Smoldyn/smolreact.c`: VCell's mesh-based 0th-order creation (`zeroreactcmptmesh`,
   vcell-fvsolver#24 and #26), carried over from the 2.38 tree with the new `posincompart`
   argument.
+- `Smoldyn/smolsurface.c` and the files that look up surfaces or panels by name: VCell's
+  surface/panel name hashtables, which replace linear `stringfind` searches (quadratic in the
+  number of panels when a VCell mesh's `neighbors` statements are read). Unlike the 2.38 port,
+  the tables (`snameindex`, `pnameindex[ps]` in `smoldyn.h`) map names to indices, and
+  `surfnameindex`/`panelnameindex` are drop-in replacements for the `stringfind` calls, so
+  upstream's function names and signatures, and its default panel names, are unchanged.
 - Carried over from VCell's 2.38 tree: `Smoldyn/vcell_smoldyn.cpp` (the `smoldyn_x64` entry
   point, updated for the new `simSetLogging` signature and with the includes it needs) and
   `libSteve/ComplexDataStructures/` (unchanged; used by the gtest suite).
-
-Not yet carried over from VCell's 2.38 tree: the surface/panel name hashtables (`snametosrf`,
-`pnametopanel`) that replaced `stringfind` lookups in `smolsurface.c`, `smolcmd.c`, `smolsim.c`
-and `smolcomparts.c`. They only affect performance.
